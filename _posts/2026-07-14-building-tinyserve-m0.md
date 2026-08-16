@@ -6,7 +6,7 @@ categories: [tinyserve, llm-serving]
 excerpt: "Implement Qwen3 from scratch, prove parity with Transformers, and measure the cost of naive autoregressive decoding."
 ---
 
-*Milestone 0 of [building an LLM inference engine from scratch](/).
+*Milestone 0 of [building an LLM inference engine from scratch](/series/tinyserve/).
 Code: [`tinyserve` @ `f5c3627`](https://github.com/kaix-nv/tinyserve/tree/f5c3627).*
 
 Every inference engine is, at its core, three things: a model that turns

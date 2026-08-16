@@ -6,7 +6,7 @@ categories: [tinyserve, llm-serving]
 excerpt: "Split inference into prefill and decode, cache every layer's keys and values, and make decode cost flat with context length."
 ---
 
-*Milestone 1 of [building an LLM inference engine from scratch](/).
+*Milestone 1 of [building an LLM inference engine from scratch](/series/tinyserve/).
 Previous: [M0 — a correct model, the slowest possible way]({% post_url 2026-07-14-building-tinyserve-m0 %}).*
 
 ## The problem
