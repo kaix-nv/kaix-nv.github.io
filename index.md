@@ -1,10 +1,11 @@
 ---
 layout: home
-title: Building tinyserve
+title: Latest notes
 ---
 
-I am building a minimal, complete modern LLM serving engine from scratch.
-Each milestone starts with a measured limitation, implements one serving
-idea, proves that outputs remain correct, and measures what changed.
+Technical knowledge is organized into [series](/series/). Each series builds
+a system or investigates a topic step by step, with concrete implementations,
+correctness checks, measurements, mistakes, and lessons learned.
 
-Source code: [kaix-nv/tinyserve](https://github.com/kaix-nv/tinyserve)
+The first series, [Building tinyserve](/series/tinyserve/), develops a minimal,
+complete modern LLM serving engine from scratch.
