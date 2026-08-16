@@ -1,5 +1,5 @@
 title: "Kai's Systems Notes"
-description: "Learning modern LLM serving by building tinyserve from scratch"
+description: "Technical notes from building and measuring systems"
 url: "https://kaix-nv.github.io"
 baseurl: ""
 theme: minima
@@ -8,4 +8,5 @@ github_username: kaix-nv
 show_excerpts: true
 timezone: America/Los_Angeles
 header_pages:
+  - series.md
   - about.md
