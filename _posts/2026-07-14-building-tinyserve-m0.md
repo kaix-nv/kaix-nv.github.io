@@ -1,5 +1,6 @@
 ---
 layout: post
+math: true
 title: "Building tinyserve M0: A correct model, the slowest possible way"
 date: 2026-07-14 15:41:31 -0700
 categories: [tinyserve, llm-serving]
