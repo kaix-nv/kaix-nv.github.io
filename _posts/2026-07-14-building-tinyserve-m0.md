@@ -75,30 +75,71 @@ cast back. Every serious implementation does this, and it's invisible
 until you diff logits against a reference and wonder where your 1e-2
 error comes from.
 
-### RoPE: why the KV cache is even possible
+### Position first: attention cannot see order by itself
 
-Rotary position embeddings encode position by *rotating* pairs of
-channels. Split each 128-dim head vector into 64 pairs; rotate pair $i$ of
-the token at position $p$ by angle $p \cdot \theta^{-2i/128}$. Low $i$
-spins fast, high $i$ spins slow — a 64-hand clock encoding position.
+The dot product inside self-attention compares token content; it has no
+term saying where either token came from. If a query sees the same keys
+and values in a different order, their weighted sum is unchanged. A
+causal mask says which earlier tokens are visible, but not how far apart
+two visible tokens are. The model therefore needs an additional position
+signal: this token is at position 0, the next at position 1, and so on.
 
-The property that matters for an inference engine: after rotating both q
-and k, their dot product depends only on the *difference* of their
-positions (rotate two vectors by α and β, and the angle between them
-changes by α − β). Two consequences:
+Some models add a position vector to each token embedding. Qwen3 instead
+uses **rotary position embeddings (RoPE)**: after producing a query `q`
+and key `k`, it changes their coordinates according to the token's
+position. Values are not rotated.
 
-1. Relative position falls out of an operation applied *independently*
-   to each token — no attention-matrix bias needed.
-2. **A token's k is rotated once, by its own position, and never needs
-   to change.** That's the fact that makes caching K legal in M1. If
-   position encoding depended on the query's position (like ALiBi's bias
-   does, or a learned relative embedding), you could still cache, but
-   the cached values couldn't have position baked in.
+### RoPE: represent position as rotation
 
-One convention gotcha: "rotate each pair" has two popular memory layouts.
-The interleaved one pairs channels $(0,1), (2,3), \dots$; the HF/Llama
-"rotate_half" one pairs $(0, 64), (1, 65), \dots$ — element $j$ with
-element $j + d/2$:
+Take one pair of coordinates $(a,b)$ from an attention head. Rotating it
+by an angle $\phi$ produces:
+
+$$
+a' = a\cos\phi - b\sin\phi, \qquad
+b' = a\sin\phi + b\cos\phi.
+$$
+
+You can picture $(a,b)$ as an arrow on a sheet of paper. RoPE does not
+append the position number to that arrow; it turns the arrow by an amount
+determined by the position. The same content at two positions therefore
+has the same length but a different orientation.
+
+Qwen3's head dimension is 128, so RoPE treats it as 64 such pairs. Pair
+$i$ at token position $p$ uses the angle
+$\phi_{p,i} = p\,\theta^{-2i/128}$. At position 0 there is no rotation.
+Moving forward one token advances each pair by a fixed angle. Different
+pairs rotate at different speeds, like 64 clock hands, giving attention
+several scales on which to measure distance.
+
+The useful part appears when attention takes a dot product. Rotating two
+arrows by the same amount does not change the angle between them, so that
+shared rotation cancels. Let $R_p$ mean "apply all the RoPE rotations for
+position $p$." For a query at position $p$ and a key at position $s$:
+
+$$
+(R_p q)^\mathsf{T}(R_s k) = q^\mathsf{T}R_{s-p}k.
+$$
+
+The token content still comes from $q$ and $k$, but the positional part of
+their attention score depends on the relative offset $s-p$, not their
+absolute positions separately. Each token can therefore apply RoPE on
+its own; no pairwise position matrix is needed.
+
+This also fits KV caching cleanly. A key at position $s$ is rotated once
+with $R_s$ and stored. Every later query can attend to that stored key
+without changing it. Strictly speaking, causal attention is what makes
+old K/V states reusable; RoPE makes the position-adjusted key itself
+self-contained.
+
+### The channel-pairing convention
+
+"Pair the coordinates" still leaves an implementation choice. For an
+8-dimensional vector, an interleaved implementation pairs
+$(0,1), (2,3), (4,5), (6,7)$. Hugging Face's Llama implementation instead
+pairs the two halves: $(0,4), (1,5), (2,6), (3,7)$. For Qwen3's
+128-dimensional heads, those pairs are $(0,64), (1,65), \dots, (63,127)$.
+
+That second convention explains `rotate_half`:
 
 ```python
 def rotate_half(x):
@@ -108,10 +149,17 @@ def rotate_half(x):
 q = q * cos + rotate_half(q) * sin
 ```
 
-Mathematically equivalent, **numerically incompatible** — the checkpoint
-was trained with one layout and silently produces garbage-adjacent
-outputs with the other. This is the #1 "my from-scratch Llama is
-slightly wrong" bug in the wild. The parity test exists mostly for this.
+For an 8-dimensional input, `rotate_half` changes
+`[x0, x1, x2, x3, x4, x5, x6, x7]` into
+`[-x4, -x5, -x6, -x7, x0, x1, x2, x3]`. Combined with `cos` and `sin`,
+this rotates each pair from opposite halves using the equations above.
+
+The two pairing conventions describe the same rotation mathematics after
+a fixed permutation of channels. They are not interchangeable inside an
+already-trained checkpoint, however: the learned query and key weights,
+and the arrangement of `cos` and `sin`, expect the convention used during
+training. Choose the other one and the model still runs, but its attention
+scores and logits are wrong. The parity test catches exactly this mistake.
 
 ### GQA: the KV cache diet, implemented before the cache exists
 
