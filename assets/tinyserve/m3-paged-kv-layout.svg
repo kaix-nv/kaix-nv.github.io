@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" role="img"
+     aria-labelledby="title description">
+  <title id="title">Paged KV cache mapping from logical tokens to physical blocks</title>
+  <desc id="description">
+    Eight logical token positions are divided into two logical blocks of four
+    tokens. A block table maps logical block zero to physical block seven and
+    logical block one to physical block two. Physical block two and seven are
+    non-contiguous in the KV pool. Logical position five maps to offset one in
+    physical block two, which is physical slot nine.
+  </desc>
+
+  <defs>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px system-ui, sans-serif; fill: #475569; }
+      .section { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .cell { font: 700 18px ui-monospace, monospace; fill: #0f172a; }
+      .mono { font: 600 15px ui-monospace, monospace; fill: #0f172a; }
+      .white { fill: #ffffff; }
+      .blue-text { fill: #1d4ed8; }
+      .orange-text { fill: #c2410c; }
+      .arrow-blue { fill: none; stroke: #2563eb; stroke-width: 3; }
+      .arrow-orange { fill: none; stroke: #ea580c; stroke-width: 3; }
+    </style>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a"
+                    flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="760" rx="20" fill="#f8fafc"/>
+
+  <text x="50" y="52" class="title">Paged KV cache: logical order, physical blocks</text>
+  <text x="50" y="82" class="subtitle">
+    Example: block_size = 4 and block_table = [7, 2]
+  </text>
+
+  <text x="50" y="130" class="section">1. Logical sequence</text>
+  <text x="50" y="155" class="small">Token positions remain contiguous from the model's point of view.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="188" width="440" height="102" rx="12"
+          fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <rect x="530" y="188" width="440" height="102" rx="12"
+          fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  </g>
+  <text x="88" y="215" class="label blue-text">logical block 0</text>
+  <text x="548" y="215" class="label orange-text">logical block 1</text>
+
+  <g>
+    <rect x="90" y="228" width="92" height="46" rx="6" class="white" stroke="#93c5fd"/>
+    <rect x="194" y="228" width="92" height="46" rx="6" class="white" stroke="#93c5fd"/>
+    <rect x="298" y="228" width="92" height="46" rx="6" class="white" stroke="#93c5fd"/>
+    <rect x="402" y="228" width="92" height="46" rx="6" class="white" stroke="#93c5fd"/>
+    <text x="136" y="256" text-anchor="middle" class="cell">A</text>
+    <text x="240" y="256" text-anchor="middle" class="cell">B</text>
+    <text x="344" y="256" text-anchor="middle" class="cell">C</text>
+    <text x="448" y="256" text-anchor="middle" class="cell">D</text>
+    <text x="136" y="305" text-anchor="middle" class="small">p=0</text>
+    <text x="240" y="305" text-anchor="middle" class="small">p=1</text>
+    <text x="344" y="305" text-anchor="middle" class="small">p=2</text>
+    <text x="448" y="305" text-anchor="middle" class="small">p=3</text>
+
+    <rect x="550" y="228" width="92" height="46" rx="6" class="white" stroke="#fdba74"/>
+    <rect x="654" y="228" width="92" height="46" rx="6" fill="#fef3c7"
+          stroke="#d97706" stroke-width="3"/>
+    <rect x="758" y="228" width="92" height="46" rx="6" class="white" stroke="#fdba74"/>
+    <rect x="862" y="228" width="92" height="46" rx="6" class="white" stroke="#fdba74"/>
+    <text x="596" y="256" text-anchor="middle" class="cell">E</text>
+    <text x="700" y="256" text-anchor="middle" class="cell">F</text>
+    <text x="804" y="256" text-anchor="middle" class="cell">G</text>
+    <text x="908" y="256" text-anchor="middle" class="cell">H</text>
+    <text x="596" y="305" text-anchor="middle" class="small">p=4</text>
+    <text x="700" y="305" text-anchor="middle" class="small">p=5</text>
+    <text x="804" y="305" text-anchor="middle" class="small">p=6</text>
+    <text x="908" y="305" text-anchor="middle" class="small">p=7</text>
+  </g>
+
+  <text x="1020" y="130" class="section">2. Block table</text>
+  <rect x="1010" y="168" width="220" height="132" rx="12"
+        fill="#ffffff" stroke="#cbd5e1" stroke-width="2" filter="url(#shadow)"/>
+  <line x1="1010" y1="212" x2="1230" y2="212" stroke="#e2e8f0"/>
+  <line x1="1010" y1="256" x2="1230" y2="256" stroke="#e2e8f0"/>
+  <text x="1030" y="196" class="small">logical block</text>
+  <text x="1150" y="196" class="small">physical block</text>
+  <text x="1065" y="241" text-anchor="middle" class="mono blue-text">0</text>
+  <text x="1180" y="241" text-anchor="middle" class="mono blue-text">7</text>
+  <text x="1065" y="284" text-anchor="middle" class="mono orange-text">1</text>
+  <text x="1180" y="284" text-anchor="middle" class="mono orange-text">2</text>
+
+  <path d="M 290 315 C 420 350, 930 330, 1045 245"
+        class="arrow-blue" marker-end="url(#arrow-blue)"/>
+  <path d="M 750 315 C 825 350, 980 340, 1045 286"
+        class="arrow-orange" marker-end="url(#arrow-orange)"/>
+
+  <text x="50" y="390" class="section">3. Physical KV pool</text>
+  <text x="50" y="417" class="small">
+    The two logical blocks occupy non-contiguous physical blocks; other blocks remain reusable.
+  </text>
+
+  <path d="M 1200 242 C 1245 330, 1230 430, 1128 486"
+        class="arrow-blue" marker-end="url(#arrow-blue)"/>
+  <path d="M 1200 284 C 1100 350, 640 390, 448 486"
+        class="arrow-orange" marker-end="url(#arrow-orange)"/>
+
+  <g transform="translate(55 500)">
+    <g transform="translate(0 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 0</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(148 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 1</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(296 0)" filter="url(#shadow)">
+      <rect width="135" height="116" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="3"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label orange-text">block 2</text>
+      <rect x="11" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#fdba74"/>
+      <rect x="40" y="42" width="25" height="34" rx="3" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <rect x="69" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#fdba74"/>
+      <rect x="98" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#fdba74"/>
+      <text x="23.5" y="65" text-anchor="middle" class="mono">E</text>
+      <text x="52.5" y="65" text-anchor="middle" class="mono">F</text>
+      <text x="81.5" y="65" text-anchor="middle" class="mono">G</text>
+      <text x="110.5" y="65" text-anchor="middle" class="mono">H</text>
+      <text x="67.5" y="100" text-anchor="middle" class="small">offsets 0–3</text>
+    </g>
+    <g transform="translate(444 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 3</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(592 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 4</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(740 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 5</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(888 0)">
+      <rect width="135" height="116" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label">block 6</text>
+      <text x="67.5" y="74" text-anchor="middle" class="small">free / other</text>
+    </g>
+    <g transform="translate(1036 0)" filter="url(#shadow)">
+      <rect width="135" height="116" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+      <text x="67.5" y="25" text-anchor="middle" class="label blue-text">block 7</text>
+      <rect x="11" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#93c5fd"/>
+      <rect x="40" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#93c5fd"/>
+      <rect x="69" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#93c5fd"/>
+      <rect x="98" y="42" width="25" height="34" rx="3" fill="#ffffff" stroke="#93c5fd"/>
+      <text x="23.5" y="65" text-anchor="middle" class="mono">A</text>
+      <text x="52.5" y="65" text-anchor="middle" class="mono">B</text>
+      <text x="81.5" y="65" text-anchor="middle" class="mono">C</text>
+      <text x="110.5" y="65" text-anchor="middle" class="mono">D</text>
+      <text x="67.5" y="100" text-anchor="middle" class="small">offsets 0–3</text>
+    </g>
+  </g>
+
+  <rect x="350" y="650" width="580" height="68" rx="12"
+        fill="#ffffff" stroke="#d97706" stroke-width="2"/>
+  <text x="640" y="678" text-anchor="middle" class="mono">p = 5 → block 2, offset 1 → physical slot 9</text>
+  <text x="640" y="703" text-anchor="middle" class="small">
+    Logical order is preserved even though physical blocks 7 and 2 are far apart.
+  </text>
+</svg>
