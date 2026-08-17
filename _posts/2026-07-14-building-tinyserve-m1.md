@@ -1,5 +1,6 @@
 ---
 layout: post
+math: true
 title: "Building tinyserve M1: The KV cache"
 date: 2026-07-14 15:41:40 -0700
 categories: [tinyserve, llm-serving]
