@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M6: Tensor parallelism and the price of communication"
-date: 2026-08-18 16:48:00 -0700
+date: 2026-08-18 16:41:40 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Shard the shapes, insert the all-reduces, price them in closed form — and watch Amdahl emerge without being programmed."
 ---

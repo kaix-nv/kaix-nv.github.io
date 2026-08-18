@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M5: Modeling an LLM — prefill, decode, and the KV cache"
-date: 2026-08-18 16:47:00 -0700
+date: 2026-08-18 16:41:30 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Eight integers and a builder reproduce the economics of LLM serving: math-bound prefill, bandwidth-bound decode, and the KV-cache crossover."
 ---

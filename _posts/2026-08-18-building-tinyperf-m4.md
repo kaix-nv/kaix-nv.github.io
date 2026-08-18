@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M4: The scheduler — where graph meets device"
-date: 2026-08-18 16:46:00 -0700
+date: 2026-08-18 16:41:20 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Dispatch each op family to its cost model, sum, and report — with the binding bottleneck attached to every row."
 ---
