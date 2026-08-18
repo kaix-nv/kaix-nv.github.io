@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M7+M8: Fusion and feasibility — making the model honest"
-date: 2026-08-18 16:49:00 -0700
+date: 2026-08-18 16:41:50 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Two lies fixed: fused attention removes score-matrix traffic that never existed, and a capacity model stops pricing configs that don't fit."
 ---

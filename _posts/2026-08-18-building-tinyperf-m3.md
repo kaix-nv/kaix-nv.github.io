@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M3: A graph IR in 90 lines"
-date: 2026-08-18 16:45:00 -0700
+date: 2026-08-18 16:41:10 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Three tiny classes and one registration trick make workload description read like PyTorch — shapes and bytes, no data, no kernels."
 ---

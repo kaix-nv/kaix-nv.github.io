@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M2: The analytical GEMM model"
-date: 2026-08-18 16:44:00 -0700
+date: 2026-08-18 16:41:00 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Price a matmul without running it: tile-candidate search, tile and wave quantization, and an L2 reuse model that decides what binds."
 ---
