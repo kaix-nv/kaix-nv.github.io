@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" role="img"
+     aria-label="An M5 engine step decodes running requests, packs whole prompts, then chunks the oversized FCFS head within one prompt-token budget.">
+
+  <defs>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px system-ui, sans-serif; fill: #475569; }
+      .stage { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 600 15px ui-monospace, monospace; fill: #0f172a; }
+      .cell { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 3; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <pattern id="remaining" width="10" height="10" patternUnits="userSpaceOnUse"
+             patternTransform="rotate(45)">
+      <rect width="10" height="10" fill="#fff7ed"/>
+      <rect width="3" height="10" fill="#fed7aa"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="760" rx="20" fill="#f8fafc"/>
+  <text x="50" y="52" class="title">One M5 step: decode first, then spend the prefill budget</text>
+  <text x="50" y="82" class="subtitle">
+    Example budget = 12 prompt tokens. FCFS order is C, D, then long prompt E.
+  </text>
+
+  <g>
+    <rect x="50" y="120" width="350" height="468" rx="16" fill="#ffffff"
+          stroke="#cbd5e1" stroke-width="2"/>
+    <rect x="76" y="145" width="20" height="20" rx="5" fill="#7c3aed"/>
+    <text x="110" y="163" class="stage">Decode the RUNNING set</text>
+    <text x="76" y="198" class="small">This work is never placed behind a whole prompt.</text>
+
+    <rect x="76" y="235" width="132" height="62" rx="10" fill="#ede9fe"
+          stroke="#7c3aed" stroke-width="2"/>
+    <text x="142" y="262" text-anchor="middle" class="cell">Request A</text>
+    <text x="142" y="283" text-anchor="middle" class="small">+1 token</text>
+    <rect x="238" y="235" width="132" height="62" rx="10" fill="#ede9fe"
+          stroke="#7c3aed" stroke-width="2"/>
+    <text x="304" y="262" text-anchor="middle" class="cell">Request B</text>
+    <text x="304" y="283" text-anchor="middle" class="small">+1 token</text>
+
+    <path d="M 142 315 L 142 354" class="arrow" marker-end="url(#arrow)"/>
+    <path d="M 304 315 L 304 354" class="arrow" marker-end="url(#arrow)"/>
+    <rect x="76" y="368" width="294" height="76" rx="11" fill="#f5f3ff"
+          stroke="#c4b5fd"/>
+    <text x="223" y="398" text-anchor="middle" class="label">one batched decode forward</text>
+    <text x="223" y="423" text-anchor="middle" class="mono">A, B remain RUNNING</text>
+
+    <rect x="76" y="482" width="294" height="72" rx="11" fill="#f1f5f9"
+          stroke="#94a3b8"/>
+    <text x="223" y="511" text-anchor="middle" class="label">prefill budget untouched</text>
+    <text x="223" y="536" text-anchor="middle" class="mono">remaining = 12</text>
+  </g>
+
+  <path d="M 409 354 L 444 354" class="arrow" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="456" y="120" width="350" height="468" rx="16" fill="#ffffff"
+          stroke="#cbd5e1" stroke-width="2"/>
+    <rect x="482" y="145" width="20" height="20" rx="5" fill="#2563eb"/>
+    <text x="516" y="163" class="stage">Pack whole prompts that fit</text>
+    <text x="482" y="198" class="small">C and D are consecutive in FCFS order.</text>
+
+    <text x="482" y="235" class="label">one ragged prefill forward</text>
+    <rect x="482" y="252" width="124" height="62" rx="10" fill="#dbeafe"
+          stroke="#2563eb" stroke-width="2"/>
+    <text x="544" y="279" text-anchor="middle" class="cell">C: 4 tokens</text>
+    <text x="544" y="300" text-anchor="middle" class="small">whole prompt</text>
+    <text x="626" y="289" text-anchor="middle" class="stage">+</text>
+    <rect x="650" y="252" width="124" height="62" rx="10" fill="#dbeafe"
+          stroke="#2563eb" stroke-width="2"/>
+    <text x="712" y="279" text-anchor="middle" class="cell">D: 3 tokens</text>
+    <text x="712" y="300" text-anchor="middle" class="small">whole prompt</text>
+
+    <rect x="482" y="352" width="292" height="92" rx="11" fill="#eff6ff"
+          stroke="#93c5fd"/>
+    <text x="628" y="382" text-anchor="middle" class="label">left-pad only inside this forward</text>
+    <text x="628" y="407" text-anchor="middle" class="mono">used = 4 + 3 = 7</text>
+    <text x="628" y="430" text-anchor="middle" class="mono">remaining = 5</text>
+
+    <rect x="482" y="482" width="292" height="72" rx="11" fill="#ecfdf5"
+          stroke="#86efac"/>
+    <text x="628" y="511" text-anchor="middle" class="label">sample first tokens</text>
+    <text x="628" y="536" text-anchor="middle" class="mono">C, D → RUNNING</text>
+  </g>
+
+  <path d="M 815 354 L 850 354" class="arrow" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="862" y="120" width="368" height="468" rx="16" fill="#ffffff"
+          stroke="#cbd5e1" stroke-width="2"/>
+    <rect x="888" y="145" width="20" height="20" rx="5" fill="#ea580c"/>
+    <text x="922" y="163" class="stage">Chunk the oversized head</text>
+    <text x="888" y="198" class="small">E is next; no later request may leapfrog it.</text>
+
+    <text x="888" y="235" class="label">long prompt E: 20 tokens</text>
+    <g>
+      <rect x="888" y="252" width="76" height="66" rx="9" fill="#ffedd5"
+            stroke="#ea580c" stroke-width="2"/>
+      <rect x="964" y="252" width="228" height="66" rx="9" fill="url(#remaining)"
+            stroke="#fb923c" stroke-width="2"/>
+      <text x="926" y="280" text-anchor="middle" class="cell">next 5</text>
+      <text x="926" y="302" text-anchor="middle" class="small">run now</text>
+      <text x="1078" y="280" text-anchor="middle" class="cell">15 tokens</text>
+      <text x="1078" y="302" text-anchor="middle" class="small">later steps</text>
+    </g>
+
+    <rect x="888" y="352" width="304" height="92" rx="11" fill="#fff7ed"
+          stroke="#fdba74"/>
+    <text x="1040" y="382" text-anchor="middle" class="label">shifted causal chunk forward</text>
+    <text x="1040" y="407" text-anchor="middle" class="mono">used = 5</text>
+    <text x="1040" y="430" text-anchor="middle" class="mono">remaining = 0</text>
+
+    <rect x="888" y="482" width="304" height="72" rx="11" fill="#fff7ed"
+          stroke="#fdba74"/>
+    <text x="1040" y="511" text-anchor="middle" class="label">no first token yet</text>
+    <text x="1040" y="536" text-anchor="middle" class="mono">E stays PREFILLING</text>
+  </g>
+
+  <rect x="96" y="626" width="1088" height="92" rx="14" fill="#ffffff"
+        stroke="#94a3b8" stroke-width="2"/>
+  <text x="640" y="658" text-anchor="middle" class="label">
+    Total prompt work = 7 packed tokens + 5 chunk tokens = the 12-token step budget.
+  </text>
+  <text x="640" y="685" text-anchor="middle" class="small">
+    E's full prompt capacity was reserved at admission for honest accounting, but E may still be preempted.
+  </text>
+</svg>
