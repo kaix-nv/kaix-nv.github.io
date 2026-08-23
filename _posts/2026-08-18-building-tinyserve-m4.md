@@ -10,7 +10,7 @@ excerpt: "Turn paged KV storage into a streaming scheduler with admission, prefi
 *Milestone 4 of [building an LLM inference engine from scratch](/series/tinyserve/).
 Previous: [M3 — paged KV]({% post_url 2026-08-17-building-tinyserve-m3 %}).*
 
-Code: [`tinyserve` @ `a1a963a`](https://github.com/kaix-nv/tinyserve/tree/a1a963a3d103b46d548ebf97c97a7ffa70f90269).
+Code: [`tinyserve` @ `3869d03`](https://github.com/kaix-nv/tinyserve/tree/3869d03bfe8e9ac8a011dffaab243db07b12b682).
 
 ## The problem
 
@@ -59,6 +59,16 @@ One engine-loop iteration makes one scheduling decision:
 4. A request that reaches EOS or its token budget immediately releases
    its blocks. A later iteration can reuse them for new work.
 
+![Continuous batching timeline showing a finished request replaced while
+another request remains active](/assets/tinyserve/m4-continuous-batching-timeline.svg)
+
+*Figure 1. M4 reconsiders batch membership at every engine-loop boundary.
+A and B enter together and prefill sequentially. After A finishes and
+returns its KV blocks, request C is admitted and prefills without
+waiting for B to finish. Because M4 gives admission priority to prefill,
+B pauses during that iteration. B and C then decode together in the next
+iteration.*
+
 The running batch can therefore change after every iteration. That is
 the "continuous" in continuous batching. Notice that M4's *prefill
 phase* may contain several model forwards—one per admitted prompt. It is
@@ -94,6 +104,16 @@ turn, but it does **not** guarantee immediate readmission or starvation
 freedom. LIFO is a small, deterministic teaching policy, not a latency
 optimality claim.
 
+![LIFO preemption freeing KV blocks before decode and later rebuilding
+the victim's cache](/assets/tinyserve/m4-preemption-recompute.svg)
+
+*Figure 2. Before decode, A and B each need one more block but only one is
+free. `reserve_for_decode()` removes the tail of the running list, B,
+and frees all of B's blocks. A can then grow and decode. B keeps its token
+history and sampling/timing metadata, returns to the front of `waiting`,
+and later rebuilds K/V through the normal prefill path when it fits
+again.*
+
 Recomputation is correct because, for this model, K/V is derived from the
 token sequence and positions. The model-history state needed to rebuild
 the cache is therefore the request's tokens; scheduler metadata such as
@@ -101,7 +121,7 @@ sampling parameters and timing remains on the `Request` object.
 
 ## The build
 
-New: [`scheduler.py`](https://github.com/kaix-nv/tinyserve/blob/a1a963a3d103b46d548ebf97c97a7ffa70f90269/tinyserve/scheduler.py) — `SamplingParams`
+New: [`scheduler.py`](https://github.com/kaix-nv/tinyserve/blob/3869d03bfe8e9ac8a011dffaab243db07b12b682/tinyserve/scheduler.py) — `SamplingParams`
 (per-request now, finally honoring a promise from M1's sampler),
 `Request` (a `Sequence` plus params, arrival time, timing records),
 `RequestOutput` (text + TTFT + per-token times), and `Scheduler`
@@ -129,7 +149,7 @@ of little else.
 
 For deterministic greedy decoding, scheduling should change *when* work
 runs without changing the returned text
-([`tests/test_scheduler.py`](https://github.com/kaix-nv/tinyserve/blob/a1a963a3d103b46d548ebf97c97a7ffa70f90269/tests/test_scheduler.py)):
+([`tests/test_scheduler.py`](https://github.com/kaix-nv/tinyserve/blob/3869d03bfe8e9ac8a011dffaab243db07b12b682/tests/test_scheduler.py)):
 
 1. Unit tests on a microscopic pool (no GPU): admission respects the
    block budget including same-call reservations; preemption picks the
@@ -154,7 +174,7 @@ stochastic requests are regrouped, or preemption parity for FlashInfer.
 
 The original M4 run used 96 requests, `max_new=128`, bf16 + FlashInfer,
 and synthetic Poisson arrivals at rate λ
-([`examples/bench_serve.py`](https://github.com/kaix-nv/tinyserve/blob/a1a963a3d103b46d548ebf97c97a7ffa70f90269/examples/bench_serve.py)). With seed 0,
+([`examples/bench_serve.py`](https://github.com/kaix-nv/tinyserve/blob/3869d03bfe8e9ac8a011dffaab243db07b12b682/examples/bench_serve.py)). With seed 0,
 10 of the 96 requests use one of the two long-prompt templates. The
 baseline replays the same stream as three gated cohorts of 32; each
 cohort starts only after its final member has arrived. The script calls
