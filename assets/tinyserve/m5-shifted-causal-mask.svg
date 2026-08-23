@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" role="img"
+     aria-label="Two matrices compare an ordinary local causal mask with the correct shifted mask for a chunk after a cached prefix.">
+
+  <defs>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px system-ui, sans-serif; fill: #475569; }
+      .panel { font: 700 21px system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 600 15px ui-monospace, monospace; fill: #0f172a; }
+      .cell { font: 700 18px system-ui, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="760" rx="20" fill="#f8fafc"/>
+  <text x="50" y="52" class="title">Chunk attention: shift the causal triangle by the cached prefix</text>
+  <text x="50" y="82" class="subtitle">
+    Prefix length = 4; current chunk queries are q4, q5, q6; position 7 is allocated but not written yet.
+  </text>
+
+  <rect x="50" y="116" width="560" height="520" rx="16" fill="#ffffff"
+        stroke="#fecaca" stroke-width="2"/>
+  <text x="330" y="155" text-anchor="middle" class="panel">Wrong: ordinary local is_causal</text>
+  <text x="330" y="182" text-anchor="middle" class="small">uses local row i, so it applies j ≤ i</text>
+
+  <rect x="670" y="116" width="560" height="520" rx="16" fill="#ffffff"
+        stroke="#86efac" stroke-width="2"/>
+  <text x="950" y="155" text-anchor="middle" class="panel">Correct: shifted causal mask</text>
+  <text x="950" y="182" text-anchor="middle" class="small">uses logical position start + i, so it applies j ≤ start + i</text>
+
+  <!-- left headers -->
+  <text x="105" y="244" text-anchor="middle" class="label">query</text>
+  <rect x="156" y="204" width="224" height="30" rx="7" fill="#dbeafe" stroke="#93c5fd"/>
+  <text x="268" y="225" text-anchor="middle" class="small">cached prefix</text>
+  <rect x="380" y="204" width="168" height="30" rx="7" fill="#ffedd5" stroke="#fdba74"/>
+  <text x="464" y="225" text-anchor="middle" class="small">current chunk</text>
+  <rect x="548" y="204" width="56" height="30" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
+
+  <!-- right headers -->
+  <text x="725" y="244" text-anchor="middle" class="label">query</text>
+  <rect x="776" y="204" width="224" height="30" rx="7" fill="#dbeafe" stroke="#93c5fd"/>
+  <text x="888" y="225" text-anchor="middle" class="small">cached prefix</text>
+  <rect x="1000" y="204" width="168" height="30" rx="7" fill="#ffedd5" stroke="#fdba74"/>
+  <text x="1084" y="225" text-anchor="middle" class="small">current chunk</text>
+  <rect x="1168" y="204" width="56" height="30" rx="7" fill="#f1f5f9" stroke="#cbd5e1"/>
+
+  <!-- column numbers -->
+  <g class="mono" text-anchor="middle">
+    <text x="184" y="263">k0</text><text x="240" y="263">k1</text>
+    <text x="296" y="263">k2</text><text x="352" y="263">k3</text>
+    <text x="408" y="263">k4</text><text x="464" y="263">k5</text>
+    <text x="520" y="263">k6</text><text x="576" y="263">k7</text>
+    <text x="804" y="263">k0</text><text x="860" y="263">k1</text>
+    <text x="916" y="263">k2</text><text x="972" y="263">k3</text>
+    <text x="1028" y="263">k4</text><text x="1084" y="263">k5</text>
+    <text x="1140" y="263">k6</text><text x="1196" y="263">k7</text>
+  </g>
+
+  <!-- Matrix backgrounds: 56 x 72 cells -->
+  <g stroke="#cbd5e1">
+    <!-- wrong row q4: only k0 visible -->
+    <rect x="156" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="212" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="268" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="324" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="380" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="436" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="492" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="548" y="280" width="56" height="72" fill="#e2e8f0"/>
+    <!-- wrong row q5: k0-k1 visible -->
+    <rect x="156" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="212" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="268" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="324" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="380" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="436" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="492" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="548" y="352" width="56" height="72" fill="#e2e8f0"/>
+    <!-- wrong row q6: k0-k2 visible -->
+    <rect x="156" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="212" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="268" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="324" y="424" width="56" height="72" fill="#fee2e2"/>
+    <rect x="380" y="424" width="56" height="72" fill="#fee2e2"/>
+    <rect x="436" y="424" width="56" height="72" fill="#fee2e2"/>
+    <rect x="492" y="424" width="56" height="72" fill="#fee2e2"/>
+    <rect x="548" y="424" width="56" height="72" fill="#e2e8f0"/>
+
+    <!-- correct row q4: k0-k4 visible -->
+    <rect x="776" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="832" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="888" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="944" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1000" y="280" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1056" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="1112" y="280" width="56" height="72" fill="#fee2e2"/>
+    <rect x="1168" y="280" width="56" height="72" fill="#e2e8f0"/>
+    <!-- correct row q5: k0-k5 visible -->
+    <rect x="776" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="832" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="888" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="944" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1000" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1056" y="352" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1112" y="352" width="56" height="72" fill="#fee2e2"/>
+    <rect x="1168" y="352" width="56" height="72" fill="#e2e8f0"/>
+    <!-- correct row q6: k0-k6 visible -->
+    <rect x="776" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="832" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="888" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="944" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1000" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1056" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1112" y="424" width="56" height="72" fill="#dcfce7"/>
+    <rect x="1168" y="424" width="56" height="72" fill="#e2e8f0"/>
+  </g>
+
+  <g text-anchor="middle">
+    <text x="105" y="322" class="mono">q4</text><text x="105" y="394" class="mono">q5</text><text x="105" y="466" class="mono">q6</text>
+    <text x="725" y="322" class="mono">q4</text><text x="725" y="394" class="mono">q5</text><text x="725" y="466" class="mono">q6</text>
+  </g>
+
+  <g class="cell" text-anchor="middle">
+    <text x="184" y="323" fill="#15803d">✓</text>
+    <text x="184" y="395" fill="#15803d">✓</text><text x="240" y="395" fill="#15803d">✓</text>
+    <text x="184" y="467" fill="#15803d">✓</text><text x="240" y="467" fill="#15803d">✓</text><text x="296" y="467" fill="#15803d">✓</text>
+    <text x="804" y="323" fill="#15803d">✓</text><text x="860" y="323" fill="#15803d">✓</text><text x="916" y="323" fill="#15803d">✓</text><text x="972" y="323" fill="#15803d">✓</text><text x="1028" y="323" fill="#15803d">✓</text>
+    <text x="804" y="395" fill="#15803d">✓</text><text x="860" y="395" fill="#15803d">✓</text><text x="916" y="395" fill="#15803d">✓</text><text x="972" y="395" fill="#15803d">✓</text><text x="1028" y="395" fill="#15803d">✓</text><text x="1084" y="395" fill="#15803d">✓</text>
+    <text x="804" y="467" fill="#15803d">✓</text><text x="860" y="467" fill="#15803d">✓</text><text x="916" y="467" fill="#15803d">✓</text><text x="972" y="467" fill="#15803d">✓</text><text x="1028" y="467" fill="#15803d">✓</text><text x="1084" y="467" fill="#15803d">✓</text><text x="1140" y="467" fill="#15803d">✓</text>
+  </g>
+
+  <rect x="76" y="526" width="508" height="78" rx="11" fill="#fef2f2" stroke="#fca5a5"/>
+  <text x="330" y="556" text-anchor="middle" class="label">q4 cannot see k1...k4; q6 cannot see k3...k6</text>
+  <text x="330" y="581" text-anchor="middle" class="small">the recent prefix and current chunk are incorrectly hidden</text>
+
+  <rect x="696" y="526" width="508" height="78" rx="11" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="950" y="556" text-anchor="middle" class="label">every query sees the full past plus itself</text>
+  <text x="950" y="581" text-anchor="middle" class="small">future chunk tokens and the unwritten tail remain hidden</text>
+
+  <g>
+    <rect x="240" y="674" width="28" height="28" rx="5" fill="#dcfce7" stroke="#86efac"/>
+    <text x="278" y="694" class="small">visible</text>
+    <rect x="430" y="674" width="28" height="28" rx="5" fill="#fee2e2" stroke="#fca5a5"/>
+    <text x="468" y="694" class="small">causally hidden</text>
+    <rect x="675" y="674" width="28" height="28" rx="5" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="713" y="694" class="small">allocated tail, not yet valid</text>
+  </g>
+</svg>
