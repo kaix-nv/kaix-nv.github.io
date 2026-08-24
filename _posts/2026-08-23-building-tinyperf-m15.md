@@ -4,7 +4,7 @@ math: true
 title: "Building tinyperf M15: Capacity planning — sweeping the serving simulator"
 date: 2026-08-23 23:20:00 -0700
 categories: [tinyperf, perf-modeling]
-excerpt: "The event engine swept by the harness: SLO knees found automatically, the U-shaped cost curve, and \$/Mtok tables from 33 simulations in 0.7 seconds."
+excerpt: "The event engine swept by the harness: SLO knees found automatically, the U-shaped cost curve, and $/Mtok tables from 33 simulations in 0.7 seconds."
 ---
 
 *Milestone 15 of [building an analytical GPU performance model from
