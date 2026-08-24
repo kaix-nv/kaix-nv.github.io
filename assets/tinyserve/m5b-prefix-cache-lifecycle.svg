@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 840" role="img"
+     aria-labelledby="title description">
+  <title id="title">Hash-chained prefix blocks and their ownership lifecycle</title>
+  <desc id="description">
+    Two requests share two immutable full KV blocks identified by a chained
+    hash, then keep separate partial tails. A lower lifecycle shows a shared
+    block moving from refcount two to one, then to a zero-reference warm LRU
+    entry, from which a match can resurrect it or allocation pressure can
+    evict it to the free list.
+  </desc>
+
+  <defs>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px system-ui, sans-serif; fill: #475569; }
+      .stage { font: 700 19px system-ui, sans-serif; fill: #0f172a; }
+      .row { font: 700 17px system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 600 14px ui-monospace, monospace; fill: #0f172a; }
+      .cell { font: 700 14px system-ui, sans-serif; fill: #0f172a; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 3; }
+      .hash { fill: none; stroke: #2563eb; stroke-width: 3; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+    <pattern id="partial" width="10" height="10" patternUnits="userSpaceOnUse"
+             patternTransform="rotate(45)">
+      <rect width="10" height="10" fill="#fff7ed"/>
+      <rect width="3" height="10" fill="#fed7aa"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="840" rx="20" fill="#f8fafc"/>
+  <text x="50" y="52" class="title">Prefix caching: identity, sharing, and reclaimable warmth</text>
+  <text x="50" y="82" class="subtitle">
+    Example block size = 4 tokens. Tinyserve uses 16; the ownership rules are identical.
+  </text>
+
+  <rect x="50" y="120" width="1180" height="364" rx="16" fill="#ffffff"
+        stroke="#cbd5e1" stroke-width="2"/>
+  <text x="78" y="158" class="stage">1 · A chained hash names the complete prefix</text>
+
+  <text x="78" y="226" class="row">Request A</text>
+  <rect x="210" y="190" width="202" height="72" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="311" y="218" text-anchor="middle" class="cell">logical block 0</text>
+  <text x="311" y="243" text-anchor="middle" class="mono">[a b c d] → KV #12</text>
+  <rect x="454" y="190" width="202" height="72" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="555" y="218" text-anchor="middle" class="cell">logical block 1</text>
+  <text x="555" y="243" text-anchor="middle" class="mono">[e f g h] → KV #17</text>
+  <rect x="698" y="190" width="168" height="72" rx="10" fill="url(#partial)" stroke="#ea580c" stroke-width="2"/>
+  <text x="782" y="218" text-anchor="middle" class="cell">partial tail</text>
+  <text x="782" y="243" text-anchor="middle" class="mono">[i j] · private</text>
+
+  <path d="M 311 276 L 311 310 L 555 310 L 555 276" class="hash"/>
+  <rect x="222" y="324" width="178" height="48" rx="9" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="311" y="354" text-anchor="middle" class="mono">h0 = H(root, block 0)</text>
+  <path d="M 410 348 L 456 348" class="hash" marker-end="url(#blue-arrow)"/>
+  <rect x="468" y="324" width="212" height="48" rx="9" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="574" y="354" text-anchor="middle" class="mono">h1 = H(h0, block 1)</text>
+  <text x="724" y="354" class="small">h1 identifies all eight tokens</text>
+
+  <text x="78" y="432" class="row">Request B</text>
+  <rect x="210" y="396" width="202" height="62" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="311" y="421" text-anchor="middle" class="cell">adopt shared KV #12</text>
+  <text x="311" y="443" text-anchor="middle" class="mono">same h0 · refcount 2</text>
+  <rect x="454" y="396" width="202" height="62" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="555" y="421" text-anchor="middle" class="cell">adopt shared KV #17</text>
+  <text x="555" y="443" text-anchor="middle" class="mono">same h1 · refcount 2</text>
+  <rect x="698" y="396" width="168" height="62" rx="10" fill="url(#partial)" stroke="#ea580c" stroke-width="2"/>
+  <text x="782" y="421" text-anchor="middle" class="cell">different tail</text>
+  <text x="782" y="443" text-anchor="middle" class="mono">[x y] · private</text>
+  <rect x="916" y="190" width="270" height="268" rx="12" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="1051" y="224" text-anchor="middle" class="label">Why block 1 needs h0</text>
+  <text x="1051" y="260" text-anchor="middle" class="small">[e f g h] after a different</text>
+  <text x="1051" y="282" text-anchor="middle" class="small">history has different hidden</text>
+  <text x="1051" y="304" text-anchor="middle" class="small">states and therefore different KV.</text>
+  <rect x="958" y="337" width="186" height="62" rx="9" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="1051" y="363" text-anchor="middle" class="cell">hash(block 1) alone</text>
+  <text x="1051" y="385" text-anchor="middle" class="small">insufficient identity</text>
+  <text x="1051" y="430" text-anchor="middle" class="mono">h1 = H(h0, block 1)</text>
+
+  <rect x="50" y="520" width="1180" height="260" rx="16" fill="#ffffff"
+        stroke="#cbd5e1" stroke-width="2"/>
+  <text x="78" y="558" class="stage">2 · The last release makes a cached block warm, not immediately free</text>
+
+  <rect x="84" y="608" width="202" height="92" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="185" y="638" text-anchor="middle" class="cell">KV #17 · shared</text>
+  <text x="185" y="665" text-anchor="middle" class="mono">refcount = 2</text>
+  <text x="185" y="687" text-anchor="middle" class="small">A and B own it</text>
+
+  <path d="M 296 654 L 350 654" class="arrow" marker-end="url(#arrow)"/>
+  <text x="323" y="635" text-anchor="middle" class="small">A ends</text>
+  <rect x="362" y="608" width="202" height="92" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="463" y="638" text-anchor="middle" class="cell">KV #17 · active</text>
+  <text x="463" y="665" text-anchor="middle" class="mono">refcount = 1</text>
+  <text x="463" y="687" text-anchor="middle" class="small">B still owns it</text>
+
+  <path d="M 574 654 L 628 654" class="arrow" marker-end="url(#arrow)"/>
+  <text x="601" y="635" text-anchor="middle" class="small">B ends</text>
+  <rect x="640" y="608" width="202" height="92" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="741" y="638" text-anchor="middle" class="cell">KV #17 · warm LRU</text>
+  <text x="741" y="665" text-anchor="middle" class="mono">refcount = 0</text>
+  <text x="741" y="687" text-anchor="middle" class="small">matchable + reclaimable</text>
+
+  <path d="M 842 632 C 900 590, 946 590, 994 616" class="arrow" marker-end="url(#arrow)"/>
+  <text x="914" y="582" text-anchor="middle" class="small">prefix match</text>
+  <rect x="1006" y="580" width="180" height="68" rx="11" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="1096" y="608" text-anchor="middle" class="cell">resurrect</text>
+  <text x="1096" y="630" text-anchor="middle" class="mono">refcount = 1</text>
+
+  <path d="M 842 680 C 900 724, 946 724, 994 698" class="arrow" marker-end="url(#arrow)"/>
+  <text x="914" y="748" text-anchor="middle" class="small">allocation pressure</text>
+  <rect x="1006" y="666" width="180" height="68" rx="11" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="1096" y="694" text-anchor="middle" class="cell">evict hash</text>
+  <text x="1096" y="716" text-anchor="middle" class="mono">return to free list</text>
+
+  <rect x="194" y="794" width="892" height="34" rx="9" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="640" y="817" text-anchor="middle" class="label">
+    Capacity available to the scheduler = truly free blocks + warm, evictable blocks.
+  </text>
+</svg>
