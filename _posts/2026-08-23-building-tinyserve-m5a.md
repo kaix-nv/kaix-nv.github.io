@@ -19,6 +19,15 @@ still treated each admitted prompt as indivisible work. If a long prompt
 arrived while other requests were generating, M4 prefetched the whole
 prompt before the next decode. Every streaming request waited behind it.
 
+![Sequence diagram showing requests A and B waiting while one long prompt
+occupies an entire prefill iteration](/assets/tinyserve/m5-prefill-interruption-sequence.svg)
+
+*Figure 1. A and B receive tokens in iteration 1. Long request C then
+arrives; because M4 gives admitted prefill work the whole next iteration,
+the GPU prefills all of C while A and B receive nothing. Their next tokens
+do not arrive until iteration 3, so C's entire prefill duration appears
+inside their inter-token latency.*
+
 The retained M4 measurement captured the symptom: at λ=32 requests/s,
 median inter-token latency (ITL) was 25 ms while the reported p99 was
 408 ms. One number cannot identify the cause of every spike, but the
@@ -55,7 +64,7 @@ The third step has two cases:
 ![One engine step decoding first, packing two whole prompts, and spending
 the remaining budget on a long prompt chunk](/assets/tinyserve/m5-prefill-budget-step.svg)
 
-*Figure 1. With a 12-token example budget, decode advances A and B first.
+*Figure 2. With a 12-token example budget, decode advances A and B first.
 The engine then packs whole prompts C and D, consuming seven prompt
 tokens in one forward, and spends the remaining five tokens on the head
 of long prompt E. C and D emit their first tokens and become `RUNNING`;
@@ -118,7 +127,7 @@ future chunk tokens and unwritten capacity in the last block.
 ![Ordinary local causal masking compared with the shifted causal mask
 needed by a chunk after a cached prefix](/assets/tinyserve/m5-shifted-causal-mask.svg)
 
-*Figure 2. The cached prefix has positions 0–3 and the new chunk has
+*Figure 3. The cached prefix has positions 0–3 and the new chunk has
 queries 4–6. Ordinary `is_causal` applies the local rule `j <= i`: q4
 sees only k0, q5 sees k0–k1, and q6 sees k0–k2. It therefore hides the
 recent prefix and the chunk's own valid keys. The shifted rule

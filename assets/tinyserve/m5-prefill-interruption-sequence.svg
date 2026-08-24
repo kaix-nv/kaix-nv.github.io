@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 920" role="img"
+     aria-label="Sequence diagram showing a long prompt C taking an entire M4 admission iteration while running requests A and B wait for their next decode token.">
+  <defs>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 17px system-ui, sans-serif; fill: #475569; }
+      .actor { font: 700 17px system-ui, sans-serif; fill: #0f172a; }
+      .phase { font: 700 17px system-ui, sans-serif; fill: #334155; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 600 14px ui-monospace, monospace; fill: #0f172a; }
+      .life { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 7 7; }
+      .message { fill: none; stroke-width: 3; }
+    </style>
+    <marker id="gray-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="purple-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="orange-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c"/>
+    </marker>
+    <marker id="green-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="920" rx="20" fill="#f8fafc"/>
+  <text x="50" y="50" class="title">Why one long prompt interrupts every decoder in M4</text>
+  <text x="50" y="79" class="subtitle">
+    Time flows downward. An engine iteration admits prompts or decodes running requests—not both.
+  </text>
+
+  <g>
+    <rect x="65" y="102" width="190" height="52" rx="11" fill="#e2e8f0"
+          stroke="#64748b" stroke-width="2"/>
+    <text x="160" y="135" text-anchor="middle" class="actor">Scheduler</text>
+    <rect x="310" y="102" width="190" height="52" rx="11" fill="#ede9fe"
+          stroke="#7c3aed" stroke-width="2"/>
+    <text x="405" y="135" text-anchor="middle" class="actor">GPU</text>
+    <rect x="565" y="102" width="170" height="52" rx="11" fill="#dcfce7"
+          stroke="#16a34a" stroke-width="2"/>
+    <text x="650" y="135" text-anchor="middle" class="actor">Stream A</text>
+    <rect x="765" y="102" width="170" height="52" rx="11" fill="#dcfce7"
+          stroke="#16a34a" stroke-width="2"/>
+    <text x="850" y="135" text-anchor="middle" class="actor">Stream B</text>
+    <rect x="1010" y="102" width="200" height="52" rx="11" fill="#ffedd5"
+          stroke="#ea580c" stroke-width="2"/>
+    <text x="1110" y="135" text-anchor="middle" class="actor">Long request C</text>
+  </g>
+
+  <line x1="160" y1="154" x2="160" y2="820" class="life"/>
+  <line x1="405" y1="154" x2="405" y2="820" class="life"/>
+  <line x1="650" y1="154" x2="650" y2="820" class="life"/>
+  <line x1="850" y1="154" x2="850" y2="820" class="life"/>
+  <line x1="1110" y1="154" x2="1110" y2="820" class="life"/>
+
+  <rect x="42" y="176" width="1196" height="150" rx="14" fill="#f5f3ff"
+        stroke="#ddd6fe"/>
+  <text x="62" y="204" class="phase">Iteration 1 — normal decode</text>
+  <line x1="160" y1="225" x2="397" y2="225" class="message"
+        stroke="#7c3aed" marker-end="url(#purple-arrow)"/>
+  <text x="278" y="216" text-anchor="middle" class="label">decode batch [A, B]</text>
+  <rect x="393" y="216" width="24" height="82" rx="6" fill="#c4b5fd"
+        stroke="#7c3aed"/>
+  <line x1="417" y1="255" x2="642" y2="255" class="message"
+        stroke="#16a34a" marker-end="url(#green-arrow)"/>
+  <text x="530" y="246" text-anchor="middle" class="small">next token</text>
+  <line x1="417" y1="292" x2="842" y2="292" class="message"
+        stroke="#16a34a" marker-end="url(#green-arrow)"/>
+  <text x="630" y="283" text-anchor="middle" class="small">next token</text>
+
+  <rect x="42" y="338" width="1196" height="300" rx="14" fill="#fff7ed"
+        stroke="#fed7aa"/>
+  <text x="62" y="366" class="phase">Iteration 2 — C is admitted, so decode is skipped</text>
+  <line x1="1102" y1="390" x2="168" y2="390" class="message"
+        stroke="#64748b" marker-end="url(#gray-arrow)"/>
+  <rect x="675" y="372" width="230" height="27" rx="6" fill="#ffffff"/>
+  <text x="790" y="390" text-anchor="middle" class="label">C arrives with a long prompt</text>
+
+  <line x1="160" y1="430" x2="397" y2="430" class="message"
+        stroke="#ea580c" marker-end="url(#orange-arrow)"/>
+  <text x="278" y="421" text-anchor="middle" class="label">prefill all of C</text>
+  <rect x="393" y="421" width="24" height="154" rx="6" fill="#fdba74"
+        stroke="#ea580c" stroke-width="2"/>
+  <rect x="438" y="452" width="137" height="86" rx="11" fill="#ffedd5"
+        stroke="#fb923c"/>
+  <text x="506" y="481" text-anchor="middle" class="label">one indivisible</text>
+  <text x="506" y="505" text-anchor="middle" class="label">prefill forward</text>
+  <text x="506" y="527" text-anchor="middle" class="mono">P prompt tokens</text>
+
+  <rect x="590" y="452" width="120" height="86" rx="11" fill="#fee2e2"
+        stroke="#ef4444" stroke-width="2"/>
+  <text x="650" y="483" text-anchor="middle" class="label">A waits</text>
+  <text x="650" y="507" text-anchor="middle" class="small">no decode</text>
+  <text x="650" y="528" text-anchor="middle" class="small">no token</text>
+  <rect x="790" y="452" width="120" height="86" rx="11" fill="#fee2e2"
+        stroke="#ef4444" stroke-width="2"/>
+  <text x="850" y="483" text-anchor="middle" class="label">B waits</text>
+  <text x="850" y="507" text-anchor="middle" class="small">no decode</text>
+  <text x="850" y="528" text-anchor="middle" class="small">no token</text>
+
+  <line x1="417" y1="590" x2="1102" y2="590" class="message"
+        stroke="#ea580c" marker-end="url(#orange-arrow)"/>
+  <rect x="450" y="574" width="150" height="26" rx="6" fill="#ffffff"/>
+  <text x="525" y="592" text-anchor="middle" class="label">C's first token</text>
+
+  <path d="M 932 265 h 18 M 950 265 V 704 M 932 704 h 18"
+        fill="none" stroke="#dc2626" stroke-width="3"/>
+  <rect x="958" y="400" width="34" height="204" rx="8" fill="#ffffff"
+        stroke="#fecaca"/>
+  <text x="980" y="502" text-anchor="middle" class="label"
+        transform="rotate(-90 980 502)">A/B inter-token gap</text>
+
+  <rect x="42" y="650" width="1196" height="170" rx="14" fill="#ecfdf5"
+        stroke="#bbf7d0"/>
+  <text x="62" y="678" class="phase">Iteration 3 — decode finally resumes</text>
+  <line x1="160" y1="700" x2="397" y2="700" class="message"
+        stroke="#7c3aed" marker-end="url(#purple-arrow)"/>
+  <text x="278" y="691" text-anchor="middle" class="label">decode batch [A, B, C]</text>
+  <rect x="393" y="691" width="24" height="104" rx="6" fill="#c4b5fd"
+        stroke="#7c3aed"/>
+  <line x1="417" y1="720" x2="642" y2="720" class="message"
+        stroke="#16a34a" marker-end="url(#green-arrow)"/>
+  <text x="530" y="711" text-anchor="middle" class="small">next token</text>
+  <line x1="417" y1="754" x2="842" y2="754" class="message"
+        stroke="#16a34a" marker-end="url(#green-arrow)"/>
+  <text x="630" y="745" text-anchor="middle" class="small">next token</text>
+  <line x1="417" y1="788" x2="1102" y2="788" class="message"
+        stroke="#16a34a" marker-end="url(#green-arrow)"/>
+  <text x="760" y="779" text-anchor="middle" class="small">next token</text>
+
+  <rect x="100" y="846" width="1080" height="48" rx="12" fill="#ffffff"
+        stroke="#ef4444" stroke-width="2"/>
+  <text x="640" y="876" text-anchor="middle" class="label">
+    Continuous batching admitted C quickly, but without chunking C's whole prefill still blocked every live stream.
+  </text>
+</svg>
