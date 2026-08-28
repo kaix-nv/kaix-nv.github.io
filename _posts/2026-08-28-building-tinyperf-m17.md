@@ -93,10 +93,13 @@ calibrated model rather than a benchmark run.
 Production stacks model speculative decoding with measured
 per-position acceptance curves (not i.i.d. alpha), draft/target pairs as
 a searchable axis (draft size, k, tree-speculation fan-out), and the
-batch-dependence this milestone's approximation flags: at large
-batch x (k+1), verification stops being free and the win shrinks —
-which is why speculation shines at interactive batch sizes and fades at
-throughput-oriented ones.
+batch-dependence this milestone's approximation flags.
+
+*Erratum (added in milestone 18): this section originally claimed the
+speculation win generally shrinks at large batch. Pricing verification
+honestly shows that is the short-context special case — at long context
+the win grows with batch, because speculation amortizes the target's KV
+traffic. See milestone 18 for the regime map.*
 
 ## Exercises
 
