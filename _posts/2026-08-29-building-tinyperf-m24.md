@@ -84,6 +84,33 @@ keep the KV cache growing (65.5 KB/token instead of 262 KB/token — a
 quarter, not zero). The architecture deliberately keeps them, and the
 model shows exactly what they cost.
 
+## Measured on silicon: the scaling holds, the constant does not yet
+
+The claim worth checking is the *scaling*, and it checks out. Running a
+chunked delta rule on a B200 across sequence lengths:
+
+```
+  seq 2048 -> 4096:  time x1.98      (linear = 2.0, quadratic = 4.0)
+  seq 4096 -> 8192:  time x1.94
+  seq 2048 -> 8192:  time x3.84      (linear = 4.0, quadratic = 16.0)
+```
+
+Quadratic is excluded by a factor of four. The mechanism this milestone
+added — linear-in-sequence-length prefill — is real hardware behavior,
+not just an equation.
+
+The *efficiency constant*, however, is still asserted. Measuring it needs
+a fused kernel, and the reference implementation available here runs at
+0.1% of peak: it is a Python loop over 128 chunks of tiny matmuls, so it
+measures launch overhead, not kernel quality. Fitting 0.55 against that
+would have produced a confidently wrong number — worse than an honest
+assertion. The production Triton kernels (flash-linear-attention) would
+answer it, and could not be imported in the environment available.
+
+So the milestone ships with a measured mechanism and an unmeasured
+constant, and says which is which. That distinction is the entire point
+of the SOL/PROJ/CALIBRATED ladder from milestone 9.
+
 ## Modeling notes, and what is approximate
 
 The state is fp32 (the ssm dtype in the config) and sized
