@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Qwen3.5 combines fixed recurrent state with growing KV cache</title>
+  <desc id="desc">A concrete Qwen3.5-0.8B sequence passes through eighteen Gated DeltaNet layers that retain a fixed convolution tail and recurrent matrix, and six full-attention layers whose KV cache grows by one entry per token.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.linear{fill:#ecfdf5;stroke:#10b981;stroke-width:2}.full{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.token{fill:#fef3c7;stroke:#f59e0b;stroke-width:2}.state{fill:#d1fae5;stroke:#059669;stroke-width:2}.kv{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.muted{fill:#f1f5f9;stroke:#cbd5e1;stroke-width:1.5}.arrow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#head)}.dash{fill:none;stroke:#64748b;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#head)}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.sub{font:16px system-ui,sans-serif;fill:#475569}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 16px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}.white{font:700 15px system-ui,sans-serif;fill:#fff}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7e: linear attention changes the state, not just the kernel</text>
+  <text x="48" y="78" class="sub">Qwen3.5-0.8B repeats 3 Gated DeltaNet layers + 1 full-attention layer, six times.</text>
+
+  <rect x="48" y="108" width="1104" height="104" rx="14" class="panel"/>
+  <text x="72" y="140" class="head">One request advances from token t to token t+1</text>
+  <g>
+    <rect x="72" y="158" width="62" height="36" rx="8" class="token"/><text x="103" y="181" text-anchor="middle" class="label">t0</text>
+    <rect x="150" y="158" width="62" height="36" rx="8" class="token"/><text x="181" y="181" text-anchor="middle" class="label">t1</text>
+    <rect x="228" y="158" width="62" height="36" rx="8" class="token"/><text x="259" y="181" text-anchor="middle" class="label">t2</text>
+    <text x="316" y="181" class="label">…</text>
+    <rect x="346" y="158" width="62" height="36" rx="8" class="token"/><text x="377" y="181" text-anchor="middle" class="label">t</text>
+    <path d="M420 176 H500" class="arrow"/><text x="460" y="160" text-anchor="middle" class="small">new input</text>
+    <rect x="510" y="151" width="138" height="50" rx="10" fill="#0f172a"/><text x="579" y="181" text-anchor="middle" class="white">decoder layer</text>
+    <path d="M660 176 H740" class="arrow"/>
+    <rect x="750" y="158" width="62" height="36" rx="8" class="token"/><text x="781" y="181" text-anchor="middle" class="label">t+1</text>
+    <text x="847" y="169" class="small">Same token stream;</text><text x="847" y="190" class="small">two different state shapes below.</text>
+  </g>
+
+  <rect x="48" y="236" width="530" height="398" rx="16" class="linear"/>
+  <text x="72" y="274" class="head">18 × Gated DeltaNet: fixed per request</text>
+  <text x="72" y="300" class="small">Every token updates the same bounded state.</text>
+  <rect x="78" y="326" width="184" height="96" rx="12" class="state"/>
+  <text x="170" y="354" text-anchor="middle" class="label">conv tail</text>
+  <text x="170" y="379" text-anchor="middle" class="tiny">[6144, 3] BF16</text>
+  <text x="170" y="402" text-anchor="middle" class="small">last 3 raw QKV columns</text>
+  <rect x="326" y="326" width="216" height="96" rx="12" class="state"/>
+  <text x="434" y="354" text-anchor="middle" class="label">recurrent S</text>
+  <text x="434" y="379" text-anchor="middle" class="tiny">[16, 128, 128] FP32</text>
+  <text x="434" y="402" text-anchor="middle" class="small">decay + delta update</text>
+  <path d="M262 374 H326" class="arrow"/>
+  <rect x="78" y="454" width="464" height="96" rx="12" class="muted"/>
+  <text x="98" y="482" class="tiny">Sbar = exp(g) * S</text>
+  <text x="98" y="505" class="tiny">error = v - k^T Sbar</text>
+  <text x="98" y="528" class="tiny">S = Sbar + k outer (beta * error)</text>
+  <path d="M434 422 V452" class="dash"/>
+  <text x="72" y="584" class="label">18.63 MiB per live request</text>
+  <text x="72" y="609" class="small">Constant in context length; grows with concurrency.</text>
+
+  <rect x="602" y="236" width="550" height="398" rx="16" class="full"/>
+  <text x="626" y="274" class="head">6 × full attention: grows with context</text>
+  <text x="626" y="300" class="small">Each token appends one K and one V entry.</text>
+  <g>
+    <rect x="630" y="338" width="72" height="74" rx="9" class="kv"/><text x="666" y="369" text-anchor="middle" class="label">K,V</text><text x="666" y="391" text-anchor="middle" class="tiny">t0</text>
+    <rect x="712" y="338" width="72" height="74" rx="9" class="kv"/><text x="748" y="369" text-anchor="middle" class="label">K,V</text><text x="748" y="391" text-anchor="middle" class="tiny">t1</text>
+    <rect x="794" y="338" width="72" height="74" rx="9" class="kv"/><text x="830" y="369" text-anchor="middle" class="label">K,V</text><text x="830" y="391" text-anchor="middle" class="tiny">t2</text>
+    <rect x="876" y="338" width="72" height="74" rx="9" class="muted"/><text x="912" y="381" text-anchor="middle" class="label">…</text>
+    <rect x="958" y="338" width="72" height="74" rx="9" class="kv"/><text x="994" y="369" text-anchor="middle" class="label">K,V</text><text x="994" y="391" text-anchor="middle" class="tiny">t</text>
+    <path d="M1036 375 H1104" class="arrow"/>
+    <rect x="1080" y="338" width="50" height="74" rx="9" class="kv"/><text x="1105" y="370" text-anchor="middle" class="label">+</text><text x="1105" y="393" text-anchor="middle" class="tiny">t+1</text>
+  </g>
+  <rect x="630" y="454" width="498" height="96" rx="12" class="muted"/>
+  <text x="650" y="483" class="label">Qwen3.5-0.8B full-layer KV</text>
+  <text x="650" y="509" class="tiny">6 layers * 2 KV heads * 256 dims * K/V * BF16</text>
+  <text x="650" y="533" class="label">= 12 KiB per cached token</text>
+  <text x="626" y="584" class="label">24 MiB at 2,048 tokens</text>
+  <text x="626" y="609" class="small">Linear in context length; shared paging arrives in M7f.</text>
+
+  <rect x="48" y="660" width="1104" height="66" rx="13" class="panel"/>
+  <text x="72" y="690" class="label">Hybrid cache = fixed recurrent state + growing KV</text>
+  <text x="72" y="714" class="small">A valid prefix snapshot must restore the conv tail, recurrent matrices, and full-attention KV together.</text>
+</svg>
