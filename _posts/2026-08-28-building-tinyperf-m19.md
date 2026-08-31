@@ -11,6 +11,15 @@ excerpt: "Riding prompt tokens under decode steps is a straight 2x throughput wi
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `chunk_tokens` in `serving.py` · Demo: `examples/17_chunked_prefill.py`.*
 
+> **Erratum (milestone 32).** The throughput numbers in this post were
+> measured against a prefill-first baseline that flattened each admitted
+> batch into one concatenated sequence, making its attention quadratic in
+> the combined length. Silicon validation caught it. Under the corrected
+> batched-prefill baseline the headline win at this workload is **~1.3x**,
+> not ~2x — chunking still wins throughput, TTFT p95 and TPOT
+> simultaneously, so the qualitative conclusions stand at reduced
+> magnitude.
+
 Milestone 13's engine had one documented crudeness: prefill-prioritized
 scheduling. When new requests arrive, the whole GPU turns into a prefill
 machine and every running decode stalls. Milestone 18 built the price of a

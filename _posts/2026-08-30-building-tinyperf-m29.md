@@ -11,6 +11,14 @@ excerpt: "A one-layer MTP head moves the SLO wall from 16 ms to 10 ms — and ru
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — the `mtp` path in `sweep.py` · Demo: `examples/23_mtp_economics.py`.*
 
+> **Erratum (milestones 31-32).** The wall/price table below was computed
+> with the eager-PyTorch launch constant. Serving engines capture their
+> decode steps into CUDA graphs, whose measured per-kernel cost is ~4x
+> lower, and the serving path now defaults to that tier. Under it every
+> wall sits lower and every knee is cheaper; the *relative* conclusions —
+> MTP moves walls cheaply, operating beside a wall is ruinously expensive,
+> the i.i.d. assumption misprices tight SLOs — are unchanged.
+
 Milestone 16 found that every deployment has a **wall**: an SLO below its
 single-request decode time that no amount of money can buy. Milestone 17
 moved that wall with a separate draft model, at the price of needing
