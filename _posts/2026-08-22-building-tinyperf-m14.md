@@ -109,5 +109,10 @@ how to extend. That was the point all along.
 4. Adaptive sampling: replace `expand` with a sampler that refines near
    the current frontier. How few evaluations find the same frontier?
 
-*That's the core series. Thanks for building along — the exercises are
-yours now.*
+*That closed the core series as originally planned — and then it kept
+going. Exercise 3 above became [milestone 15](/series/tinyperf/) (sweeping
+the serving simulator), the cost axis of exercise 2 became milestones 15
+and 29, and the series continued through calibration on real datacenter
+silicon, hybrid linear attention, MTP speculation, and the economics of
+interactivity — 15 more posts. The [series index](/series/tinyperf/) has
+the full map; the exercises that remain open are still yours.*
