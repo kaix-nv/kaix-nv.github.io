@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Kimi-K3 uses fixed KDA state and a compressed MLA cache</title>
+  <desc id="desc">A token follows either a KDA path that updates three convolution tails and a recurrent matrix, or an MLA path that appends a 512-value normalized latent and a 64-value rotary-designated key component. MLA absorbs the key and value expansion matrices around attention so expanded per-head KV is not cached.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.kda{fill:#ecfdf5;stroke:#10b981;stroke-width:2}.mla{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.state{fill:#d1fae5;stroke:#059669;stroke-width:2}.cache{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.token{fill:#fef3c7;stroke:#f59e0b;stroke-width:2}.muted{fill:#f1f5f9;stroke:#cbd5e1;stroke-width:1.5}.arrow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#head)}.dash{fill:none;stroke:#64748b;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#head)}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.sub{font:16px system-ui,sans-serif;fill:#475569}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">One token, two attention memories</text>
+  <text x="48" y="78" class="sub">KDA summarizes all history in a matrix; MLA keeps token history, but in a compressed latent space.</text>
+
+  <rect x="48" y="108" width="1104" height="272" rx="16" class="kda"/>
+  <text x="72" y="144" class="head">KDA layer — update bounded state</text>
+  <rect x="72" y="176" width="82" height="54" rx="10" class="token"/><text x="113" y="209" text-anchor="middle" class="label">hₜ</text>
+  <path d="M160 203 H218" class="arrow"/>
+  <rect x="228" y="164" width="188" height="78" rx="11" class="panel"/>
+  <text x="322" y="190" text-anchor="middle" class="label">Q / K / V projections</text>
+  <text x="322" y="215" text-anchor="middle" class="tiny">three width-4 causal convs</text>
+  <text x="322" y="233" text-anchor="middle" class="tiny">+ SiLU, L2-normalize Q/K</text>
+  <path d="M422 203 H480" class="arrow"/>
+  <rect x="490" y="155" width="248" height="96" rx="12" class="state"/>
+  <text x="614" y="184" text-anchor="middle" class="label">channel-wise delta update</text>
+  <text x="614" y="207" text-anchor="middle" class="tiny">S̄[d,:] = exp(g[d]) S[d,:]</text>
+  <text x="614" y="229" text-anchor="middle" class="tiny">S = S̄ + k ⊗ sigmoid(β)(v-kᵀS̄)</text>
+  <path d="M744 203 H806" class="arrow"/>
+  <rect x="816" y="164" width="176" height="78" rx="11" class="panel"/>
+  <text x="904" y="191" text-anchor="middle" class="label">qᵀS</text>
+  <text x="904" y="214" text-anchor="middle" class="tiny">RMSNorm × sigmoid(gate)</text>
+  <text x="904" y="233" text-anchor="middle" class="tiny">→ output projection</text>
+  <path d="M998 203 H1060" class="arrow"/>
+  <rect x="1070" y="176" width="58" height="54" rx="10" class="token"/><text x="1099" y="209" text-anchor="middle" class="label">oₜ</text>
+
+  <rect x="228" y="282" width="240" height="68" rx="11" class="state"/>
+  <text x="348" y="307" text-anchor="middle" class="label">three convolution tails</text>
+  <text x="348" y="331" text-anchor="middle" class="tiny">3 × [8×128, 3] BF16</text>
+  <rect x="524" y="282" width="250" height="68" rx="11" class="state"/>
+  <text x="649" y="307" text-anchor="middle" class="label">recurrent matrix S</text>
+  <text x="649" y="331" text-anchor="middle" class="tiny">[8, 128, 128] FP32</text>
+  <path d="M348 278 V244" class="dash"/><path d="M649 278 V254" class="dash"/>
+  <text x="816" y="319" class="small">Same allocation at token 1 and token 1,000,000.</text>
+
+  <rect x="48" y="406" width="1104" height="286" rx="16" class="mla"/>
+  <text x="72" y="442" class="head">MLA layer — append compressed token state</text>
+  <rect x="72" y="474" width="82" height="54" rx="10" class="token"/><text x="113" y="507" text-anchor="middle" class="label">hₜ</text>
+  <path d="M160 501 H214" class="arrow"/>
+  <rect x="224" y="462" width="226" height="78" rx="11" class="panel"/>
+  <text x="337" y="488" text-anchor="middle" class="label">KV down projection</text>
+  <text x="337" y="512" text-anchor="middle" class="tiny">cₜ = RMSNorm(KV-A(hₜ))</text>
+  <text x="337" y="532" text-anchor="middle" class="tiny">rₜ = 64-value designated key</text>
+  <path d="M456 501 H514" class="arrow"/>
+  <rect x="524" y="450" width="250" height="102" rx="12" class="cache"/>
+  <text x="649" y="478" text-anchor="middle" class="label">compressed MLA cache</text>
+  <text x="649" y="503" text-anchor="middle" class="tiny">append [cₜ (512), rₜ (64)]</text>
+  <text x="649" y="526" text-anchor="middle" class="tiny">576 BF16 values / layer / token</text>
+  <text x="649" y="545" text-anchor="middle" class="tiny">1,152 bytes</text>
+  <path d="M780 501 H838" class="arrow"/>
+  <rect x="848" y="450" width="280" height="102" rx="12" class="panel"/>
+  <text x="988" y="478" text-anchor="middle" class="label">absorbed attention</text>
+  <text x="988" y="502" text-anchor="middle" class="tiny">score = (qₙWₖ)·c + qᵣ·r</text>
+  <text x="988" y="525" text-anchor="middle" class="tiny">latent out = Σ softmax(score) c</text>
+  <text x="988" y="545" text-anchor="middle" class="tiny">output = latent out · Wᵥᵀ</text>
+
+  <rect x="224" y="586" width="410" height="76" rx="11" class="muted"/>
+  <text x="244" y="613" class="label">Expanded reference cache</text>
+  <text x="244" y="638" class="tiny">8 heads × (192 K + 128 V) × BF16 = 5,120 bytes/layer/token</text>
+  <rect x="664" y="586" width="464" height="76" rx="11" class="cache"/>
+  <text x="684" y="613" class="label">M7f compressed cache</text>
+  <text x="684" y="638" class="tiny">(512 latent + 64 designated key) × BF16 = 1,152 bytes/layer/token</text>
+
+  <rect x="48" y="712" width="1104" height="32" rx="8" class="panel"/>
+  <text x="600" y="734" text-anchor="middle" class="small">For five MLA layers, the tiny fixture stores 5.625 KiB/token instead of 25 KiB/token — 4.44× less.</text>
+</svg>

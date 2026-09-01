@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">The tiny Kimi-K3 text stack combines KDA, MLA, and latent MoE</title>
+  <desc id="desc">Seventeen decoder layers form four groups of three KDA layers followed by one MLA layer, plus a final MLA layer. Layer zero has a dense feed-forward network and the remaining layers have top-16 latent mixture-of-experts blocks with shared experts.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.kda{fill:#ecfdf5;stroke:#10b981;stroke-width:2}.mla{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.dense{fill:#fff7ed;stroke:#f97316;stroke-width:2}.moe{fill:#faf5ff;stroke:#a855f7;stroke-width:2}.line{stroke:#475569;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.sub{font:16px system-ui,sans-serif;fill:#475569}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="650"/>
+  <text x="48" y="48" class="title">M7f: Kimi is a stack contract, not an attention alias</text>
+  <text x="48" y="78" class="sub">The 133.5 MB random fixture preserves Kimi-K3's text mechanisms while shrinking width, heads, experts, and layers.</text>
+
+  <rect x="48" y="108" width="1104" height="268" rx="16" class="panel"/>
+  <text x="72" y="142" class="head">Attention schedule — 12 KDA + 5 MLA layers</text>
+  <text x="72" y="168" class="small">Four complete 3:1 groups, then one final global MLA layer.</text>
+
+  <g transform="translate(72 198)">
+    <rect x="0" y="0" width="54" height="62" rx="8" class="kda"/><text x="27" y="26" text-anchor="middle" class="label">KDA</text><text x="27" y="48" text-anchor="middle" class="tiny">L0</text>
+    <rect x="62" y="0" width="54" height="62" rx="8" class="kda"/><text x="89" y="26" text-anchor="middle" class="label">KDA</text><text x="89" y="48" text-anchor="middle" class="tiny">L1</text>
+    <rect x="124" y="0" width="54" height="62" rx="8" class="kda"/><text x="151" y="26" text-anchor="middle" class="label">KDA</text><text x="151" y="48" text-anchor="middle" class="tiny">L2</text>
+    <rect x="186" y="0" width="54" height="62" rx="8" class="mla"/><text x="213" y="26" text-anchor="middle" class="label">MLA</text><text x="213" y="48" text-anchor="middle" class="tiny">L3</text>
+    <line x1="248" y1="-8" x2="248" y2="70" class="line"/>
+
+    <rect x="260" y="0" width="54" height="62" rx="8" class="kda"/><text x="287" y="26" text-anchor="middle" class="label">KDA</text><text x="287" y="48" text-anchor="middle" class="tiny">L4</text>
+    <rect x="322" y="0" width="54" height="62" rx="8" class="kda"/><text x="349" y="26" text-anchor="middle" class="label">KDA</text><text x="349" y="48" text-anchor="middle" class="tiny">L5</text>
+    <rect x="384" y="0" width="54" height="62" rx="8" class="kda"/><text x="411" y="26" text-anchor="middle" class="label">KDA</text><text x="411" y="48" text-anchor="middle" class="tiny">L6</text>
+    <rect x="446" y="0" width="54" height="62" rx="8" class="mla"/><text x="473" y="26" text-anchor="middle" class="label">MLA</text><text x="473" y="48" text-anchor="middle" class="tiny">L7</text>
+    <line x1="508" y1="-8" x2="508" y2="70" class="line"/>
+
+    <rect x="520" y="0" width="54" height="62" rx="8" class="kda"/><text x="547" y="26" text-anchor="middle" class="label">KDA</text><text x="547" y="48" text-anchor="middle" class="tiny">L8</text>
+    <rect x="582" y="0" width="54" height="62" rx="8" class="kda"/><text x="609" y="26" text-anchor="middle" class="label">KDA</text><text x="609" y="48" text-anchor="middle" class="tiny">L9</text>
+    <rect x="644" y="0" width="54" height="62" rx="8" class="kda"/><text x="671" y="26" text-anchor="middle" class="label">KDA</text><text x="671" y="48" text-anchor="middle" class="tiny">L10</text>
+    <rect x="706" y="0" width="54" height="62" rx="8" class="mla"/><text x="733" y="26" text-anchor="middle" class="label">MLA</text><text x="733" y="48" text-anchor="middle" class="tiny">L11</text>
+    <line x1="768" y1="-8" x2="768" y2="70" class="line"/>
+
+    <rect x="780" y="0" width="54" height="62" rx="8" class="kda"/><text x="807" y="26" text-anchor="middle" class="label">KDA</text><text x="807" y="48" text-anchor="middle" class="tiny">L12</text>
+    <rect x="842" y="0" width="54" height="62" rx="8" class="kda"/><text x="869" y="26" text-anchor="middle" class="label">KDA</text><text x="869" y="48" text-anchor="middle" class="tiny">L13</text>
+    <rect x="904" y="0" width="54" height="62" rx="8" class="kda"/><text x="931" y="26" text-anchor="middle" class="label">KDA</text><text x="931" y="48" text-anchor="middle" class="tiny">L14</text>
+    <rect x="966" y="0" width="54" height="62" rx="8" class="mla"/><text x="993" y="26" text-anchor="middle" class="label">MLA</text><text x="993" y="48" text-anchor="middle" class="tiny">L15</text>
+  </g>
+  <rect x="1018" y="286" width="110" height="62" rx="9" class="mla"/><text x="1073" y="312" text-anchor="middle" class="label">final MLA</text><text x="1073" y="334" text-anchor="middle" class="tiny">L16</text>
+  <text x="72" y="334" class="tiny">fixed recurrent state</text>
+  <text x="370" y="334" class="tiny">+ compressed global cache every fourth layer</text>
+
+  <rect x="48" y="400" width="1104" height="196" rx="16" class="panel"/>
+  <text x="72" y="436" class="head">Every layer also changes how the residual and feed-forward paths work</text>
+  <rect x="72" y="466" width="210" height="82" rx="12" class="dense"/>
+  <text x="177" y="495" text-anchor="middle" class="label">Layer 0: dense SiTU MLP</text>
+  <text x="177" y="520" text-anchor="middle" class="tiny">8 → 32 → 8</text>
+  <rect x="316" y="466" width="530" height="82" rx="12" class="moe"/>
+  <text x="581" y="493" text-anchor="middle" class="label">Layers 1–16: latent MoE</text>
+  <text x="581" y="518" text-anchor="middle" class="tiny">8 → latent 256 → top-16 of 64 routed experts → 8</text>
+  <text x="581" y="539" text-anchor="middle" class="tiny">+ two shared experts on the original hidden row</text>
+  <rect x="880" y="466" width="248" height="82" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+  <text x="1004" y="493" text-anchor="middle" class="label">AttnRes every 8 layers</text>
+  <text x="1004" y="518" text-anchor="middle" class="tiny">learned softmax mixes</text>
+  <text x="1004" y="539" text-anchor="middle" class="tiny">block residual streams</text>
+  <text x="72" y="579" class="small">Supporting only KDA would load the weights but execute the wrong model. M7f implements all three contracts together.</text>
+
+  <text x="48" y="628" class="sub">Text-only boundary: the fixture's vision tower and projector are intentionally ignored.</text>
+</svg>
