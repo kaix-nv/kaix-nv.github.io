@@ -8,7 +8,8 @@ excerpt: "Use a tiny Kimi-K3 checkpoint to follow channel-wise KDA state, compre
 ---
 
 *Milestone 7f of [building an LLM inference engine from scratch](/series/tinyserve/).
-Previous: [M7e — linear attention is a different kind of memory]({% post_url 2026-08-31-building-tinyserve-m7e %}).*
+Previous: [M7e — linear attention is a different kind of memory]({% post_url 2026-08-31-building-tinyserve-m7e %}).
+Next: [M7g — hybrid state becomes a scheduler resource]({% post_url 2026-09-01-building-tinyserve-m7g %}).*
 
 Code: [`tinyserve` @ `10f7648`](https://github.com/kaix-nv/tinyserve/tree/10f7648e7104c6ce09e80f77612d249e2d4400a2).
 
