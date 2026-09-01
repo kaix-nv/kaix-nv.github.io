@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7g scheduler-owned hybrid state lifecycle</title>
+  <desc id="desc">Three requests share two resident state slots. A and B are admitted, C waits, A finishes and releases slot zero, then C reuses it. During decode the fixed recurrent tensors and ragged growing histories of live requests gather into one masked batch and scatter back after one token transition.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.slot0{fill:#ecfdf5;stroke:#10b981;stroke-width:2}.slot1{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.wait{fill:#fef3c7;stroke:#f59e0b;stroke-width:2}.batch{fill:#faf5ff;stroke:#a855f7;stroke-width:2}.muted{fill:#f1f5f9;stroke:#cbd5e1;stroke-width:1.5}.arrow{fill:none;stroke:#334155;stroke-width:2.5;marker-end:url(#head)}.dash{fill:none;stroke:#64748b;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#head)}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.sub{font:16px system-ui,sans-serif;fill:#475569}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7g: the scheduler owns hybrid state, not the model call</text>
+  <text x="48" y="78" class="sub">Two resident slots bound concurrency; ragged gather → one decode forward → scatter preserves each request’s private history.</text>
+
+  <rect x="48" y="104" width="1104" height="264" rx="16" class="panel"/>
+  <text x="72" y="140" class="head">Concrete lifecycle — requests A, B, C; capacity = 2 slots</text>
+
+  <g transform="translate(72 166)">
+    <text x="115" y="0" text-anchor="middle" class="label">Step 0: admit A + B</text>
+    <rect x="0" y="18" width="230" height="44" rx="9" class="slot0"/><text x="115" y="46" text-anchor="middle" class="small">slot 0 → A state</text>
+    <rect x="0" y="70" width="230" height="44" rx="9" class="slot1"/><text x="115" y="98" text-anchor="middle" class="small">slot 1 → B state</text>
+    <rect x="0" y="122" width="230" height="38" rx="9" class="wait"/><text x="115" y="147" text-anchor="middle" class="small">C waits (FCFS)</text>
+
+    <path d="M240 86 H282" class="arrow"/>
+    <text x="407" y="0" text-anchor="middle" class="label">Step 1: decode A, prefill B</text>
+    <rect x="292" y="18" width="230" height="44" rx="9" class="slot0"/><text x="407" y="46" text-anchor="middle" class="small">A: RUNNING</text>
+    <rect x="292" y="70" width="230" height="44" rx="9" class="slot1"/><text x="407" y="98" text-anchor="middle" class="small">B: PREFILL → RUNNING</text>
+    <rect x="292" y="122" width="230" height="38" rx="9" class="wait"/><text x="407" y="147" text-anchor="middle" class="small">C still waits</text>
+
+    <path d="M532 86 H574" class="arrow"/>
+    <text x="699" y="0" text-anchor="middle" class="label">Step 2: batch A + B</text>
+    <rect x="584" y="18" width="230" height="96" rx="9" class="batch"/>
+    <text x="699" y="48" text-anchor="middle" class="small">one ragged decode forward</text>
+    <text x="699" y="72" text-anchor="middle" class="tiny">A length 6, B length 3</text>
+    <text x="699" y="94" text-anchor="middle" class="tiny">A finishes → release slot 0</text>
+    <rect x="584" y="122" width="230" height="38" rx="9" class="wait"/><text x="699" y="147" text-anchor="middle" class="small">C becomes admissible</text>
+
+    <path d="M824 86 H866" class="arrow"/>
+    <text x="991" y="0" text-anchor="middle" class="label">Step 3: reuse slot 0</text>
+    <rect x="876" y="18" width="230" height="44" rx="9" class="slot0"/><text x="991" y="46" text-anchor="middle" class="small">slot 0 → C state</text>
+    <rect x="876" y="70" width="230" height="44" rx="9" class="slot1"/><text x="991" y="98" text-anchor="middle" class="small">slot 1 → B state</text>
+    <rect x="876" y="122" width="230" height="38" rx="9" class="muted"/><text x="991" y="147" text-anchor="middle" class="small">waiting queue empty</text>
+  </g>
+
+  <rect x="48" y="394" width="1104" height="310" rx="16" class="panel"/>
+  <text x="72" y="430" class="head">One M7g decode step — gather private state, mask ragged history, scatter the transition</text>
+
+  <rect x="72" y="466" width="278" height="184" rx="12" class="muted"/>
+  <text x="211" y="494" text-anchor="middle" class="label">Scheduler-owned request caches</text>
+  <rect x="92" y="514" width="238" height="50" rx="8" class="slot0"/>
+  <text x="211" y="536" text-anchor="middle" class="tiny">A: conv + matrix | history × 6</text>
+  <text x="211" y="554" text-anchor="middle" class="tiny">last sampled token is not cached yet</text>
+  <rect x="92" y="578" width="238" height="50" rx="8" class="slot1"/>
+  <text x="211" y="600" text-anchor="middle" class="tiny">B: conv + matrix | history × 3</text>
+  <text x="211" y="618" text-anchor="middle" class="tiny">independent cursor and ownership</text>
+
+  <path d="M360 558 H430" class="arrow"/>
+  <text x="395" y="545" text-anchor="middle" class="tiny">gather</text>
+
+  <rect x="440" y="466" width="320" height="184" rx="12" class="batch"/>
+  <text x="600" y="494" text-anchor="middle" class="label">Transient batch cache</text>
+  <text x="600" y="522" text-anchor="middle" class="tiny">fixed state: concatenate rows A, B</text>
+  <text x="600" y="546" text-anchor="middle" class="tiny">history: pad to 7 and zero padding</text>
+  <text x="600" y="570" text-anchor="middle" class="tiny">visible[A] = 1111111</text>
+  <text x="600" y="592" text-anchor="middle" class="tiny">visible[B] = 1111000</text>
+  <rect x="478" y="610" width="244" height="26" rx="7" fill="#fff" stroke="#a855f7"/>
+  <text x="600" y="628" text-anchor="middle" class="tiny">one model forward for token A₆, B₃</text>
+
+  <path d="M770 558 H840" class="arrow"/>
+  <text x="805" y="545" text-anchor="middle" class="tiny">scatter</text>
+
+  <rect x="850" y="466" width="278" height="184" rx="12" class="muted"/>
+  <text x="989" y="494" text-anchor="middle" class="label">Same private owners</text>
+  <rect x="870" y="514" width="238" height="50" rx="8" class="slot0"/>
+  <text x="989" y="536" text-anchor="middle" class="tiny">A: updated state | history × 7</text>
+  <text x="989" y="554" text-anchor="middle" class="tiny">release if sampled token finishes</text>
+  <rect x="870" y="578" width="238" height="50" rx="8" class="slot1"/>
+  <text x="989" y="600" text-anchor="middle" class="tiny">B: updated state | history × 4</text>
+  <text x="989" y="618" text-anchor="middle" class="tiny">ready for the next engine step</text>
+
+  <text x="600" y="682" text-anchor="middle" class="small">Only execution is batched. Ownership, cursor, release, and future preemption remain per request.</text>
+  <text x="48" y="738" class="sub">M7g copies state for clarity; persistent slot kernels are an optimization, not a prerequisite for correct lifecycle semantics.</text>
+</svg>
