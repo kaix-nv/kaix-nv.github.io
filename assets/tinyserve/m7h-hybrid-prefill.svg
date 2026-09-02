@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7h chunked and packed hybrid prefill</title>
+  <desc id="desc">A whole long prefill creates one large gap between decoder steps. Chunking interleaves bounded prompt work with decode. Packing uses the remaining token budget for the next FCFS request while masks prevent right padding from changing recurrent or growing state.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.decode{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.whole{fill:#fee2e2;stroke:#ef4444;stroke-width:2}.chunk{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.pack{fill:#f3e8ff;stroke:#9333ea;stroke-width:2}.pad{fill:#e2e8f0;stroke:#94a3b8;stroke-width:1.5}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}.arrow{stroke:#334155;stroke-width:2.5;marker-end:url(#head)}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7h: chunking bounds interruption; packing spends the leftover budget</text>
+  <text x="48" y="78" class="small">Decode remains first. One engine step admits at most chunk_size real prompt tokens, even when several requests share the forward.</text>
+
+  <rect x="48" y="104" width="1104" height="270" rx="16" class="panel"/>
+  <text x="72" y="140" class="head">Why chunking is required — request A is decoding when long prompt B arrives</text>
+  <text x="72" y="178" class="label">M7g: one whole hybrid prefill</text>
+  <rect x="72" y="194" width="126" height="52" rx="9" class="decode"/><text x="135" y="225" text-anchor="middle" class="small">decode A</text>
+  <rect x="214" y="194" width="674" height="52" rx="9" class="whole"/><text x="551" y="216" text-anchor="middle" class="small">prefill all 386 tokens of B</text><text x="551" y="236" text-anchor="middle" class="tiny">A waits for the entire recurrence scan</text>
+  <rect x="904" y="194" width="126" height="52" rx="9" class="decode"/><text x="967" y="225" text-anchor="middle" class="small">decode A</text>
+  <path d="M1042 220 H1118" class="arrow"/>
+
+  <text x="72" y="286" class="label">M7h: chunk_size = 32</text>
+  <rect x="72" y="302" width="112" height="52" rx="9" class="decode"/><text x="128" y="333" text-anchor="middle" class="small">decode A</text>
+  <rect x="196" y="302" width="132" height="52" rx="9" class="chunk"/><text x="262" y="325" text-anchor="middle" class="small">B [0:32)</text><text x="262" y="343" text-anchor="middle" class="tiny">bounded</text>
+  <rect x="340" y="302" width="112" height="52" rx="9" class="decode"/><text x="396" y="333" text-anchor="middle" class="small">decode A</text>
+  <rect x="464" y="302" width="132" height="52" rx="9" class="chunk"/><text x="530" y="325" text-anchor="middle" class="small">B [32:64)</text><text x="530" y="343" text-anchor="middle" class="tiny">bounded</text>
+  <rect x="608" y="302" width="112" height="52" rx="9" class="decode"/><text x="664" y="333" text-anchor="middle" class="small">decode A</text>
+  <text x="752" y="333" class="label">… repeat until B finishes</text>
+  <path d="M1004 328 H1118" class="arrow"/>
+
+  <rect x="48" y="398" width="1104" height="310" rx="16" class="panel"/>
+  <text x="72" y="434" class="head">Why packing is also required — use every real-token slot in the FCFS budget</text>
+  <text x="72" y="465" class="small">Concrete step: budget = 4, Hi has 1 token, the next long request contributes 3. One forward has padded width 3.</text>
+
+  <rect x="72" y="492" width="300" height="164" rx="12" class="pack"/>
+  <text x="222" y="520" text-anchor="middle" class="label">Packed input [B=2, T=3]</text>
+  <rect x="96" y="540" width="72" height="34" rx="6" class="chunk"/><text x="132" y="562" text-anchor="middle" class="tiny">Hi₀</text>
+  <rect x="172" y="540" width="72" height="34" rx="6" class="pad"/><text x="208" y="562" text-anchor="middle" class="tiny">PAD</text>
+  <rect x="248" y="540" width="72" height="34" rx="6" class="pad"/><text x="284" y="562" text-anchor="middle" class="tiny">PAD</text>
+  <rect x="96" y="584" width="72" height="34" rx="6" class="chunk"/><text x="132" y="606" text-anchor="middle" class="tiny">B₀</text>
+  <rect x="172" y="584" width="72" height="34" rx="6" class="chunk"/><text x="208" y="606" text-anchor="middle" class="tiny">B₁</text>
+  <rect x="248" y="584" width="72" height="34" rx="6" class="chunk"/><text x="284" y="606" text-anchor="middle" class="tiny">B₂</text>
+  <text x="222" y="642" text-anchor="middle" class="tiny">token_mask = [100], [111]</text>
+
+  <path d="M390 574 H452" class="arrow"/>
+  <rect x="464" y="492" width="304" height="164" rx="12" class="chunk"/>
+  <text x="616" y="520" text-anchor="middle" class="label">One hybrid model forward</text>
+  <text x="488" y="550" class="small">• recurrence: PAD is a no-op</text>
+  <text x="488" y="578" class="small">• convolution: tail ends at valid length</text>
+  <text x="488" y="606" class="small">• KV / MLA: append real tokens only</text>
+  <text x="488" y="634" class="small">• logits: select each row’s final real token</text>
+
+  <path d="M786 574 H848" class="arrow"/>
+  <rect x="860" y="492" width="268" height="164" rx="12" class="panel"/>
+  <text x="994" y="520" text-anchor="middle" class="label">Commit to private owners</text>
+  <text x="884" y="554" class="small">Hi: cursor +1, sample token</text>
+  <text x="884" y="584" class="small">B: cursor +3, still PREFILLING</text>
+  <text x="884" y="614" class="small">PAD: cursor +0, state +0</text>
+  <text x="994" y="642" text-anchor="middle" class="tiny">real token cost = 1 + 3 = 4</text>
+
+  <text x="48" y="738" class="small">The rectangular tensor is an execution detail. Token accounting, causal visibility, cursor movement, and state ownership remain ragged and per request.</text>
+</svg>

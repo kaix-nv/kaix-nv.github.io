@@ -8,7 +8,8 @@ excerpt: "Give every hybrid request private recurrent and growing history, then 
 ---
 
 *Milestone 7g of [building an LLM inference engine from scratch](/series/tinyserve/).
-Previous: [M7f — Kimi is KDA + MLA + MoE]({% post_url 2026-09-01-building-tinyserve-m7f %}).*
+Previous: [M7f — Kimi is KDA + MLA + MoE]({% post_url 2026-09-01-building-tinyserve-m7f %}).
+Next: [M7h — chunk and pack hybrid prefill]({% post_url 2026-09-02-building-tinyserve-m7h %}).*
 
 Code: [`tinyserve` @ `1099214`](https://github.com/kaix-nv/tinyserve/tree/1099214bd1e59e41eb511d463db331f8fe1937b9).
 
