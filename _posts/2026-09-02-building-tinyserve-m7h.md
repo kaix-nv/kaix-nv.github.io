@@ -8,7 +8,8 @@ excerpt: "Bound hybrid prompt work with a real-token budget, pack consecutive FC
 ---
 
 *Milestone 7h of [building an LLM inference engine from scratch](/series/tinyserve/).
-Previous: [M7g — hybrid state becomes a scheduler resource]({% post_url 2026-09-01-building-tinyserve-m7g %}).*
+Previous: [M7g — hybrid state becomes a scheduler resource]({% post_url 2026-09-01-building-tinyserve-m7g %}).
+Next: [M7i — pack Kimi experts, then batch the selected work]({% post_url 2026-09-02-building-tinyserve-m7i %}).*
 
 Code: [`tinyserve` @ `ed96c7c`](https://github.com/kaix-nv/tinyserve/tree/ed96c7c49805012028a19ede50c1685c7bdb6bae).
 
@@ -260,7 +261,9 @@ prompt work has a real-token bound; leftover capacity packs the next FCFS
 request; and padding cannot mutate private recurrent, convolution, KV, or MLA
 state.
 
-It still copies request state into transient batches and runs recurrence in
-Python. M7i should optimize those two measured costs with persistent slot
-storage and fused scans while keeping M7h's token-budget, mask, cursor, and
-ownership invariants unchanged.
+It still copies request state into transient batches, runs recurrence in
+Python, and invokes routed experts in small groups. The next profile showed
+that state gather/commit was only about `0.39%` of wall time while routed MoE
+consumed roughly three quarters of model time. M7i therefore optimizes expert
+execution first while keeping M7h's token-budget, mask, cursor, and ownership
+invariants unchanged.

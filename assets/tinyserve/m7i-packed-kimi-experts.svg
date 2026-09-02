@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7i packed Kimi expert execution</title>
+  <desc id="desc">The old path groups routed token assignments by active expert and launches three small projections for each expert. M7i stores weights in expert-major tensors, gathers the selected weights, and evaluates all token-expert assignments in three batched equations. A 64 MiB selected-weight cap sends large prompt batches back to the grouped path.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.route{fill:#f3e8ff;stroke:#9333ea;stroke-width:2}.old{fill:#fee2e2;stroke:#ef4444;stroke-width:2}.new{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.guard{fill:#fef3c7;stroke:#d97706;stroke-width:2}.tensor{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,monospace;fill:#334155}.arrow{stroke:#334155;stroke-width:2.5;marker-end:url(#head)}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7i: batch selected experts without making prompt memory unbounded</text>
+  <text x="48" y="78" class="small">Example: N = 4 decode tokens, K = 16 selected experts per token, E = 64 total experts.</text>
+
+  <rect x="48" y="106" width="1104" height="156" rx="16" class="panel"/>
+  <text x="72" y="142" class="head">The router produces assignment coordinates</text>
+  <rect x="76" y="168" width="200" height="62" rx="10" class="route"/>
+  <text x="176" y="192" text-anchor="middle" class="label">hidden [N, D]</text>
+  <text x="176" y="214" text-anchor="middle" class="tiny">[4, 256]</text>
+  <path d="M292 199 H366" class="arrow"/>
+  <rect x="382" y="160" width="250" height="78" rx="10" class="route"/>
+  <text x="507" y="187" text-anchor="middle" class="label">top-k router</text>
+  <text x="507" y="210" text-anchor="middle" class="tiny">indices, weights [N, K]</text>
+  <path d="M648 199 H722" class="arrow"/>
+  <rect x="738" y="160" width="366" height="78" rx="10" class="tensor"/>
+  <text x="921" y="187" text-anchor="middle" class="label">64 token-expert assignments</text>
+  <text x="921" y="210" text-anchor="middle" class="tiny">(token 0, expert 7), (token 0, expert 19), …</text>
+
+  <rect x="48" y="286" width="520" height="300" rx="16" class="panel"/>
+  <text x="72" y="322" class="head">M7h reference: group by active expert</text>
+  <text x="72" y="350" class="small">For each expert id used by any token:</text>
+  <rect x="80" y="374" width="454" height="50" rx="9" class="old"/>
+  <text x="307" y="405" text-anchor="middle" class="small">find its (token, slot) assignments</text>
+  <path d="M307 426 V454" class="arrow"/>
+  <rect x="80" y="466" width="454" height="76" rx="9" class="old"/>
+  <text x="307" y="492" text-anchor="middle" class="small">run w1, w3, activation, w2</text>
+  <text x="307" y="518" text-anchor="middle" class="tiny">up to 3 × active_experts tiny launches</text>
+  <text x="307" y="568" text-anchor="middle" class="small">Readable and memory-bounded, but Python/launch heavy</text>
+
+  <rect x="592" y="286" width="560" height="300" rx="16" class="panel"/>
+  <text x="616" y="322" class="head">M7i fast path: expert-major packed tensors</text>
+  <rect x="620" y="350" width="508" height="64" rx="9" class="tensor"/>
+  <text x="874" y="376" text-anchor="middle" class="small">w1, w2, w3: [E, I, D]</text>
+  <text x="874" y="398" text-anchor="middle" class="tiny">gather by indices → selected weights [N, K, I, D]</text>
+  <path d="M874 416 V444" class="arrow"/>
+  <rect x="620" y="456" width="508" height="86" rx="9" class="new"/>
+  <text x="874" y="482" text-anchor="middle" class="small">three batched contractions</text>
+  <text x="874" y="506" text-anchor="middle" class="tiny">[N,D] × [N,K,I,D] → [N,K,I]</text>
+  <text x="874" y="528" text-anchor="middle" class="tiny">weighted sum over K → routed output [N,D]</text>
+  <text x="874" y="568" text-anchor="middle" class="small">Same routing equation; fewer Python calls and launches</text>
+
+  <rect x="48" y="612" width="1104" height="104" rx="16" class="guard"/>
+  <text x="72" y="648" class="head">Memory guard chooses the path before gathering</text>
+  <text x="72" y="676" class="small">selected bytes = N × K × I × D × element size. Use the fast path at or below 64 MiB; otherwise use grouped execution.</text>
+  <text x="72" y="700" class="tiny">Tiny fixture: I = D = 256, K = 16, BF16 → decode through N = 32 fits; larger prompt work falls back.</text>
+  <path d="M930 664 H1096" class="arrow"/>
+</svg>
