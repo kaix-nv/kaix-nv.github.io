@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="13">
+  <defs>
+    <style>
+      .lbl { fill: #172033; font-weight: 700; }
+      .sub { fill: #5a6578; }
+      .rd  { fill: #173b57; }
+      .wr  { fill: #a85f08; }
+      .sm  { fill: #087f72; }
+      .axis { stroke: #b9c7c8; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <text x="20" y="26" class="lbl" font-size="15">Recurrent-state memory traffic per layer, eight decode tokens</text>
+  <text x="20" y="44" class="sub">Each block is one full V×K fp32 matrix moved. Small green marks are short vector reads/writes.</text>
+
+  <!-- legend -->
+  <rect x="600" y="16" width="12" height="12" class="rd"/><text x="618" y="27" class="sub">read state</text>
+  <rect x="690" y="16" width="12" height="12" class="wr"/><text x="708" y="27" class="sub">write state</text>
+  <rect x="790" y="16" width="12" height="12" class="sm"/><text x="808" y="27" class="sub">vectors</text>
+
+  <!-- Dense row -->
+  <text x="20" y="100" class="lbl">Dense kernel</text>
+  <text x="20" y="118" class="sub">16 matrix moves</text>
+  <line x1="160" y1="130" x2="860" y2="130" class="axis"/>
+  <g>
+    <rect x="170" y="70" width="34" height="28" class="rd"/><rect x="170" y="100" width="34" height="28" class="wr"/>
+    <rect x="254" y="70" width="34" height="28" class="rd"/><rect x="254" y="100" width="34" height="28" class="wr"/>
+    <rect x="338" y="70" width="34" height="28" class="rd"/><rect x="338" y="100" width="34" height="28" class="wr"/>
+    <rect x="422" y="70" width="34" height="28" class="rd"/><rect x="422" y="100" width="34" height="28" class="wr"/>
+    <rect x="506" y="70" width="34" height="28" class="rd"/><rect x="506" y="100" width="34" height="28" class="wr"/>
+    <rect x="590" y="70" width="34" height="28" class="rd"/><rect x="590" y="100" width="34" height="28" class="wr"/>
+    <rect x="674" y="70" width="34" height="28" class="rd"/><rect x="674" y="100" width="34" height="28" class="wr"/>
+    <rect x="758" y="70" width="34" height="28" class="rd"/><rect x="758" y="100" width="34" height="28" class="wr"/>
+  </g>
+
+  <!-- Replay row -->
+  <text x="20" y="220" class="lbl">ReplaySSM, W8</text>
+  <text x="20" y="238" class="sub">9 matrix moves</text>
+  <line x1="160" y1="250" x2="860" y2="250" class="axis"/>
+  <g>
+    <rect x="170" y="190" width="34" height="28" class="rd"/><rect x="170" y="222" width="34" height="5" class="sm"/>
+    <rect x="254" y="190" width="34" height="28" class="rd"/><rect x="254" y="222" width="34" height="5" class="sm"/>
+    <rect x="338" y="190" width="34" height="28" class="rd"/><rect x="338" y="222" width="34" height="5" class="sm"/>
+    <rect x="422" y="190" width="34" height="28" class="rd"/><rect x="422" y="222" width="34" height="5" class="sm"/>
+    <rect x="506" y="190" width="34" height="28" class="rd"/><rect x="506" y="222" width="34" height="5" class="sm"/>
+    <rect x="590" y="190" width="34" height="28" class="rd"/><rect x="590" y="222" width="34" height="5" class="sm"/>
+    <rect x="674" y="190" width="34" height="28" class="rd"/><rect x="674" y="222" width="34" height="5" class="sm"/>
+    <rect x="758" y="190" width="34" height="28" class="rd"/><rect x="758" y="220" width="34" height="28" class="wr"/>
+  </g>
+  <text x="758" y="270" class="sub" font-size="11">flush</text>
+
+  <!-- token labels -->
+  <g class="sub">
+    <text x="181" y="300">t=1</text><text x="265" y="300">t=2</text><text x="349" y="300">t=3</text><text x="433" y="300">t=4</text>
+    <text x="517" y="300">t=5</text><text x="601" y="300">t=6</text><text x="685" y="300">t=7</text><text x="769" y="300">t=8</text>
+  </g>
+  <text x="20" y="318" class="sub">Reads are unavoidable: the output needs the state. Writes can be deferred to the end of the window.</text>
+</svg>
