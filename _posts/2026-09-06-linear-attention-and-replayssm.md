@@ -30,7 +30,7 @@ heads have already forgotten the prefix. Both turn out to be the same idea.
 Start with ordinary causal attention for token $t$:
 
 $$
-y_t = \frac{\sum_{i \le t} \exp(q_t^\top k_i)\, v_i}{\sum_{j \le t} \exp(q_t^\top k_j)}. \tag{1}
+y_t = \frac{\sum_{i=1}^{t} \exp(q_t^\top k_i)\, v_i}{\sum_{j=1}^{t} \exp(q_t^\top k_j)}. \tag{1}
 $$
 
 Every previous key and value participates. The cache holds all of them, so
@@ -41,8 +41,8 @@ $\phi(q)^\top \phi(k)$. The query is the same in every term, so it factors out
 of the sum:
 
 $$
-y_t = \sum_{i \le t} \phi(q_t)^\top \phi(k_i)\, v_i
-    = \Big( \sum_{i \le t} v_i\, \phi(k_i)^\top \Big) \phi(q_t)
+y_t = \sum_{i=1}^{t} \phi(q_t)^\top \phi(k_i)\, v_i
+    = \Big( \sum_{i=1}^{t} v_i\, \phi(k_i)^\top \Big) \phi(q_t)
     = S_t\, \phi(q_t).
 $$
 
@@ -53,7 +53,7 @@ Second, that product is $v_i \phi(k_i)^\top$ applied to $\phi(q_t)$, because for
 any vectors $a, b, c$ the outer product obeys $(a b^\top) c = a (b^\top c)$: the
 matrix $a b^\top$ times $c$ is $a$ scaled by the dot product $b^\top c$. Since
 $\phi(q_t)$ does not depend on the summation index $i$, it can be pulled outside
-the sum, leaving $\sum_i v_i \phi(k_i)^\top$ as a matrix that no longer knows
+the sum, leaving $\sum_{i=1}^{t} v_i \phi(k_i)^\top$ as a matrix that no longer knows
 anything about the query.
 
 The entire history has collapsed into one matrix $S_t \in \mathbb{R}^{V \times K}$
@@ -63,8 +63,8 @@ $$
 S_t = S_{t-1} + v_t k_t^\top, \qquad y_t = S_t q_t. \tag{2}
 $$
 
-The recurrence is just the sum written incrementally: $S_t = \sum_{i \le t}
-v_i k_i^\top$ and $S_{t-1} = \sum_{i \le t-1} v_i k_i^\top$ differ by exactly
+The recurrence is just the sum written incrementally: $S_t = \sum_{i=1}^{t}
+v_i k_i^\top$ and $S_{t-1} = \sum_{i=1}^{t-1} v_i k_i^\top$ differ by exactly
 the $i = t$ term.
 
 Modern variants drop $\phi$ and the normalizer, L2-normalize $q$ and $k$, and
@@ -101,7 +101,7 @@ been multiplied by $\alpha_{i+1}, \alpha_{i+2}, \dots, \alpha_t$, one factor
 for every token that arrived after it, and the newest term by nothing:
 
 $$
-S_t = \sum_{i \le t} \Big( \prod_{j=i+1}^{t} \alpha_j \Big) v_i k_i^\top. \tag{4}
+S_t = \sum_{i=1}^{t} \Big( \prod_{j=i+1}^{t} \alpha_j \Big) v_i k_i^\top. \tag{4}
 $$
 
 The empty product for $i = t$ is 1. If every $\alpha$ equals a constant
@@ -289,7 +289,7 @@ $g_0 = 1$. Unrolling equation 6 from $S_0$ instead of from zero gives the state
 at any position in the chunk as
 
 $$
-S_j = g_j\, S_0 + \sum_{m \le j} \frac{g_j}{g_m}\, u_m k_m^\top . \tag{8}
+S_j = g_j\, S_0 + \sum_{m=1}^{j} \frac{g_j}{g_m}\, u_m k_m^\top . \tag{8}
 $$
 
 This is equation 4 with two changes: the sum starts at the chunk boundary
@@ -335,7 +335,7 @@ $S_{m-1}$ and the dependence turns out to be linear in the earlier innovations:
 
 $$
 u_m = \beta_m v_m - \beta_m g_m\, S_0 k_m
-      - \beta_m \sum_{n < m} \frac{g_m}{g_n}\, (k_n^\top k_m)\, u_n .
+      - \beta_m \sum_{n=1}^{m-1} \frac{g_m}{g_n}\, (k_n^\top k_m)\, u_n .
 $$
 
 The first two terms are known before the chunk starts. The third says each
@@ -492,14 +492,14 @@ past input at its *current* decayed value.
 
 ### The same thing with matrices
 
-Let $A$ be the state matrix stored at the start of a window, never written
-during the window. Let $\gamma_t$ be the product of decays since then. Store
-each innovation as a pair $(R_i, K_i)$ with $K_i = k_i$ and $R_i$ the
-value-side vector $u_i$ at its current decayed scale. Then for every $t$ in
-the window,
+Let $A$ be the state matrix stored at the start of a window, at step $s$, and
+never written during the window. Let $\gamma_t$ be the product of decays since
+then. Store each innovation as a pair $(R_i, K_i)$ with $K_i = k_i$ and $R_i$
+the value-side vector $u_i$ at its current decayed scale. Then for every $t$
+in the window, summing over the tokens $s+1, \dots, t$ seen since the anchor,
 
 $$
-S_t = \gamma_t A + \sum_{i} R_i^{(t)} K_i^\top,
+S_t = \gamma_t A + \sum_{i=s+1}^{t} R_i^{(t)} K_i^\top,
 \qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \alpha_j ,
 \qquad K_i = k_i . \tag{14}
 $$
@@ -509,11 +509,11 @@ The proof is one substitution. Assume it holds at $t-1$, then
 $$
 \begin{aligned}
 S_t &= \alpha_t S_{t-1} + u_t k_t^\top \\
-    &= \alpha_t\Big(\gamma_{t-1} A + \sum_{i \le t-1} R_i^{(t-1)} K_i^\top\Big) + u_t k_t^\top \\
-    &= (\alpha_t \gamma_{t-1})\, A + \sum_{i \le t-1} \big(\alpha_t R_i^{(t-1)}\big) K_i^\top + u_t k_t^\top \\
-    &= \gamma_t A + \sum_{i \le t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
+    &= \alpha_t\Big(\gamma_{t-1} A + \sum_{i=s+1}^{t-1} R_i^{(t-1)} K_i^\top\Big) + u_t k_t^\top \\
+    &= (\alpha_t \gamma_{t-1})\, A + \sum_{i=s+1}^{t-1} \big(\alpha_t R_i^{(t-1)}\big) K_i^\top + u_t k_t^\top \\
+    &= \gamma_t A + \sum_{i=s+1}^{t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
         \qquad\text{with } R_t^{(t)} := u_t,\; K_t := k_t \\
-    &= \gamma_t A + \sum_{i \le t} R_i^{(t)} K_i^\top .
+    &= \gamma_t A + \sum_{i=s+1}^{t} R_i^{(t)} K_i^\top .
 \end{aligned} \tag{15}
 $$
 
@@ -607,9 +607,9 @@ Multiply the identity by a vector and every rank-one term collapses to a dot
 product:
 
 $$
-\alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top k_t),
+\alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i=s+1}^{t-1} R_i^{(t)}\,(K_i^\top k_t),
 \qquad
-\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{16}
+\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i=s+1}^{t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{16}
 $$
 
 This is the identity with both sides multiplied by $k_t$ or $q_t$ on the
@@ -721,7 +721,7 @@ hit. Whoever shrinks the entry holds more prefixes in the same pool.
 Go back to the unrolled gated recurrence (4), written for a $T$-token prefix:
 
 $$
-S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{17}
+S_T = \sum_{i=1}^{T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{17}
 $$
 
 The weight on a token that arrived $n$ positions ago is roughly $\alpha^n$,
