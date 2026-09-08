@@ -30,7 +30,7 @@ heads have already forgotten the prefix. Both turn out to be the same idea.
 Start with ordinary causal attention for token $t$:
 
 $$
-y_t = \frac{\sum_{i \le t} \exp(q_t^\top k_i)\, v_i}{\sum_{j \le t} \exp(q_t^\top k_j)}.
+y_t = \frac{\sum_{i \le t} \exp(q_t^\top k_i)\, v_i}{\sum_{j \le t} \exp(q_t^\top k_j)}. \tag{1}
 $$
 
 Every previous key and value participates. The cache holds all of them, so
@@ -60,7 +60,7 @@ The entire history has collapsed into one matrix $S_t \in \mathbb{R}^{V \times K
 with a one-step recurrence:
 
 $$
-S_t = S_{t-1} + v_t k_t^\top, \qquad y_t = S_t q_t.
+S_t = S_{t-1} + v_t k_t^\top, \qquad y_t = S_t q_t. \tag{2}
 $$
 
 The recurrence is just the sum written incrementally: $S_t = \sum_{i \le t}
@@ -73,11 +73,13 @@ Each decode token costs one read and one write of $S$.
 
 ## Three refinements that make it work
 
-**Forgetting.** The plain recurrence never forgets. A scalar gate
-$\lambda_t \in (0,1)$ per head fixes that:
+### Forgetting
+
+The plain recurrence never forgets. A scalar gate
+$\alpha_t \in (0,1)$ per head fixes that:
 
 $$
-S_t = \lambda_t S_{t-1} + v_t k_t^\top.
+S_t = \alpha_t S_{t-1} + v_t k_t^\top. \tag{3}
 $$
 
 Unrolling means substituting the recurrence into itself until only inputs
@@ -86,143 +88,162 @@ remain. Start from $S_0 = 0$ and apply the rule three times:
 $$
 \begin{aligned}
 S_1 &= v_1 k_1^\top, \\
-S_2 &= \lambda_2 S_1 + v_2 k_2^\top
-     = \lambda_2\, v_1 k_1^\top + v_2 k_2^\top, \\
-S_3 &= \lambda_3 S_2 + v_3 k_3^\top
-     = \lambda_3 \lambda_2\, v_1 k_1^\top + \lambda_3\, v_2 k_2^\top + v_3 k_3^\top.
+S_2 &= \alpha_2 S_1 + v_2 k_2^\top
+     = \alpha_2\, v_1 k_1^\top + v_2 k_2^\top, \\
+S_3 &= \alpha_3 S_2 + v_3 k_3^\top
+     = \alpha_3 \alpha_2\, v_1 k_1^\top + \alpha_3\, v_2 k_2^\top + v_3 k_3^\top.
 \end{aligned}
 $$
 
-Each substitution multiplies everything already present by one more $\lambda$
+Each substitution multiplies everything already present by one more $\alpha$
 and adds one new undecayed term. After $t$ steps the term from token $i$ has
-been multiplied by $\lambda_{i+1}, \lambda_{i+2}, \dots, \lambda_t$, one factor
+been multiplied by $\alpha_{i+1}, \alpha_{i+2}, \dots, \alpha_t$, one factor
 for every token that arrived after it, and the newest term by nothing:
 
 $$
-S_t = \sum_{i \le t} \Big( \prod_{j=i+1}^{t} \lambda_j \Big) v_i k_i^\top.
+S_t = \sum_{i \le t} \Big( \prod_{j=i+1}^{t} \alpha_j \Big) v_i k_i^\top. \tag{4}
 $$
 
-The empty product for $i = t$ is 1. If every $\lambda$ equals a constant
-$\lambda$, the weight on token $i$ is $\lambda^{\,t-i}$, which is exponential
-forgetting with a horizon set by how close $\lambda$ is to 1.
+The empty product for $i = t$ is 1. If every $\alpha$ equals a constant
+$\alpha$, the weight on token $i$ is $\alpha^{\,t-i}$, which is exponential
+forgetting with a horizon set by how close $\alpha$ is to 1.
 
 This is the Mamba2 and gated-linear-attention family.
 
-**The delta rule.** Treat $S$ as an associative memory. Reading key $k_t$
-returns $S_{t-1} k_t$. To *store* $v_t$ under $k_t$, take one gradient step of
-size $\beta_t$ on the retrieval error $\tfrac{1}{2}\lVert S k_t - v_t \rVert^2$:
+### The delta rule
+
+Treat $S$ as an associative memory that maps keys to
+values: reading key $k$ returns $S k$. After storing $v_1$ under $k_1$ we want
+$S k_1 \approx v_1$. Plain linear attention stores by adding an outer product,
+$S \leftarrow S + v k^\top$, so reading $k$ back returns $v\,(k^\top k)$ plus
+interference from every other stored key. If the same key is written twice,
+the two values add and a read returns their sum. This memory can append a fact
+but never update one.
+
+The delta rule fixes that by treating a write as an *error correction*. It is
+built in three steps.
+
+*Step 1: measure how wrong the memory currently is.* Read $k_t$ from the old
+state. $S_{t-1} k_t$ is what the memory would answer right now. Compare it to
+what we want it to answer:
+
+$$
+e_t = S_{t-1} k_t - v_t .
+$$
+
+This is a vector of length $V$. If the memory already held $v_t$ under $k_t$,
+the error is zero and there is nothing to do.
+
+*Step 2: turn the error into a matrix that lives only along $k_t$.* We want
+to change the memory's answer for $k_t$ without disturbing its answer for
+other keys. The outer product $e_t k_t^\top$ is a $V \times K$ matrix with
+exactly that property: multiplying it by $k_t$ gives $e_t\,(k_t^\top k_t) =
+e_t$ when $k_t$ has unit length, and multiplying it by any vector orthogonal
+to $k_t$ gives zero.
+
+*Step 3: subtract a fraction of it.* Subtracting all of $e_t k_t^\top$ would
+remove the whole error at once. A factor $\beta_t \in (0, 1)$ removes part of
+it:
 
 $$
 S_t = S_{t-1} - \beta_t (S_{t-1} k_t - v_t) k_t^\top
-    = S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top.
+    = S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top. \tag{5}
 $$
 
-The gradient comes from the chain rule. Write the residual $r = S k_t - v_t$,
-so the loss is $\tfrac{1}{2} r^\top r$. Its derivative with respect to $r$ is
-$r$, and $r$ depends on $S$ through $S k_t$, whose derivative with respect to
-the matrix $S$ is "multiply on the right by $k_t^\top$". So
-$\nabla_S \tfrac{1}{2}\lVert S k_t - v_t \rVert^2 = (S k_t - v_t)\, k_t^\top$,
-a $V \times K$ matrix of rank one. One gradient-descent step with learning rate
-$\beta_t$ gives the first form.
+The first form is Step 3 with $e_t$ written out. It is still a rank-one
+update, the same shape as plain linear attention, but the vector being written
+is the error rather than the raw value.
 
-The second form is the first with the bracket expanded and regrouped:
-$S_{t-1} - \beta_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top$, then factor
-$S_{t-1}$ out of the first two terms. It says the update is a rank-one
-projection applied to the old state, followed by a rank-one write.
-
-The exact-overwrite claim is a two-line check. Apply $S_t$ to $k_t$ using the
-first form:
+*Check that it does what we wanted.* Read $k_t$ from the new state:
 
 $$
-S_t k_t = S_{t-1} k_t - \beta_t (S_{t-1} k_t - v_t)\,(k_t^\top k_t).
+S_t k_t = S_{t-1} k_t - \beta_t\, e_t\,(k_t^\top k_t)
+        = S_{t-1} k_t - \beta_t (S_{t-1} k_t - v_t)
+        \qquad\text{using } k_t^\top k_t = 1 .
 $$
 
-With $\lVert k_t \rVert = 1$ the last factor is 1, and with $\beta_t = 1$ the
-right side collapses to $S_{t-1} k_t - S_{t-1} k_t + v_t = v_t$. So reading
-$k_t$ back immediately after the write returns exactly $v_t$, whatever was
-stored there before.
+With $\beta_t = 1$ the right side is $S_{t-1} k_t - S_{t-1} k_t + v_t = v_t$.
+The read returns exactly the new value, whatever was stored before. With
+$\beta_t = 0.5$ it returns the midpoint of old and new.
 
-**A worked example.** Take $K = V = 2$, start from $S_0 = 0$, and use the unit
-key $k = (1, 0)$ throughout. First store $v_1 = (2, 3)$ under $k$. Both rules
-agree when the memory is empty:
+*Where "gradient step" comes in.* Steps 1 to 3 are one step of gradient
+descent on the loss $\tfrac{1}{2}\lVert S k_t - v_t \rVert^2$ with learning
+rate $\beta_t$. By the chain rule the derivative of $\tfrac{1}{2}\lVert r
+\rVert^2$ with respect to $r$ is $r$, and $r = S k_t - v_t$ depends on $S$
+through right-multiplication by $k_t$, which contributes $k_t^\top$. So the
+gradient is $(S k_t - v_t)\, k_t^\top$, the matrix from Step 2. The gradient
+view is not needed to understand the rule; it explains why this particular
+update is the natural one.
 
-$$
-S_1 = v_1 k^\top = \begin{pmatrix} 2 & 0 \\ 3 & 0 \end{pmatrix},
-\qquad S_1 k = (2, 3) = v_1 .
-$$
-
-Now store a different value $v_2 = (5, 1)$ under the *same* key.
-
-Plain linear attention adds another outer product:
-
-$$
-S_2 = S_1 + v_2 k^\top = \begin{pmatrix} 7 & 0 \\ 4 & 0 \end{pmatrix},
-\qquad S_2 k = (7, 4) = v_1 + v_2 .
-$$
-
-Reading $k$ back returns the sum of both values, which is neither of them. The
-memory has been corrupted by the repeated key.
-
-The delta rule with $\beta = 1$ first reads what is already there, $S_1 k =
-(2, 3)$, computes the error against the new value, $(2, 3) - (5, 1) =
-(-3, 2)$, and subtracts that error along $k$:
-
-$$
-S_2 = S_1 - \begin{pmatrix} -3 \\ 2 \end{pmatrix} k^\top
-    = \begin{pmatrix} 2 & 0 \\ 3 & 0 \end{pmatrix}
-    - \begin{pmatrix} -3 & 0 \\ 2 & 0 \end{pmatrix}
-    = \begin{pmatrix} 5 & 0 \\ 1 & 0 \end{pmatrix},
-\qquad S_2 k = (5, 1) = v_2 .
-$$
-
-Reading $k$ back now returns exactly the new value. The old one is gone. A
-different key $k' = (0, 1)$ reads $(0, 0)$ from both $S_1$ and $S_2$, so the
-correction touched only the direction of $k$ and left the rest of the memory
-alone. That is what the projection $(I - \beta k k^\top)$ does: with unit $k$
-and $\beta = 1$ it zeroes the component of every row along $k$ and leaves the
-orthogonal components untouched.
-
-With $\beta = 0.5$ the same step gives $S_2 k = (3.5, 2)$, halfway between the
-old and new values. The learned $\beta_t$ therefore controls how much the
-model trusts the new observation over the existing memory, per token and per
-head.
+*The second form is the first form rearranged.* Expand the bracket:
+$S_{t-1} - \beta_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top$. The first two
+terms both have $S_{t-1}$ on the left; factor it out to get
+$S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top$. This form says the
+same thing in two stages. First, multiply the old state by $(I - \beta_t k_t
+k_t^\top)$; with unit $k_t$ and $\beta_t = 1$ that matrix zeroes the $k_t$
+component of every row of $S$ and leaves the other components alone. Second,
+add $\beta_t v_t k_t^\top$, which writes the new value into the now-empty slot.
+Erase, then write.
 
 Plain linear attention would have *added* $v_t$ on top of
 whatever was already stored under $k_t$. That is the difference between an
 accumulator and an error-correcting memory, and it is why DeltaNet models
 handle repeated keys so much better than their predecessors.
 
-**Both together: Gated DeltaNet.** Decay first, then the delta step on the
+Where the two ingredients come from in Gated DeltaNet: the layer L2-normalizes
+$q$ and $k$ inside the kernel, which is what makes $k_t^\top k_t = 1$ and the
+overwrite exact; and $\beta_t = \sigma(x_t W_\beta)$ is one scalar per head in
+$(0, 1)$, computed from the current token. An optional flag doubles it to
+$(0, 2)$, so the eigenvalue $1 - \beta_t$ of the projection can go negative and
+the model can flip the sign of a stored association rather than only shrink it.
+
+What the rule buys is retrieval. In-context recall, copying, and key-value
+lookup all need a memory that can update a slot, and DeltaNet-family models
+beat gated linear attention on exactly those tasks. What it costs shows up
+later in this post: because the innovation depends on the current state through
+$S_{t-1} k_t$, the state must be *read* on every token even when it is not
+written, which is why ReplaySSM cannot use its cheapest output-only path for
+delta-rule models.
+
+Two things the rule glosses over. It is one gradient step, not a solve, so
+with $\beta_t < 1$ or a non-unit key the write is partial and the old value
+lingers. And each write only corrects the $k_t$ direction, so a key that is not
+exactly orthogonal to earlier keys still picks up interference from them; the
+state dimension and the number of stored facts both matter.
+
+### Both together: Gated DeltaNet
+
+Decay first, then the delta step on the
 decayed state:
 
 $$
-S_t = \lambda_t S_{t-1} + \beta_t\big(v_t - \lambda_t S_{t-1} k_t\big) k_t^\top.
+S_t = \alpha_t S_{t-1} + \beta_t\big(v_t - \alpha_t S_{t-1} k_t\big) k_t^\top. \tag{6}
 $$
 
 To see where this comes from, take the delta rule's second form and replace
-$S_{t-1}$ by the decayed state $\lambda_t S_{t-1}$ everywhere:
+$S_{t-1}$ by the decayed state $\alpha_t S_{t-1}$ everywhere:
 
 $$
-S_t = \lambda_t S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top
-    = \lambda_t S_{t-1} - \beta_t \lambda_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top .
+S_t = \alpha_t S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top
+    = \alpha_t S_{t-1} - \beta_t \alpha_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top .
 $$
 
 The last two terms share the factor $\beta_t(\cdot) k_t^\top$; pulling it out
-gives $\beta_t (v_t - \lambda_t S_{t-1} k_t) k_t^\top$. The quantity in the
+gives $\beta_t (v_t - \alpha_t S_{t-1} k_t) k_t^\top$. The quantity in the
 bracket is the retrieval error measured against the *decayed* memory, which is
 the right thing to correct since the decayed memory is what the next reader
 will see.
 
-Name the rank-one innovation $u_t := \beta_t(v_t - \lambda_t S_{t-1} k_t)$.
+Name the rank-one innovation $u_t := \beta_t(v_t - \alpha_t S_{t-1} k_t)$.
 Then the update and readout are
 
 $$
-S_t = \lambda_t S_{t-1} + u_t k_t^\top, \qquad
-y_t = S_t q_t = \lambda_t S_{t-1} q_t + u_t\,(k_t^\top q_t).
+S_t = \alpha_t S_{t-1} + u_t k_t^\top, \qquad
+y_t = S_t q_t = \alpha_t S_{t-1} q_t + u_t\,(k_t^\top q_t). \tag{7}
 $$
 
 The readout on the right is the update rule multiplied through by $q_t$:
-$(\lambda_t S_{t-1} + u_t k_t^\top)\, q_t = \lambda_t S_{t-1} q_t + u_t k_t^\top q_t$,
+$(\alpha_t S_{t-1} + u_t k_t^\top)\, q_t = \alpha_t S_{t-1} q_t + u_t k_t^\top q_t$,
 and $k_t^\top q_t$ is a scalar, so $u_t k_t^\top q_t = u_t\,(k_t^\top q_t)$ by
 the same outer-product rule used in the first section. That is the whole
 derivation, but it changes what a kernel has to do.
@@ -231,13 +252,15 @@ The second form matters for what follows: the output needs two matrix-vector
 products against the *old* state, one with $k_t$ to form the innovation and one
 with $q_t$, and never needs $S_t$ to exist as a matrix.
 
-Where the scalars come from, in the FLA implementation: $q$, $k$, $v$ are
+### Where the scalars come from
+
+In the FLA implementation: $q$, $k$, $v$ are
 projections followed by a width-4 depthwise causal convolution and SiLU; $q$
-and $k$ are L2-normalized; $\lambda_t = \exp(-\exp(A_{\log}) \cdot
+and $k$ are L2-normalized; $\alpha_t = \exp(-\exp(A_{\log}) \cdot
 \mathrm{softplus}(x_t W_a + \mathrm{dt\_bias}))$ with learned per-head
 $A_{\log}$ and $\mathrm{dt\_bias}$, which is Mamba2's discretized decay
 reused verbatim; and $\beta_t = \sigma(x_t W_\beta)$. Kimi's KDA differs in
-one place: $\lambda_t$ is a vector over key channels instead of a scalar per
+one place: $\alpha_t$ is a vector over key channels instead of a scalar per
 head.
 
 ## What one decode token actually costs
@@ -247,13 +270,13 @@ One head's state is $256 \times 256 \times 4 = 256$ KiB. One sequence carries
 1 MiB per layer and 24 MiB across the model.
 
 The dense kernel handles a batch of $B$ sequences in one launch. Per layer per
-token it must load every state, apply $\lambda_t S + u_t k_t^\top$, and store
-every state back. Every entry changes when $\lambda_t \ne 1$, so nothing can
+token it must load every state, apply $\alpha_t S + u_t k_t^\top$, and store
+every state back. Every entry changes when $\alpha_t \ne 1$, so nothing can
 be skipped:
 
 $$
 \text{bytes} = \underbrace{2}_{\text{read+write}} \cdot
-\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K .
+\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{8}
 $$
 
 | batch | state moved per layer per token | 24 layers |
@@ -288,15 +311,15 @@ every token and writes it once per eight-token window](/assets/linear-attention/
 ### The identity, with one number first
 
 Forget matrices and let the state be a single number updated by
-"decay, then add": $S_{\text{new}} = \lambda S_{\text{old}} + u$. Take
-$\lambda = 0.5$, start at $S = 8$, and feed in $u = 4, 2, 6$. The dense
+"decay, then add": $S_{\text{new}} = \alpha S_{\text{old}} + u$. Take
+$\alpha = 0.5$, start at $S = 8$, and feed in $u = 4, 2, 6$. The dense
 way rewrites $S$ each step: $8 \to 8 \to 6 \to 9$.
 
-Now keep the starting value $A = 8$ untouched, a scale $\alpha$ that starts at
-1, and a list $R$. On each token, multiply $\alpha$ by $\lambda$, multiply every
-entry already in $R$ by $\lambda$, and append the new input unchanged:
+Now keep the starting value $A = 8$ untouched, a scale $\gamma$ that starts at
+1, and a list $R$. On each token, multiply $\gamma$ by $\alpha$, multiply every
+entry already in $R$ by $\alpha$, and append the new input unchanged:
 
-| after | $\alpha$ | $A$ | $R$ | $\alpha A + \sum R$ |
+| after | $\gamma$ | $A$ | $R$ | $\gamma A + \sum R$ |
 |---|---:|---:|---|---:|
 | start | 1 | 8 | [ ] | 8 |
 | token 1 | 0.5 | 8 | [4] | 8 |
@@ -309,46 +332,46 @@ past input at its *current* decayed value.
 ### The same thing with matrices
 
 Let $A$ be the state matrix stored at the start of a window, never written
-during the window. Let $\alpha_t$ be the product of decays since then. Store
+during the window. Let $\gamma_t$ be the product of decays since then. Store
 each innovation as a pair $(R_i, K_i)$ with $K_i = k_i$ and $R_i$ the
 value-side vector $u_i$ at its current decayed scale. Then for every $t$ in
 the window,
 
 $$
-S_t = \alpha_t A + \sum_{i} R_i^{(t)} K_i^\top,
-\qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \lambda_j ,
-\qquad K_i = k_i .
+S_t = \gamma_t A + \sum_{i} R_i^{(t)} K_i^\top,
+\qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \alpha_j ,
+\qquad K_i = k_i . \tag{9}
 $$
 
 The proof is one substitution. Assume it holds at $t-1$, then
 
 $$
 \begin{aligned}
-S_t &= \lambda_t S_{t-1} + u_t k_t^\top \\
-    &= \lambda_t\Big(\alpha_{t-1} A + \sum_{i \le t-1} R_i^{(t-1)} K_i^\top\Big) + u_t k_t^\top \\
-    &= (\lambda_t \alpha_{t-1})\, A + \sum_{i \le t-1} \big(\lambda_t R_i^{(t-1)}\big) K_i^\top + u_t k_t^\top \\
-    &= \alpha_t A + \sum_{i \le t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
+S_t &= \alpha_t S_{t-1} + u_t k_t^\top \\
+    &= \alpha_t\Big(\gamma_{t-1} A + \sum_{i \le t-1} R_i^{(t-1)} K_i^\top\Big) + u_t k_t^\top \\
+    &= (\alpha_t \gamma_{t-1})\, A + \sum_{i \le t-1} \big(\alpha_t R_i^{(t-1)}\big) K_i^\top + u_t k_t^\top \\
+    &= \gamma_t A + \sum_{i \le t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
         \qquad\text{with } R_t^{(t)} := u_t,\; K_t := k_t \\
-    &= \alpha_t A + \sum_{i \le t} R_i^{(t)} K_i^\top .
-\end{aligned}
+    &= \gamma_t A + \sum_{i \le t} R_i^{(t)} K_i^\top .
+\end{aligned} \tag{10}
 $$
 
-The last line renames three things without changing any value: $\lambda_t\alpha_{t-1}$
-is $\alpha_t$ by the definition of $\alpha$ as a running product; each
-$\lambda_t R_i^{(t-1)}$ is $R_i^{(t)}$ by the definition of $R$ as the input
+The last line renames three things without changing any value: $\alpha_t\gamma_{t-1}$
+is $\gamma_t$ by the definition of $\gamma$ as a running product; each
+$\alpha_t R_i^{(t-1)}$ is $R_i^{(t)}$ by the definition of $R$ as the input
 times every decay since it arrived; and the fresh $u_t k_t^\top$ is the
 $i = t$ term with $R_t^{(t)} = u_t$, because the product of decays *after*
 token $t$ up to token $t$ is empty and equals 1. Since the form holds at the
-start of the window, where the list is empty and $\alpha = 1$, it holds at every
+start of the window, where the list is empty and $\gamma = 1$, it holds at every
 token in the window. Nothing is approximated. It is the same matrix written a
 different way, exactly as the unrolled sum in the gating section was the same
 matrix as the recurrence.
 
 **A worked example.** Take $K = V = 2$, $\beta = 1$, and start a window with the
-anchor $A = I$ in memory, $\alpha = 1$, and an empty list. Run two tokens
+anchor $A = I$ in memory, $\gamma = 1$, and an empty list. Run two tokens
 through both the dense rule and the factored rule.
 
-*Token 1:* $\lambda = 0.5$, $k = (1, 0)$, $q = (0, 1)$, $v = (2, 0)$.
+*Token 1:* $\alpha = 0.5$, $k = (1, 0)$, $q = (0, 1)$, $v = (2, 0)$.
 
 Dense: the decayed state is $0.5\,I$, its prediction for $k$ is
 $0.5\,I\,k = (0.5, 0)$, so $u_1 = v - (0.5, 0) = (1.5, 0)$ and
@@ -359,20 +382,20 @@ S_1 = 0.5\,I + u_1 k^\top
 \qquad y_1 = S_1 q = (0, 0.5).
 $$
 
-Factored: $\alpha \leftarrow 0.5$. The list is empty, so the prediction is
-$\alpha A k = 0.5\,(1, 0) = (0.5, 0)$, the same $u_1 = (1.5, 0)$, and the
-output is $\alpha A q + u_1 (k^\top q) = (0, 0.5) + 0 = (0, 0.5)$. Append
+Factored: $\gamma \leftarrow 0.5$. The list is empty, so the prediction is
+$\gamma A k = 0.5\,(1, 0) = (0.5, 0)$, the same $u_1 = (1.5, 0)$, and the
+output is $\gamma A q + u_1 (k^\top q) = (0, 0.5) + 0 = (0, 0.5)$. Append
 $R_1 = (1.5, 0)$, $K_1 = (1, 0)$. The memory holding $A$ still says $I$.
 Check the implied state:
 
 $$
-\alpha A + R_1 K_1^\top
+\gamma A + R_1 K_1^\top
 = \begin{pmatrix} 0.5 & 0 \\ 0 & 0.5 \end{pmatrix}
 + \begin{pmatrix} 1.5 & 0 \\ 0 & 0 \end{pmatrix}
 = \begin{pmatrix} 2 & 0 \\ 0 & 0.5 \end{pmatrix} = S_1 .
 $$
 
-*Token 2:* $\lambda = 0.8$, $k = (0, 1)$, $q = (1, 1)$, $v = (0, 1)$.
+*Token 2:* $\alpha = 0.8$, $k = (0, 1)$, $q = (1, 1)$, $v = (0, 1)$.
 
 Dense: decayed state $0.8\,S_1$, prediction $0.8\,S_1 k = (0, 0.4)$,
 innovation $u_2 = (0, 0.6)$, and
@@ -385,17 +408,17 @@ S_2 = 0.8\,S_1 + u_2 k^\top
 \qquad y_2 = S_2 q = (1.6, 1.0).
 $$
 
-Factored: $\alpha \leftarrow 0.5 \cdot 0.8 = 0.4$, and the existing residual is
+Factored: $\gamma \leftarrow 0.5 \cdot 0.8 = 0.4$, and the existing residual is
 decayed in place, $R_1 \leftarrow 0.8\,(1.5, 0) = (1.2, 0)$. The prediction is
 
 $$
-\alpha A k + R_1 (K_1^\top k) = 0.4\,(0, 1) + (1.2, 0)\cdot 0 = (0, 0.4),
+\gamma A k + R_1 (K_1^\top k) = 0.4\,(0, 1) + (1.2, 0)\cdot 0 = (0, 0.4),
 $$
 
 so $u_2 = (0, 0.6)$ as before. The output is
 
 $$
-\alpha A q + R_1 (K_1^\top q) + u_2 (k^\top q)
+\gamma A q + R_1 (K_1^\top q) + u_2 (k^\top q)
 = 0.4\,(1, 1) + (1.2, 0)\cdot 1 + (0, 0.6)\cdot 1 = (1.6, 1.0).
 $$
 
@@ -403,7 +426,7 @@ Append $R_2 = (0, 0.6)$, $K_2 = (0, 1)$. The memory holding $A$ still says
 $I$. Check the implied state:
 
 $$
-\alpha A + R_1 K_1^\top + R_2 K_2^\top
+\gamma A + R_1 K_1^\top + R_2 K_2^\top
 = \begin{pmatrix} 0.4 & 0 \\ 0 & 0.4 \end{pmatrix}
 + \begin{pmatrix} 1.2 & 0 \\ 0 & 0 \end{pmatrix}
 + \begin{pmatrix} 0 & 0 \\ 0 & 0.6 \end{pmatrix}
@@ -413,7 +436,7 @@ $$
 Both outputs and both implied states match the dense computation exactly,
 while the dense path wrote the $2 \times 2$ matrix twice and the factored path
 wrote it zero times. At the flush the kernel would evaluate that last sum once
-and store $S_2$ into $A$'s memory, then reset $\alpha$ to 1 and empty the list.
+and store $S_2$ into $A$'s memory, then reset $\gamma$ to 1 and empty the list.
 Notice also that $R_1$ changed from $(1.5, 0)$ to $(1.2, 0)$ between tokens:
 that is the superscript in $R_i^{(t)}$ made concrete.
 
@@ -423,9 +446,9 @@ Multiply the identity by a vector and every rank-one term collapses to a dot
 product:
 
 $$
-\lambda_t S_{t-1} k_t = \alpha_t A k_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top k_t),
+\alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top k_t),
 \qquad
-\lambda_t S_{t-1} q_t = \alpha_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t).
+\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{11}
 $$
 
 This is the identity with both sides multiplied by $k_t$ or $q_t$ on the
@@ -438,13 +461,13 @@ $A k_t$ is a matrix-vector product that *reads* $A$ and never writes it. Each
 $K_i^\top k_t$ is a single number, and $R_i$ times that number is a scaled
 256-vector. For a window of eight, the extra reads are a few thousand floats
 against 65,536 in $A$. From these two products the kernel forms
-$u_t = \beta_t(v_t - \lambda_t S_{t-1} k_t)$, emits
-$y_t = \lambda_t S_{t-1} q_t + u_t (k_t^\top q_t)$, and appends $(u_t, k_t)$
+$u_t = \beta_t(v_t - \alpha_t S_{t-1} k_t)$, emits
+$y_t = \alpha_t S_{t-1} q_t + u_t (k_t^\top q_t)$, and appends $(u_t, k_t)$
 to the list.
 
 Per token this writes one scalar, rescales a handful of short vectors, and
 appends two more. It never writes the $V \times K$ matrix. When the list
-reaches the window length, one flush computes $\alpha_t A + \sum R_i K_i^\top +
+reaches the window length, one flush computes $\gamma_t A + \sum R_i K_i^\top +
 u_t k_t^\top$ as a full matrix and stores it back into $A$'s memory. That is
 the one dense write per window.
 
@@ -493,13 +516,13 @@ concurrent requests at a fixed memory budget once per-draft snapshots are gone.
 I built this before connecting it to ReplaySSM, and two things went wrong in
 ways the equations above hide.
 
-**Do not divide by $\alpha$.** The obvious way to keep everything under one
-common scale is to store $U_i = u_i / \alpha_i$ so that a single $\alpha_t$
+**Do not divide by $\gamma$.** The obvious way to keep everything under one
+common scale is to store $U_i = u_i / \gamma_i$ so that a single $\gamma_t$
 multiplies the anchor and every pair together. It saves the per-token rescale
 of the list. It also divides by a product of up to eight decays, and for a
 strongly forgetting head that product reaches fp32 zero under ordinary gate
-values. The dense kernel is perfectly happy with $\lambda = 0$; the
-divide-by-$\alpha$ kernel produces `inf` then `NaN`. Decaying the stored
+values. The dense kernel is perfectly happy with $\alpha = 0$; the
+divide-by-$\gamma$ kernel produces `inf` then `NaN`. Decaying the stored
 residuals in place, as in the tables above, costs a few short-vector writes and
 is finite for every input, because each $R_i$ is only ever multiplied by
 numbers in $(0, 1)$.
@@ -534,24 +557,24 @@ hit. Whoever shrinks the entry holds more prefixes in the same pool.
 
 ### The observation
 
-Go back to the unrolled gated recurrence:
+Go back to the unrolled gated recurrence (4), written for a $T$-token prefix:
 
 $$
-S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \lambda_j \Big) v_i k_i^\top .
+S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{12}
 $$
 
-The weight on a token that arrived $n$ positions ago is roughly $\lambda^n$,
-and $\lambda$ is a learned property of the head. Define a head's *retention
+The weight on a token that arrived $n$ positions ago is roughly $\alpha^n$,
+and $\alpha$ is a learned property of the head. Define a head's *retention
 horizon* as the number of tokens after which that weight has fallen below
 $10^{-3}$:
 
 $$
-H = \frac{\log 10^{-3}}{\log \lambda} .
+H = \frac{\log 10^{-3}}{\log \alpha} . \tag{13}
 $$
 
 Two heads on the same 8,000-token prefix:
 
-| $n$ tokens ago | weight, $\lambda = 0.95$ | weight, $\lambda = 0.9999$ |
+| $n$ tokens ago | weight, $\alpha = 0.95$ | weight, $\alpha = 0.9999$ |
 |---:|---:|---:|
 | 10 | 0.60 | 0.999 |
 | 135 | 0.001 | 0.987 |
@@ -575,7 +598,7 @@ separating 56 heads that are rebuilt from 40 that are stored](/assets/linear-att
 
 ### The method
 
-1. **Score each head once.** In GDN, $\lambda = \exp(-\exp(A_{\log}) \cdot
+1. **Score each head once.** In GDN, $\alpha = \exp(-\exp(A_{\log}) \cdot
    \mathrm{softplus}(g + \mathrm{dt\_bias}))$. Evaluate it at a nominal gate
    input, take the log, and compute $H$ per head. This depends on weights, not
    on any prompt, so it is done offline.
@@ -624,7 +647,7 @@ where the pool is actually bottlenecked: capacity or load time. The paper's
 42.6% TTFT win says the trade favors compression at their scale; I have not
 measured it end to end on mine.
 
-Two things to be honest about. The horizon formula evaluates $\lambda$ at a
+Two things to be honest about. The horizon formula evaluates $\alpha$ at a
 nominal gate input, but in GDN the gate is data-dependent, so $H$ is a static
 estimate of a quantity that varies per token. The quality gates, not the
 formula, are what qualify a cutoff. And for KDA the decay is per key channel
@@ -637,12 +660,12 @@ ReplaySSM keeps a stale anchor plus a short list of recent inputs and rebuilds
 the state when it must. DASC keeps the heads that remember and rebuilds the
 heads that do not from the recent inputs. Both replace a stored matrix with
 "the recent past plus something cheap", and both work because the recurrence
-is a decayed sum in which recent terms dominate exactly when $\lambda$ is
+is a decayed sum in which recent terms dominate exactly when $\alpha$ is
 small.
 
 They also compose without effort. A restored DASC checkpoint is a dense state,
 which is a ReplaySSM anchor with an empty list. And the horizon idea points at
-a decode-time optimization ReplaySSM does not have: when a head's $\alpha_t$
+a decode-time optimization ReplaySSM does not have: when a head's $\gamma_t$
 inside a window has fallen below $10^{-3}$, its anchor contributes nothing to
 the output, and the kernel can skip loading it.
 
@@ -655,9 +678,9 @@ the kernel. That points at the next set of ideas.
   window, so an int8 anchor with fp32 residuals cuts the dominant remaining
   term by 4$\times$ and injects quantization error once per flush rather than
   per token.
-- **Skip the anchor when $\alpha$ is tiny.** For a fast-forgetting head the
+- **Skip the anchor when $\gamma$ is tiny.** For a fast-forgetting head the
   anchor's contribution is numerically zero after a few tokens. The kernel
-  already knows $\alpha$; it can skip the load.
+  already knows $\gamma$; it can skip the load.
 - **Admission without a flush.** The list rank is shared across a batch. A
   sequence joining at rank 0 can be padded with zero pairs, which is exact.
   Without this, continuous batching forces a flush on every admission.
