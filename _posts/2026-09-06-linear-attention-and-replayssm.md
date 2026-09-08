@@ -263,6 +263,135 @@ reused verbatim; and $\beta_t = \sigma(x_t W_\beta)$. Kimi's KDA differs in
 one place: $\alpha_t$ is a vector over key channels instead of a scalar per
 head.
 
+## Prefill runs the same recurrence in chunks
+
+Everything above is written one token at a time. That is the right form for
+decode, where there is exactly one new token per step. It is the wrong form for
+prefill, where thousands of prompt tokens arrive at once: applying equation 6
+sequentially means thousands of dependent $V \times K$ updates, none of which
+can use tensor cores, and the GPU idles. The other extreme, materializing the
+full $T \times T$ causal attention matrix that equation 4 implies, is quadratic
+in sequence length and defeats the point of a fixed-size state.
+
+The chunkwise form sits between the two. Cut the sequence into chunks of $C$
+tokens, typically 64. Carry the state across chunk boundaries as in the
+recurrent form. Inside a chunk, express all $C$ outputs with a few dense
+matrix multiplies of size $C \times C$ and $C \times d$. Sequential work drops
+from $T$ steps to $T / C$ steps, and the work inside each step is exactly what
+tensor cores are built for.
+
+### Splitting the unrolled sum at a chunk boundary
+
+Take one chunk. Let $S_0$ be the state at its start, and index positions
+inside the chunk by $j = 1, \dots, C$. Write $g_j = \alpha_1 \alpha_2 \cdots
+\alpha_j$ for the cumulative decay from the chunk start to position $j$, with
+$g_0 = 1$. Unrolling equation 6 from $S_0$ instead of from zero gives the state
+at any position in the chunk as
+
+$$
+S_j = g_j\, S_0 + \sum_{m \le j} \frac{g_j}{g_m}\, u_m k_m^\top . \tag{8}
+$$
+
+This is equation 4 with two changes: the sum starts at the chunk boundary
+rather than at token 1, and everything before the boundary is compressed into
+the single term $g_j S_0$. The ratio $g_j / g_m$ is the product of the decays
+strictly after position $m$ up to $j$, which is the same weight that appeared in
+equation 4.
+
+Now apply $S_j$ to $q_j$ and stack the $C$ results as rows of an output matrix
+$O \in \mathbb{R}^{C \times V}$. Let $Q, K \in \mathbb{R}^{C \times K}$ and
+$U \in \mathbb{R}^{C \times V}$ hold the chunk's queries, keys, and innovations
+as rows, and let $\Gamma$ be the $C \times C$ matrix with entries
+$\Gamma_{jm} = g_j / g_m$ for $m \le j$ and zero above the diagonal. Then
+
+$$
+O = \underbrace{\operatorname{diag}(g)\, Q\, S_0^\top}_{\text{inter-chunk}}
+  + \underbrace{\big(\Gamma \odot Q K^\top\big)\, U}_{\text{intra-chunk}} . \tag{9}
+$$
+
+The first term is what the carried state contributes to every position: one
+$C \times K$ by $K \times V$ matmul. The second is a masked $C \times C$
+attention matrix applied to the chunk's own innovations: the entry $(j, m)$ of
+$Q K^\top$ is $q_j^\top k_m$, the mask $\Gamma$ supplies both causality and the
+decay weight, and the product with $U$ sums $\frac{g_j}{g_m} u_m (k_m^\top q_j)$
+over $m \le j$, which is row $j$ of equation 8 applied to $q_j$. Every operation
+is a dense matmul or an elementwise product on a $C \times C$ tile.
+
+The state handed to the next chunk is equation 8 at $j = C$, also as matmuls:
+
+$$
+S_C = g_C\, S_0 + U^\top \operatorname{diag}\!\Big(\frac{g_C}{g_m}\Big) K . \tag{10}
+$$
+
+For plain gated linear attention, $u_m = v_m$ and $U$ is simply the chunk's
+value matrix. Equations 9 and 10 are then the whole algorithm.
+
+### The delta rule needs one triangular solve per chunk
+
+For Gated DeltaNet the innovations are not inputs. Each one depends on the
+state after the previous token in the chunk, $u_m = \beta_m (v_m - \alpha_m
+S_{m-1} k_m)$, which looks sequential again. But substitute equation 8 for
+$S_{m-1}$ and the dependence turns out to be linear in the earlier innovations:
+
+$$
+u_m = \beta_m v_m - \beta_m g_m\, S_0 k_m
+      - \beta_m \sum_{n < m} \frac{g_m}{g_n}\, (k_n^\top k_m)\, u_n .
+$$
+
+The first two terms are known before the chunk starts. The third says each
+innovation is corrected by the earlier innovations in the same chunk, weighted
+by decay and by how much the keys overlap. Stacking over $m$ gives a
+lower-triangular linear system for the whole chunk at once:
+
+$$
+(I + L)\, U = \operatorname{diag}(\beta)\big(V - \operatorname{diag}(g)\, K S_0^\top\big),
+\qquad
+L_{mn} = \beta_m \frac{g_m}{g_n}\, k_n^\top k_m \;\; (n < m). \tag{11}
+$$
+
+$I + L$ is unit lower-triangular and $C \times C$, so it is inverted by forward
+substitution in $O(C^2)$ operations per chunk, negligible next to the matmuls.
+Once $U$ is known, equations 9 and 10 apply unchanged. Up to how the terms are
+grouped, this is the WY representation used by the DeltaNet and Gated DeltaNet
+papers: the product of $C$ rank-one updates $(I - \beta_m k_m k_m^\top)$ is
+itself $I$ minus a rank-$C$ matrix, and the triangular solve is what computes
+that matrix's coefficients.
+
+In FLA this is the sequence in
+[`chunk.py`](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py)
+labelled "fused kkt + solve_tril + recompute_w_u": form $K K^\top$ with the
+decay factors, invert the unit lower-triangular matrix, then recompute the
+WY coefficients and $U$. The triangular solve lives in
+`fla/ops/utils/solve_tril.py`, which inverts $16 \times 16$ blocks and
+assembles the $64 \times 64$ result. The decode kernel never touches any of
+this: with one token per step the system in equation 11 is a single scalar.
+
+### What this buys and where it stops
+
+| form | sequential steps | work | tensor cores |
+|---|---:|---:|---|
+| recurrent, equation 6 | $T$ | $O(T \cdot VK)$ | no |
+| fully parallel, equation 4 | 1 | $O(T^2 (K + V))$ | yes, but quadratic |
+| chunkwise, equations 9 to 11 | $T / C$ | $O(T C (K + V) + (T/C)\, VK \cdot C)$ | yes |
+
+With $C = 64$ the chunkwise form is linear in $T$, uses matmuls for everything
+but a small triangular solve, and this is what FLA's chunk kernel implements
+for Gated DeltaNet. It is compute-bound in the way prefill should be.
+
+It does nothing for decode. With one new token per step the chunk has size 1,
+equation 9 collapses back to equation 7, and the cost is once again the read
+and write of the $V \times K$ state. That is why the two halves of this post
+look so different: prefill is a matmul problem solved by chunking, while decode
+is a memory-traffic problem that the next section quantifies. It also shows
+what a prefix checkpoint is: the carried state $S_C$ at a chunk boundary,
+which is exactly what DASC compresses later in the post, and what the DASC
+replay recomputes over its last 256 tokens using this chunk kernel. And it
+previews ReplaySSM: that method touches the state once per window of decode
+tokens, the way this form touches it once per chunk of prefill tokens. Its
+end-of-window flush is a chunk update of the form of equation 10 with $U$
+already known, since each innovation was computed at its own token, so the
+flush needs no triangular solve at all.
+
 ## What one decode token actually costs
 
 Take a small concrete model: 24 layers, 4 heads, $K = V = 256$, state in fp32.
@@ -276,7 +405,7 @@ be skipped:
 
 $$
 \text{bytes} = \underbrace{2}_{\text{read+write}} \cdot
-\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{8}
+\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{12}
 $$
 
 | batch | state moved per layer per token | 24 layers |
@@ -340,7 +469,7 @@ the window,
 $$
 S_t = \gamma_t A + \sum_{i} R_i^{(t)} K_i^\top,
 \qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \alpha_j ,
-\qquad K_i = k_i . \tag{9}
+\qquad K_i = k_i . \tag{13}
 $$
 
 The proof is one substitution. Assume it holds at $t-1$, then
@@ -353,7 +482,7 @@ S_t &= \alpha_t S_{t-1} + u_t k_t^\top \\
     &= \gamma_t A + \sum_{i \le t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
         \qquad\text{with } R_t^{(t)} := u_t,\; K_t := k_t \\
     &= \gamma_t A + \sum_{i \le t} R_i^{(t)} K_i^\top .
-\end{aligned} \tag{10}
+\end{aligned} \tag{14}
 $$
 
 The last line renames three things without changing any value: $\alpha_t\gamma_{t-1}$
@@ -448,7 +577,7 @@ product:
 $$
 \alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top k_t),
 \qquad
-\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{11}
+\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{15}
 $$
 
 This is the identity with both sides multiplied by $k_t$ or $q_t$ on the
@@ -560,7 +689,7 @@ hit. Whoever shrinks the entry holds more prefixes in the same pool.
 Go back to the unrolled gated recurrence (4), written for a $T$-token prefix:
 
 $$
-S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{12}
+S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{16}
 $$
 
 The weight on a token that arrived $n$ positions ago is roughly $\alpha^n$,
@@ -569,7 +698,7 @@ horizon* as the number of tokens after which that weight has fallen below
 $10^{-3}$:
 
 $$
-H = \frac{\log 10^{-3}}{\log \alpha} . \tag{13}
+H = \frac{\log 10^{-3}}{\log \alpha} . \tag{17}
 $$
 
 Two heads on the same 8,000-token prefix:
@@ -695,6 +824,13 @@ horizon test is the natural trigger for the anchor-skipping item in this list.
 - Katharopoulos et al., *Transformers are RNNs: Fast Autoregressive
   Transformers with Linear Attention*, 2020. The factorization in the first
   section.
+- Yang et al., *Gated Linear Attention Transformers with Hardware-Efficient
+  Training*, ICML 2024, [arXiv:2312.06635](https://arxiv.org/abs/2312.06635).
+  The chunkwise form for gated linear attention.
+- Yang et al., *Parallelizing Linear Transformers with the Delta Rule over
+  Sequence Length*, NeurIPS 2024,
+  [arXiv:2406.06484](https://arxiv.org/abs/2406.06484). The WY-based chunkwise
+  algorithm for the delta rule.
 - Yang et al., *Gated Delta Networks: Improving Mamba2 with Delta Rule*,
   ICLR 2025, [arXiv:2412.06464](https://arxiv.org/abs/2412.06464).
 - Dao et al., *Mamba2 / State Space Duality*, 2024. The decay
