@@ -59,7 +59,8 @@
   <text x="76" y="195" fill="#a85f08" font-weight="800" font-size="12">Wmax = 256 tokens</text>
 
   <!-- group labels -->
-  <text x="150" y="300" class="drop" font-weight="800">56 heads: horizon &lt; Wmax → not stored, rebuilt by replaying the last 256 prefix tokens</text>
-  <text x="560" y="300" class="keep" font-weight="800">40 heads: stored exactly</text>
-  <text x="20" y="328" class="sub">Bar shape is schematic; the 56/40 split, the threshold, and the axis scale are from the measured checkpoint.</text>
+  <text x="72" y="292" class="drop" font-weight="800">56 heads: horizon &lt; Wmax, not stored</text>
+  <text x="72" y="309" class="drop" font-size="12">rebuilt on load by replaying the last 256 prefix tokens</text>
+  <text x="524" y="292" class="keep" font-weight="800">40 heads: horizon &gt; Wmax, stored exactly</text>
+  <text x="20" y="332" class="sub" font-size="11">Bar shape is schematic; the 56/40 split, the threshold, and the axis scale are from the measured checkpoint.</text>
 </svg>
