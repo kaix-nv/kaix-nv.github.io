@@ -91,6 +91,15 @@ in one pipeline, attention runs on one TP group, and experts spread over
 the EP ranks. Layouts that rely on data-parallel attention across EP
 groups are a different deployment and priced differently.
 
+> **Erratum (milestone 46).** The Kimi table above used the pre-M46
+> accounting, in which every attention rank was charged for the whole
+> batch. With attention data parallelism the three 64-GPU layouts hold
+> the same per-GPU footprint (50/47/47 GB) and the same global batch
+> (~3300), so the memory and max-batch columns were artifacts; the decode
+> column becomes 21.3/17.5/15.6 ms, and its remaining gain with depth
+> comes from micro-batching and the narrower expert all-to-all. The TTFT
+> column and its conclusion stand. See milestone 46.
+
 ## What is not modeled
 
 The steady-state 1F1B schedule only. Ramp-up and drain bubbles, stage
