@@ -351,17 +351,49 @@ $$
 
 $I + L$ is unit lower-triangular and $C \times C$, so it is inverted by forward
 substitution in $O(C^2)$ operations per chunk, negligible next to the matmuls.
-Once $U$ is known, equations 9 and 10 apply unchanged. Up to how the terms are
-grouped, this is the WY representation used by the DeltaNet and Gated DeltaNet
-papers: the product of $C$ rank-one updates $(I - \beta_m k_m k_m^\top)$ is
-itself $I$ minus a rank-$C$ matrix, and the triangular solve is what computes
-that matrix's coefficients.
+Once $U$ is known, equations 9 and 10 apply unchanged.
 
-In FLA this is the sequence in
+*Take the state out of the solve.* As written, the right-hand side of
+equation 11 contains $S_0$, so chunk $t$'s solve cannot start until chunk
+$t-1$'s state is known, and the solves would be as sequential as the states.
+The Gated DeltaNet paper avoids this by splitting the right-hand side. Because
+the system is linear, solve it once against $V$ and once against $K$:
+
+$$
+T = (I + L)^{-1} \operatorname{diag}(\beta), \qquad
+\tilde U = T\, V, \qquad
+W = T\, K, \qquad
+U = \tilde U - \operatorname{diag}(g)\, W S_0^\top . \tag{12}
+$$
+
+$T$, $\tilde U$, and $W$ depend only on the chunk's own keys, values, gates,
+and write strengths. They are computed for every chunk in parallel, in one
+batched pass, before any state exists. The state then enters through a single
+matmul per chunk, $W S_0^\top$, inside the sequential pass that carries $S$
+from chunk to chunk. This is the paper's equations 6 and 7 for the ungated
+case and its $\tilde U$ formula in section 3.3 for the gated one, where the
+matrix being inverted is written
+$I + \mathrm{strictLower}\big(\operatorname{diag}(\beta)\,(\Gamma \odot K
+K^\top)\big)$; $\Gamma \odot K K^\top$ is exactly the decay-weighted key
+overlap $\frac{g_m}{g_n} k_n^\top k_m$ that fills $L$ here.
+
+The paper calls this the UT transform, and the pair $(W, \tilde U)$ the WY
+representation, after the classical result that a product of Householder
+reflectors $\prod (I - \beta_m k_m k_m^\top)$ equals $I$ minus a rank-$C$
+matrix $K^\top W$. Its equation 10 is this post's equation 6 with the
+factors written as $S_{t-1}\big(\alpha_t (I - \beta_t k_t k_t^\top)\big) +
+\beta_t v_t k_t^\top$, the same recurrence. Notation differs in one place:
+the paper writes the within-chunk cumulative decay as $\gamma^{\,r}_{[t]}$,
+which is $g_r$ here; $\gamma$ is reserved in this post for ReplaySSM's running
+product.
+
+FLA follows the paper's split exactly. In
 [`chunk.py`](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py)
-labelled "fused kkt + solve_tril + recompute_w_u": form $K K^\top$ with the
-decay factors, invert the unit lower-triangular matrix, then recompute the
-WY coefficients and $U$. The triangular solve lives in
+the step labelled "fused kkt + solve_tril + recompute_w_u" runs over all chunks
+at once: form the decay-weighted $K K^\top$, invert the unit lower-triangular
+matrix, and produce $W$ and $\tilde U$. Only afterwards does the state kernel
+sweep the chunks in order, applying $\tilde U - \operatorname{diag}(g) W
+S_0^\top$ and equations 9 and 10. The triangular solve lives in
 `fla/ops/utils/solve_tril.py`, which inverts $16 \times 16$ blocks and
 assembles the $64 \times 64$ result. The decode kernel never touches any of
 this: with one token per step the system in equation 11 is a single scalar.
@@ -372,7 +404,7 @@ this: with one token per step the system in equation 11 is a single scalar.
 |---|---:|---:|---|
 | recurrent, equation 6 | $T$ | $O(T \cdot VK)$ | no |
 | fully parallel, equation 4 | 1 | $O(T^2 (K + V))$ | yes, but quadratic |
-| chunkwise, equations 9 to 11 | $T / C$ | $O(T C (K + V) + (T/C)\, VK \cdot C)$ | yes |
+| chunkwise, equations 9 to 12 | $T / C$ | $O(T C (K + V) + (T/C)\, VK \cdot C)$ | yes |
 
 With $C = 64$ the chunkwise form is linear in $T$, uses matmuls for everything
 but a small triangular solve, and this is what FLA's chunk kernel implements
@@ -405,7 +437,7 @@ be skipped:
 
 $$
 \text{bytes} = \underbrace{2}_{\text{read+write}} \cdot
-\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{12}
+\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{13}
 $$
 
 | batch | state moved per layer per token | 24 layers |
@@ -469,7 +501,7 @@ the window,
 $$
 S_t = \gamma_t A + \sum_{i} R_i^{(t)} K_i^\top,
 \qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \alpha_j ,
-\qquad K_i = k_i . \tag{13}
+\qquad K_i = k_i . \tag{14}
 $$
 
 The proof is one substitution. Assume it holds at $t-1$, then
@@ -482,7 +514,7 @@ S_t &= \alpha_t S_{t-1} + u_t k_t^\top \\
     &= \gamma_t A + \sum_{i \le t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
         \qquad\text{with } R_t^{(t)} := u_t,\; K_t := k_t \\
     &= \gamma_t A + \sum_{i \le t} R_i^{(t)} K_i^\top .
-\end{aligned} \tag{14}
+\end{aligned} \tag{15}
 $$
 
 The last line renames three things without changing any value: $\alpha_t\gamma_{t-1}$
@@ -577,7 +609,7 @@ product:
 $$
 \alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top k_t),
 \qquad
-\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{15}
+\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i \le t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{16}
 $$
 
 This is the identity with both sides multiplied by $k_t$ or $q_t$ on the
@@ -689,7 +721,7 @@ hit. Whoever shrinks the entry holds more prefixes in the same pool.
 Go back to the unrolled gated recurrence (4), written for a $T$-token prefix:
 
 $$
-S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{16}
+S_T = \sum_{i \le T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{17}
 $$
 
 The weight on a token that arrived $n$ positions ago is roughly $\alpha^n$,
@@ -698,7 +730,7 @@ horizon* as the number of tokens after which that weight has fallen below
 $10^{-3}$:
 
 $$
-H = \frac{\log 10^{-3}}{\log \alpha} . \tag{17}
+H = \frac{\log 10^{-3}}{\log \alpha} . \tag{18}
 $$
 
 Two heads on the same 8,000-token prefix:
