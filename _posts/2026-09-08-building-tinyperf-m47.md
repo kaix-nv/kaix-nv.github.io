@@ -2,7 +2,7 @@
 layout: post
 math: true
 title: "Building tinyperf M47: Context parallelism: splitting the sequence, not the model"
-date: 2026-09-08 17:15:00 -0700
+date: 2026-09-08 16:40:00 -0700
 categories: [tinyperf, perf-modeling]
 excerpt: "Ring attention for prefill, a sharded cache for decode: context parallelism cuts a 128k prompt from eleven seconds to a second and a half, and buys decode nothing until the cache, not the weights, is the traffic."
 ---
