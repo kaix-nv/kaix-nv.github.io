@@ -86,3 +86,11 @@ admission order for TTFT) is what this milestone's single knob distills.
    per-rate-optimal static chunk does one rule get?
 3. Re-run milestone 16's SLO price curve under chunked scheduling: how
    much cheaper does the TTFT-bound region get?
+
+> **Erratum (milestone 54).** The mixed step was priced here as
+> `max(decode, chunk)` — perfect overlap. A live server under Poisson load
+> showed the step is closer to the SUM of the two less one weight pass
+> (both row sets share the GEMMs' weight read; each runs its own
+> attention). Under that pricing the throughput win over prefill-first
+> at this workload shrinks from ~1.3x to ~1.07x; the tail-latency win
+> stands, and the knob (bigger chunks: TTFT down, TPOT up) is unchanged.
