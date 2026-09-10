@@ -130,3 +130,17 @@ check is made.
    in FP4 — does the report's "10% of V3.2 FLOPs at 1M" follow?
 3. The three hash-routed layers have no router but also no load balancer.
    Add an imbalance factor to them alone and see whether it matters.
+
+> **Erratum (milestone 59).** The cross-model check of this net changed two
+> mechanisms. The indexer is now skipped when the compressed cache already
+> fits inside top-k (the selection is the identity), and the
+> hyper-connections cost three launches per sub-block instead of two — a
+> fused read-side and write-side kernel around the mix projection; and the
+> fused indexer now writes its head-reduced logits and the top-k pass reads
+> them back, which the first version omitted. It also fixed a bug this
+> post inherited from milestone 41: the shared latent K/V was charged once
+> per query head in attention (64×), which inflated decode attention at
+> batch 8 threefold. The step table above moves: TTFT at 1M 20.5 → 24.0 s
+> (the logits pass is 15% of it), at 32k 0.15 → 0.18 s; TPOT at 1M
+> 7.9 → 6.9 ms with the HCA share 21% → 5%. The cache table and every
+> conclusion stand.

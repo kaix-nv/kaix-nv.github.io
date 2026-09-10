@@ -55,3 +55,10 @@ the checkpoint indexes — the local shards are LFS stubs.
 > to 64k context at batch 8 is 4.9x, not 14.7x, and its absolute cost
 > falls by more. The qualitative claim stands: attention is flat under
 > the cap and the indexer is what pays for it.
+
+> **Erratum (milestone 59).** The absorbed-decode attention batched over
+> query heads with one row each, so the shared latent cache was charged
+> once per head. It is one K/V per sequence read by every head; the fix
+> batches over sequences with the heads stacked as rows, the same trick
+> the GQA path uses. GLM-5.3's decode attention at batch 8 was ~2.4× too
+> large (about 5% of the step); the flatness under the top-k cap stands.
