@@ -45,3 +45,13 @@ the checkpoint indexes — the local shards are LFS stubs.
 3. Kimi's KDA layers reuse the milestone-24 delta-rule machinery — but
    its gating differs. Read the released kernel and check whether the
    0.011 efficiency measured for Qwen's GDN transfers.
+
+> **Erratum (milestone 58).** The indexer was priced here as an unfused
+> matmul batched per index head: it charged the key cache once per head
+> (the index key is one 128-dim vector per token, shared by all heads)
+> and wrote an fp32 score matrix of queries x keys per layer, which real
+> indexers never materialize — they stream the top-k selection. Re-priced
+> as a fused streaming op over shared keys, the indexer's growth from 4k
+> to 64k context at batch 8 is 4.9x, not 14.7x, and its absolute cost
+> falls by more. The qualitative claim stands: attention is flat under
+> the cap and the indexer is what pays for it.
