@@ -50,3 +50,12 @@ count — pinned.
    add the padding variant and compare with the variable-group model.
 3. Measure real routing statistics from a served MoE and calibrate the
    knob instead of assuming it.
+
+> **Erratum (milestone 60).** The table above assumed balanced routing
+> touches `min(experts, assignments)` experts per step. Measured on
+> silicon (and as the reference model already priced it), assignments
+> land at random and a step touches `e(1 − (1 − 1/e)^a)` of them: at
+> batch 8 x top-4 over 128 experts that is 28 not 32, at batch 64 it is
+> 110 not 128. Exercise 1 of this post, answered: the decode rows at
+> batch 8 and 64 move down by up to 14%. The asymmetry the post is about
+> — imbalance is a prefill and large-batch tax — stands.
