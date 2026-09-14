@@ -83,6 +83,14 @@ which it had not seen: 0.98 at 2k tokens and 0.91 at 8k. The 512-token
 batch-1 cell stays at 0.80, the same tiny-prefill engine cost milestone
 53 pinned on a 128-token prompt.
 
+> **Erratum (milestone 61).** The attribution is wrong; the number is
+> not. The like-for-like bf16 run showed a fused-MoE kernel with no
+> dequantization at all running at 0.44 of dense efficiency on this GPU,
+> so most of what 0.66 measures is the fused-MoE kernel class (Marlin's
+> grouped GEMM on the default configuration), not the dequantize in the
+> mainloop. The constant stays, as a property of that kernel on this
+> stack; the model now carries a second one for the bf16 kernel.
+
 ## After
 
 ```
@@ -100,6 +108,16 @@ batch-1 cell stays at 0.80, the same tiny-prefill engine cost milestone
 TTFT 0.96 geometric, TPOT 1.06. The decode steps at batch 8 and 32 sit
 11–17% high, which is the same size as the calibrated tier's overshoot on
 dense decode at higher batch, and is the open item.
+
+> **Erratum (milestone 61).** The open item was routing skew. The router
+> is not uniform: fitted on the bf16 run, a Zipf exponent of 1.4 has a
+> batch-8 step touch 13 of 32 experts rather than 21, and the rule now
+> takes that skew from the preset. Held out on this MXFP4 grid it moves
+> these five cells from 1.11–1.17 to 0.86–0.96. Also, the uniform count
+> above is 21, not "about 20": the rule is now written per token — each
+> token picks `top_k` *distinct* experts — as `e(1 − (1 − k/e)^t)` for `t`
+> tokens, and the with-replacement `e(1 − (1 − 1/e)^a)` was an
+> approximation to it.
 
 ## What this settles about the reference disagreement
 

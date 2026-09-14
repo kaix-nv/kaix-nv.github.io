@@ -54,8 +54,10 @@ count — pinned.
 > **Erratum (milestone 60).** The table above assumed balanced routing
 > touches `min(experts, assignments)` experts per step. Measured on
 > silicon (and as the reference model already priced it), assignments
-> land at random and a step touches `e(1 − (1 − 1/e)^a)` of them: at
-> batch 8 x top-4 over 128 experts that is 28 not 32, at batch 64 it is
-> 110 not 128. Exercise 1 of this post, answered: the decode rows at
+> land at random and a step touches `e(1 − (1 − k/e)^t)` of them for `t`
+> tokens picking `k` distinct experts each: at batch 8 x top-4 over 128
+> experts that is 29 not 32, at batch 64 it is 111 not 128 (milestone 61
+> adds a measured skew that lowers both). Exercise 1 of this post,
+> answered: the decode rows at
 > batch 8 and 64 move down by up to 14%. The asymmetry the post is about
 > — imbalance is a prefill and large-batch tax — stands.
