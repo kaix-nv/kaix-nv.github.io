@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="710" viewBox="0 0 1040 710" role="img" aria-labelledby="title desc">
+  <title id="title">NVFP4: the same packed byte, two different weight blocks</title>
+  <desc id="desc">A two by sixteen matrix begins with six and three in row zero and 2688 and 1344 in row one. With global scale one and E4M3 block scales one and 448, both rows normalize to six and three, encoded as low-nibble-first byte 0x57. Reconstruction multiplies the decoded E2M1 values by block and global scales. The matrix uses 22 bytes including scales.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="#52647a"/></marker>
+    <style>
+      text { font-family: system-ui, -apple-system, sans-serif; fill: #19324a; }
+      .heading { font-size: 25px; font-weight: 700; }
+      .sub { font-size: 16px; fill: #4d6276; }
+      .label { font-size: 18px; font-weight: 650; }
+      .body { font-size: 18px; }
+      .mono { font-family: ui-monospace, monospace; font-size: 18px; }
+      .small { font-size: 15px; }
+      .line { stroke: #52647a; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1040" height="710" rx="18" fill="#f7fafc"/>
+  <text x="32" y="43" class="heading">NVFP4: codes alone do not tell you the weight</text>
+  <text x="32" y="72" class="sub">Canonical M8d reference layout · blocks along K · low nibble first · not a hardware swizzle</text>
+
+  <rect x="32" y="96" width="976" height="62" rx="10" fill="#e7eef8" stroke="#b6c8de"/>
+  <text x="52" y="122" class="label">One matrix-wide FP32 scale</text>
+  <text x="52" y="146" class="mono">global = max_abs / (6 × 448) = 2688 / 2688 = 1</text>
+
+  <text x="32" y="194" class="label">1. Original matrix [2, 16]</text>
+  <text x="438" y="194" class="label">2. Block scales (E4M3)</text>
+  <text x="779" y="194" class="label">3. Normalized values</text>
+
+  <rect x="32" y="212" width="345" height="72" rx="9" fill="#e8f5ef" stroke="#98c8b5"/>
+  <text x="48" y="239" class="small">ROW 0 · 16 values</text>
+  <text x="48" y="265" class="mono">[6, 3, 0, …, 0]</text>
+  <path d="M383 248 H423" class="line"/>
+  <rect x="438" y="212" width="267" height="72" rx="9" fill="#e8f5ef" stroke="#98c8b5"/>
+  <text x="454" y="239" class="mono">6 / (6 × 1) = 1</text>
+  <text x="454" y="265" class="mono">scale byte: 0x38</text>
+  <path d="M711 248 H757" class="line"/>
+  <rect x="773" y="212" width="235" height="72" rx="9" fill="#fff" stroke="#b6c8de"/>
+  <text x="789" y="242" class="mono">[6, 3, 0, …, 0]</text>
+  <text x="789" y="266" class="small">divide by block × global</text>
+
+  <rect x="32" y="303" width="345" height="72" rx="9" fill="#fff2de" stroke="#d9ba83"/>
+  <text x="48" y="330" class="small">ROW 1 · 16 values</text>
+  <text x="48" y="356" class="mono">[2688, 1344, 0, …, 0]</text>
+  <path d="M383 339 H423" class="line"/>
+  <rect x="438" y="303" width="267" height="72" rx="9" fill="#fff2de" stroke="#d9ba83"/>
+  <text x="454" y="330" class="mono">2688 / (6 × 1) = 448</text>
+  <text x="454" y="356" class="mono">scale byte: 0x7e</text>
+  <path d="M711 339 H757" class="line"/>
+  <rect x="773" y="303" width="235" height="72" rx="9" fill="#fff" stroke="#b6c8de"/>
+  <text x="789" y="333" class="mono">[6, 3, 0, …, 0]</text>
+  <text x="789" y="357" class="small">same normalized row</text>
+
+  <rect x="32" y="401" width="976" height="122" rx="10" fill="#eef0fb" stroke="#b5bbd9"/>
+  <text x="52" y="432" class="label">4. Encode E2M1, then pack two nibbles per byte</text>
+  <text x="52" y="465" class="mono">6 → code 0111 (low)    3 → code 0101 (high)    byte: 0101 0111 = 0x57</text>
+  <text x="52" y="498" class="body">Both packed rows: [0x57, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]</text>
+
+  <rect x="32" y="547" width="976" height="88" rx="10" fill="#fff" stroke="#b6c8de"/>
+  <text x="52" y="575" class="label">5. Reconstruct: decode(code) × decode(block_scale) × global</text>
+  <text x="52" y="608" class="mono">row 0: [6, 3] × 1 × 1 = [6, 3]    row 1: [6, 3] × 448 × 1 = [2688, 1344]</text>
+  <text x="32" y="668" class="label">Storage: 16 data bytes + 2 block-scale bytes + 4 global-scale bytes = 22 bytes</text>
+  <text x="32" y="692" class="sub">BF16 would use 64 bytes. This hand-picked example is exact; general weights incur rounding error.</text>
+</svg>

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" role="img" aria-labelledby="title desc">
+  <title id="title">Why quantization performance differs between decode and prefill</title>
+  <desc id="desc">Small-batch decode streams weights and is often bandwidth-oriented, so packed weights reduce traffic. Large prefill reuses weights across many rows and moves toward compute, so native low-precision matrix multiplication matters. Amdahl's law and capacity effects determine serving-level results.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#53687d"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Inter, Arial, sans-serif; fill: #172536; }
+      .subtitle { font: 16px Inter, Arial, sans-serif; fill: #506174; }
+      .head { font: 700 21px Inter, Arial, sans-serif; fill: #172536; }
+      .label { font: 600 15px Inter, Arial, sans-serif; fill: #26394d; }
+      .body { font: 14px Inter, Arial, sans-serif; fill: #43566a; }
+      .mono { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #26394d; }
+      .card { fill: #ffffff; stroke: #c9d6e2; stroke-width: 2; }
+      .weight { fill: #e3d8f5; stroke: #7b61a4; stroke-width: 1.5; }
+      .compute { fill: #d9eee1; stroke: #4f9067; stroke-width: 1.5; }
+      .traffic { fill: #dceafb; stroke: #5b83ad; stroke-width: 1.5; }
+      .overhead { fill: #fff0d1; stroke: #b78625; stroke-width: 1.5; }
+      .limit { fill: #fff0eb; stroke: #cb745a; stroke-width: 1.5; }
+      .system { fill: #edf7f4; stroke: #53947f; stroke-width: 1.5; }
+      .arrow { stroke: #53687d; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #7b8ea1; stroke-width: 1.6; stroke-dasharray: 7 5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="860" fill="#f7fafc"/>
+  <text x="52" y="51" class="title">The same quantized weight meets two different bottlenecks</text>
+  <text x="52" y="79" class="subtitle">M is the number of token rows using W[N,K] in one matrix multiplication.</text>
+
+  <rect x="52" y="112" width="616" height="392" rx="16" class="card"/>
+  <text x="78" y="151" class="head">Decode or tiny batch: M ≈ 1</text>
+  <text x="78" y="179" class="body">Little reuse: a large weight matrix serves one or a few rows.</text>
+  <rect x="86" y="214" width="246" height="82" rx="10" class="weight"/>
+  <text x="108" y="246" class="label">BF16 weight stream</text>
+  <text x="108" y="273" class="mono">4096×4096 = 32 MiB</text>
+  <path d="M342 255 H395" class="arrow"/>
+  <rect x="407" y="214" width="225" height="82" rx="10" class="compute"/>
+  <text x="429" y="246" class="label">33.6M operations</text>
+  <text x="429" y="273" class="mono">≈ 1 operation/byte</text>
+  <rect x="86" y="326" width="246" height="96" rx="10" class="traffic"/>
+  <text x="108" y="359" class="label">INT8 packed weight</text>
+  <text x="108" y="385" class="mono">≈ 16 MiB + scales</text>
+  <text x="108" y="407" class="body">cuts the dominant payload</text>
+  <path d="M342 374 H395" class="arrow"/>
+  <rect x="407" y="326" width="225" height="96" rx="10" class="overhead"/>
+  <text x="429" y="359" class="label">But still pay for</text>
+  <text x="429" y="385" class="body">scales · conversion · launch</text>
+  <text x="429" y="407" class="body">and achieved bandwidth</text>
+  <text x="86" y="467" class="label">Best first target: fused packed GEMV / small GEMM</text>
+  <text x="86" y="488" class="body">Do not write a complete BF16 weight back to global memory.</text>
+
+  <rect x="704" y="112" width="644" height="392" rx="16" class="card"/>
+  <text x="730" y="151" class="head">Prefill or large batch: M ≫ 1</text>
+  <text x="730" y="179" class="body">One weight tile contributes to many token rows before eviction.</text>
+  <rect x="738" y="214" width="258" height="82" rx="10" class="weight"/>
+  <text x="760" y="246" class="label">Same 32 MiB BF16 weight</text>
+  <text x="760" y="273" class="mono">reused across M rows</text>
+  <path d="M1006 255 H1059" class="arrow"/>
+  <rect x="1071" y="214" width="241" height="82" rx="10" class="compute"/>
+  <text x="1093" y="246" class="label">Work grows with M</text>
+  <text x="1093" y="273" class="mono">F = 2MNK</text>
+  <rect x="738" y="326" width="258" height="96" rx="10" class="traffic"/>
+  <text x="760" y="359" class="label">Packing still saves bytes</text>
+  <text x="760" y="385" class="body">but traffic is increasingly</text>
+  <text x="760" y="407" class="body">amortized across token rows</text>
+  <path d="M1006 374 H1059" class="arrow"/>
+  <rect x="1071" y="326" width="241" height="96" rx="10" class="compute"/>
+  <text x="1093" y="359" class="label">Native MMA matters</text>
+  <text x="1093" y="385" class="body">W8A8 · FP8 · block FP4</text>
+  <text x="1093" y="407" class="body">when compute is limiting</text>
+  <text x="738" y="467" class="label">Best target: phase-specific, high-utilization GEMM</text>
+  <text x="738" y="488" class="body">Activation quantization and scale application must be amortized.</text>
+
+  <rect x="52" y="540" width="616" height="242" rx="16" class="card"/>
+  <text x="78" y="579" class="head">End-to-end latency: Amdahl still wins</text>
+  <rect x="86" y="611" width="548" height="76" rx="10" class="limit"/>
+  <text x="108" y="642" class="mono">f = 80% linear time, linear speedup = 2×</text>
+  <text x="108" y="670" class="mono">end-to-end = 1 / (0.2 + 0.8/2) = 1.67×</text>
+  <text x="86" y="722" class="body">Attention, cache, norms, sampling, scheduling, and CPU work remain.</text>
+  <text x="86" y="750" class="label">A faster GEMM is evidence, not the serving result.</text>
+
+  <rect x="704" y="540" width="644" height="242" rx="16" class="card"/>
+  <text x="730" y="579" class="head">Capacity can be the larger systems gain</text>
+  <rect x="738" y="611" width="574" height="76" rx="10" class="system"/>
+  <text x="760" y="642" class="mono">27B ideal weights: 16-bit ≈ 54 GB; 8-bit ≈ 27 GB</text>
+  <text x="760" y="670" class="mono">possible topology change, not a 2× latency promise</text>
+  <text x="738" y="722" class="body">Saved VRAM can hold more KV cache, batches, graphs, or requests.</text>
+  <text x="738" y="750" class="label">Measure latency, throughput, goodput, and peak memory separately.</text>
+
+  <text x="52" y="826" class="subtitle">All ratios above are analytical examples. M8 must replace hypotheses with paired measurements on the named checkpoint, shape, and GPU.</text>
+</svg>

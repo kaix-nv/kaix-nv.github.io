@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="800" viewBox="0 0 1400 800" role="img" aria-labelledby="title desc">
+  <title id="title">M8c: two launches turn packed INT8 weights into native INT8 computation</title>
+  <desc id="desc">For every linear projection, launch one quantizes each activation row using its own scale. Launch two multiplies signed INT8 activation and weight codes with INT32 accumulation, then multiplies by the activation-row and weight-output scales and stores BF16. Weight codes and scales come directly from the unchanged M8b checkpoint. A four-element dot product shows the integers and rescaling.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#60758a"/></marker>
+    <style>
+      .title { font: 700 29px Arial, sans-serif; fill: #142235; }
+      .head { font: 700 20px Arial, sans-serif; fill: #172536; }
+      .body { font: 17px Arial, sans-serif; fill: #405468; }
+      .mono { font: 17px monospace; fill: #26394d; }
+      .small { font: 15px Arial, sans-serif; fill: #53677a; }
+      .arrow { fill: none; stroke: #60758a; stroke-width: 2.5; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1400" height="800" fill="#f8fafc"/>
+  <text x="40" y="48" class="title">M8c: same packed weights, a different computation</text>
+  <text x="40" y="80" class="body">M = token rows · K = input channels · N = output channels · shown for BF16 activations</text>
+
+  <rect x="40" y="115" width="290" height="128" rx="12" fill="#eee8f8" stroke="#8269ad" stroke-width="2"/>
+  <text x="60" y="147" class="head">M8b packed checkpoint</text>
+  <text x="60" y="181" class="mono">Qw [N, K] : INT8</text>
+  <text x="60" y="211" class="mono">sw [N]    : FP32</text>
+  <path d="M330 180 H875 V305" class="arrow"/>
+  <text x="390" y="165" class="small">Resident codes go straight into the integer dot.</text>
+
+  <rect x="40" y="310" width="255" height="160" rx="12" fill="#e8f1fb" stroke="#6691ba" stroke-width="2"/>
+  <text x="60" y="344" class="head">Layer input X [M, K]</text>
+  <text x="60" y="380" class="body">One row = one token</text>
+  <text x="60" y="410" class="body">BF16 values change</text>
+  <text x="60" y="440" class="body">on every forward.</text>
+
+  <path d="M295 390 H350" class="arrow"/>
+  <rect x="355" y="280" width="350" height="220" rx="12" fill="#fff4df" stroke="#d99a30" stroke-width="2"/>
+  <text x="375" y="316" class="head">Launch 1 · dynamic quantizer</text>
+  <text x="375" y="351" class="mono">sx[m] = max|X[m,:]| / 127</text>
+  <text x="375" y="385" class="mono">Qx = round(X / sx[:,None])</text>
+  <text x="375" y="420" class="body">INT8 codes Qx [M, K]</text>
+  <text x="375" y="450" class="body">FP32 scales sx [M]</text>
+  <text x="375" y="480" class="small">All-zero row: sx = 1, codes = 0.</text>
+
+  <path d="M705 390 H760" class="arrow"/>
+  <rect x="765" y="310" width="280" height="160" rx="12" fill="#e7f5ec" stroke="#53926b" stroke-width="2"/>
+  <text x="785" y="344" class="head">Launch 2 · native dot</text>
+  <text x="785" y="380" class="mono">A = Qx @ Qw.T</text>
+  <text x="785" y="414" class="body">INT8 × INT8 → INT32</text>
+  <text x="785" y="445" class="small">A stays inside the kernel.</text>
+
+  <path d="M1045 390 H1090" class="arrow"/>
+  <rect x="1095" y="310" width="265" height="160" rx="12" fill="#e7f5ec" stroke="#53926b" stroke-width="2"/>
+  <text x="1115" y="344" class="head">Same-kernel epilogue</text>
+  <text x="1115" y="380" class="mono">Y[m,n] = A[m,n]</text>
+  <text x="1115" y="410" class="mono">       × sx[m] × sw[n]</text>
+  <text x="1115" y="445" class="body">Store BF16 Y [M, N]</text>
+
+  <rect x="40" y="545" width="1320" height="205" rx="12" fill="#ffffff" stroke="#cad6e2" stroke-width="2"/>
+  <text x="62" y="580" class="head">Concrete dot: X = [1, −2, 0.5, 0], W = [1, 0.5, −1, 0]</text>
+  <text x="62" y="617" class="mono">sx = 2/127   Qx = [64, −127, 32, 0]       sw = 1/127   Qw = [127, 64, −127, 0]</text>
+  <text x="62" y="654" class="mono">A = 64×127 − 127×64 − 32×127 = −4064</text>
+  <text x="62" y="691" class="mono">Y ≈ −4064 × (2/127) × (1/127) ≈ −0.50394 → BF16 −0.50390625   (original: −0.5)</text>
+  <text x="62" y="727" class="small">Temporary activation codes cost a launch and memory traffic. Native instructions do not guarantee faster serving.</text>
+  <text x="40" y="782" class="small">No persistent BF16 projection weight · no activation calibration dataset · embeddings, norms, attention and LM head stay floating point</text>
+</svg>

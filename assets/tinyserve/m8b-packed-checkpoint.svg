@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">M8b moves INT8 packing out of model startup</title>
+  <desc id="desc">M8a reads a BF16 projection during every startup and then packs it. M8b runs packing once in an offline exporter, stores canonical packed and scale keys plus a versioned manifest, builds QuantizedLinear buffers on the meta device, and reads packed tensors directly. Both paths produce identical runtime tensors, while M8b reduces checkpoint bytes, load time, and peak host memory.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60758a"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #cad6e2; stroke-width: 2; }
+      .bf16 { fill: #e8f1fb; stroke: #6691ba; stroke-width: 2; }
+      .work { fill: #fff4df; stroke: #d99a30; stroke-width: 2; }
+      .packed { fill: #eee8f8; stroke: #8269ad; stroke-width: 2; }
+      .runtime { fill: #e7f5ec; stroke: #53926b; stroke-width: 2; }
+      .meta { fill: #eef7f8; stroke: #5a9499; stroke-width: 2; }
+      .metric { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5; }
+      .title { font: 700 29px Inter, Arial, sans-serif; fill: #142235; }
+      .subtitle { font: 16px Inter, Arial, sans-serif; fill: #506174; }
+      .section { font: 700 20px Inter, Arial, sans-serif; fill: #172536; }
+      .head { font: 700 16px Inter, Arial, sans-serif; fill: #172536; }
+      .body { font: 14px Inter, Arial, sans-serif; fill: #405468; }
+      .small { font: 13px Inter, Arial, sans-serif; fill: #53677a; }
+      .mono { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #26394d; }
+      .good { font: 700 14px Inter, Arial, sans-serif; fill: #237147; }
+      .warn { font: 700 14px Inter, Arial, sans-serif; fill: #a5650b; }
+      .arrow { fill: none; stroke: #60758a; stroke-width: 2; marker-end: url(#arrow); }
+      .dash { fill: none; stroke: #8ba0b4; stroke-width: 1.7; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1400" height="760" class="bg"/>
+  <text x="46" y="48" class="title">M8b: pack once offline, load packed tensors directly</text>
+  <text x="46" y="78" class="subtitle">The execution kernel is unchanged; the checkpoint and startup tensor lifetimes are not.</text>
+
+  <rect x="38" y="106" width="1324" height="240" rx="16" class="panel"/>
+  <text x="62" y="140" class="section">M8a · runtime packing on every startup</text>
+
+  <rect x="72" y="174" width="246" height="108" rx="12" class="bf16"/>
+  <text x="94" y="205" class="head">Ordinary checkpoint</text>
+  <text x="94" y="235" class="mono">q_proj.weight · BF16</text>
+  <text x="94" y="260" class="body">full source matrix on host</text>
+
+  <rect x="382" y="174" width="246" height="108" rx="12" class="work"/>
+  <text x="404" y="205" class="head">Loader quantizes</text>
+  <text x="404" y="235" class="mono">amax → scale → round</text>
+  <text x="404" y="260" class="body">BF16 and INT8 coexist briefly</text>
+
+  <rect x="692" y="174" width="270" height="108" rx="12" class="packed"/>
+  <text x="714" y="205" class="head">Packed module</text>
+  <text x="714" y="235" class="mono">weight_packed + scale</text>
+  <text x="714" y="260" class="body">source BF16 can now be freed</text>
+
+  <rect x="1026" y="174" width="286" height="108" rx="12" class="runtime"/>
+  <text x="1048" y="205" class="head">Same W8A16 kernel</text>
+  <text x="1048" y="235" class="mono">INT8 tile → BF16 dot</text>
+  <text x="1048" y="260" class="body">real packed GPU residency</text>
+
+  <path d="M318 228 H382" class="arrow"/>
+  <path d="M628 228 H692" class="arrow"/>
+  <path d="M962 228 H1026" class="arrow"/>
+  <text x="382" y="315" class="warn">Cost paid again: larger artifact · higher host peak · extra startup work</text>
+
+  <rect x="38" y="374" width="1324" height="266" rx="16" class="panel"/>
+  <text x="62" y="408" class="section">M8b · versioned packed checkpoint</text>
+
+  <rect x="72" y="442" width="220" height="118" rx="12" class="work"/>
+  <text x="94" y="473" class="head">Offline exporter</text>
+  <text x="94" y="503" class="mono">pack_int8_per_row</text>
+  <text x="94" y="531" class="body">run once, outside serving</text>
+
+  <rect x="344" y="430" width="354" height="142" rx="12" class="packed"/>
+  <text x="366" y="461" class="head">Self-describing checkpoint</text>
+  <text x="366" y="490" class="mono">q_proj.weight_packed · INT8</text>
+  <text x="366" y="515" class="mono">q_proj.weight_scale · FP32</text>
+  <text x="366" y="542" class="mono">tinyserve_quantization.json · v1</text>
+
+  <rect x="750" y="442" width="246" height="118" rx="12" class="meta"/>
+  <text x="772" y="473" class="head">Meta-device build</text>
+  <text x="772" y="503" class="mono">QuantizedLinear.empty</text>
+  <text x="772" y="531" class="body">shape checked before reads</text>
+
+  <rect x="1048" y="442" width="264" height="118" rx="12" class="runtime"/>
+  <text x="1070" y="473" class="head">Direct packed load</text>
+  <text x="1070" y="503" class="mono">codes + scales → GPU</text>
+  <text x="1070" y="531" class="body">no eligible BF16 tensor</text>
+
+  <path d="M292 501 H344" class="arrow"/>
+  <path d="M698 501 H750" class="arrow"/>
+  <path d="M996 501 H1048" class="arrow"/>
+  <path d="M1180 560 C1180 605 1168 616 1168 654" class="dash"/>
+  <text x="344" y="608" class="good">Exact same 507 runtime tensors and logits as M8a runtime packing</text>
+
+  <rect x="38" y="668" width="1324" height="66" rx="12" class="metric"/>
+  <text x="65" y="696" class="head">Qwen3-0.6B measured result</text>
+  <text x="65" y="720" class="body">directory 1.519 → 1.080 GB · median load 1.002 → 0.641 s · peak host RSS 2.537 → 1.619 GiB · GPU allocation unchanged</text>
+</svg>

@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="940" viewBox="0 0 1400 940" role="img" aria-labelledby="title desc">
+  <title id="title">Low-precision formats combine element codes and scale structures</title>
+  <desc id="desc">Rows compare INT8, FP8 E4M3, MXFP8, MXFP4, and NVFP4. INT8 has uniform integer codes, FP8 has floating-point codes, MX formats add one power-of-two scale for 32 elements, and NVFP4 adds one fractional FP8 scale for 16 E2M1 elements plus a global FP32 scale.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfcfe; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .int { fill: #eff6ff; stroke: #60a5fa; stroke-width: 1.5; rx: 6; }
+      .fp8 { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 1.5; rx: 6; }
+      .fp4 { fill: #ecfdf5; stroke: #34d399; stroke-width: 1.5; rx: 6; }
+      .scale { fill: #fff7ed; stroke: #fb923c; stroke-width: 2; rx: 8; }
+      .global { fill: #fff1f2; stroke: #fb7185; stroke-width: 2; rx: 8; }
+      .title { font: 700 28px system-ui, sans-serif; fill: #0f172a; }
+      .section { font: 700 19px system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 15px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px system-ui, sans-serif; fill: #334155; }
+      .small { font: 12px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #1e293b; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 1.8; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="940"/>
+  <text x="42" y="48" class="title">Element bits are only half of a low-precision format</text>
+  <text x="42" y="76" class="body">Diagrams shorten real blocks for readability; labels give the actual block size and amortized payload.</text>
+
+  <rect x="34" y="101" width="1332" height="139" class="panel"/>
+  <text x="58" y="136" class="section">INT8 · uniform signed integer codes</text>
+  <rect x="58" y="157" width="96" height="47" class="int"/><text x="82" y="186" class="mono">q₀ · 8b</text>
+  <rect x="166" y="157" width="96" height="47" class="int"/><text x="190" y="186" class="mono">q₁ · 8b</text>
+  <rect x="274" y="157" width="96" height="47" class="int"/><text x="298" y="186" class="mono">q₂ · 8b</text>
+  <text x="389" y="187" class="section">…</text>
+  <rect x="438" y="149" width="200" height="63" class="scale"/>
+  <text x="459" y="177" class="head">floating scale s</text>
+  <text x="459" y="199" class="small">tensor / row / group</text>
+  <text x="686" y="178" class="mono">x̂ = s(q − z)</text>
+  <text x="1018" y="178" class="head">8 bits/value + scale metadata</text>
+  <text x="1018" y="204" class="small">No exponent inside the value code</text>
+
+  <rect x="34" y="261" width="1332" height="139" class="panel"/>
+  <text x="58" y="296" class="section">FP8 E4M3 · a floating code, usually with an external scale</text>
+  <rect x="58" y="317" width="120" height="47" class="fp8"/><text x="78" y="346" class="mono">S|EEEE|MMM</text>
+  <rect x="190" y="317" width="120" height="47" class="fp8"/><text x="210" y="346" class="mono">S|EEEE|MMM</text>
+  <rect x="322" y="317" width="120" height="47" class="fp8"/><text x="342" y="346" class="mono">S|EEEE|MMM</text>
+  <rect x="485" y="309" width="200" height="63" class="scale"/>
+  <text x="506" y="337" class="head">floating scale s</text>
+  <text x="506" y="359" class="small">often per tensor or axis</text>
+  <text x="733" y="338" class="mono">x̂ = s · q(E4M3)</text>
+  <text x="1018" y="338" class="head">8 bits/value + scale metadata</text>
+  <text x="1018" y="364" class="small">Exponent gives nonuniform spacing</text>
+
+  <rect x="34" y="421" width="1332" height="139" class="panel"/>
+  <text x="58" y="456" class="section">MXFP8 · 32 FP8 values share one E8M0 scale (E4M3 shown; E5M2 also defined)</text>
+  <rect x="58" y="477" width="105" height="47" class="fp8"/><text x="80" y="506" class="mono">E4M3 q₀</text>
+  <rect x="175" y="477" width="105" height="47" class="fp8"/><text x="197" y="506" class="mono">E4M3 q₁</text>
+  <rect x="292" y="477" width="105" height="47" class="fp8"/><text x="314" y="506" class="mono">E4M3 q₂</text>
+  <text x="417" y="507" class="section">… q₃₁</text>
+  <rect x="510" y="469" width="210" height="63" class="scale"/>
+  <text x="531" y="497" class="head">E8M0 block scale</text>
+  <text x="531" y="519" class="small">power of two · one byte</text>
+  <text x="767" y="498" class="mono">x̂ᵢ = sblock(i) · qᵢ</text>
+  <text x="1084" y="498" class="head">8.25 bits/value</text>
+  <text x="1084" y="524" class="small">before alignment</text>
+
+  <rect x="34" y="581" width="1332" height="139" class="panel"/>
+  <text x="58" y="616" class="section">MXFP4 · 32 E2M1 values share one E8M0 scale</text>
+  <rect x="58" y="637" width="105" height="47" class="fp4"/><text x="78" y="666" class="mono">q₀|q₁ · 8b</text>
+  <rect x="175" y="637" width="105" height="47" class="fp4"/><text x="195" y="666" class="mono">q₂|q₃ · 8b</text>
+  <rect x="292" y="637" width="105" height="47" class="fp4"/><text x="312" y="666" class="mono">q₄|q₅ · 8b</text>
+  <text x="417" y="667" class="section">… q₃₁</text>
+  <rect x="510" y="629" width="210" height="63" class="scale"/>
+  <text x="531" y="657" class="head">E8M0 block scale</text>
+  <text x="531" y="679" class="small">power of two · one byte</text>
+  <text x="767" y="658" class="mono">x̂ᵢ = sblock(i) · qᵢ</text>
+  <text x="1084" y="658" class="head">4.25 bits/value</text>
+  <text x="1084" y="684" class="small">before alignment</text>
+
+  <rect x="34" y="741" width="1332" height="164" class="panel"/>
+  <text x="58" y="776" class="section">NVFP4 · 16 E2M1 values share an E4M3 scale, then one tensor-wide FP32 scale</text>
+  <rect x="58" y="797" width="105" height="47" class="fp4"/><text x="78" y="826" class="mono">q₀|q₁ · 8b</text>
+  <rect x="175" y="797" width="105" height="47" class="fp4"/><text x="195" y="826" class="mono">q₂|q₃ · 8b</text>
+  <rect x="292" y="797" width="105" height="47" class="fp4"/><text x="312" y="826" class="mono">q₄|q₅ · 8b</text>
+  <text x="417" y="827" class="section">… q₁₅</text>
+  <rect x="510" y="789" width="205" height="63" class="scale"/>
+  <text x="531" y="817" class="head">E4M3 block scale</text>
+  <text x="531" y="839" class="small">fractional · one byte</text>
+  <rect x="742" y="789" width="183" height="63" class="global"/>
+  <text x="763" y="817" class="head">FP32 global scale</text>
+  <text x="763" y="839" class="small">one per tensor</text>
+  <text x="957" y="813" class="mono">x̂ᵢ = qᵢ · sb · sg</text>
+  <text x="1178" y="813" class="head">≈4.5 bits/value</text>
+  <text x="1178" y="839" class="small">+ global/alignment</text>
+  <text x="58" y="885" class="small">E2M1 magnitudes: 0, 0.5, 1, 1.5, 2, 3, 4, 6. INT4 uses a different, uniformly spaced integer codebook.</text>
+</svg>

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">Scale granularity changes quantization error without changing bit width</title>
+  <desc id="desc">A two-row matrix has small values in the first row and values one hundred times larger in the second. One tensor scale destroys the small row, while one scale per row preserves the relative pattern. Per-block and per-token scaling extend the same idea.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfcfe; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .cell { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.5; rx: 7; }
+      .large { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.5; rx: 7; }
+      .bad { fill: #fff1f2; stroke: #fb7185; stroke-width: 2; rx: 11; }
+      .good { fill: #ecfdf5; stroke: #34d399; stroke-width: 2; rx: 11; }
+      .group1 { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 2; rx: 10; }
+      .group2 { fill: #f0fdfa; stroke: #2dd4bf; stroke-width: 2; rx: 10; }
+      .title { font: 700 28px system-ui, sans-serif; fill: #0f172a; }
+      .section { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px system-ui, sans-serif; fill: #334155; }
+      .small { font: 12px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 14px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #1e293b; }
+      .badtext { font: 700 14px system-ui, sans-serif; fill: #be123c; }
+      .goodtext { font: 700 14px system-ui, sans-serif; fill: #047857; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="820"/>
+  <text x="42" y="48" class="title">The scale boundary decides which differences survive</text>
+  <text x="42" y="76" class="body">Both candidates use INT8. Only the number and placement of scales change.</text>
+
+  <rect x="34" y="101" width="1332" height="232" class="panel"/>
+  <text x="58" y="136" class="section">Original weight matrix W[out=2, in=4]</text>
+  <text x="60" y="177" class="body">row 0: small range</text>
+  <text x="60" y="249" class="body">row 1: 100× larger range</text>
+
+  <rect x="250" y="151" width="130" height="54" class="cell"/><text x="290" y="185" class="mono">0.02</text>
+  <rect x="396" y="151" width="130" height="54" class="cell"/><text x="436" y="185" class="mono">0.04</text>
+  <rect x="542" y="151" width="130" height="54" class="cell"/><text x="582" y="185" class="mono">0.06</text>
+  <rect x="688" y="151" width="130" height="54" class="cell"/><text x="728" y="185" class="mono">0.08</text>
+  <rect x="250" y="223" width="130" height="54" class="large"/><text x="294" y="257" class="mono">2.00</text>
+  <rect x="396" y="223" width="130" height="54" class="large"/><text x="440" y="257" class="mono">4.00</text>
+  <rect x="542" y="223" width="130" height="54" class="large"/><text x="586" y="257" class="mono">6.00</text>
+  <rect x="688" y="223" width="130" height="54" class="large"/><text x="732" y="257" class="mono">8.00</text>
+
+  <rect x="875" y="145" width="420" height="140" class="group1"/>
+  <text x="900" y="178" class="head">Same codes, different scale regions</text>
+  <text x="900" y="208" class="body">one tensor · one output row · K-groups · 2-D tiles</text>
+  <text x="900" y="238" class="body">Smaller regions follow local magnitude more closely.</text>
+  <text x="900" y="264" class="small">Trade-off: more scale bytes and kernel bookkeeping.</text>
+
+  <rect x="34" y="359" width="646" height="397" class="panel"/>
+  <text x="58" y="394" class="section">A · One scale for the whole tensor</text>
+  <text x="58" y="426" class="mono">s = 8 / 127 ≈ 0.06299</text>
+
+  <rect x="64" y="455" width="570" height="106" class="bad"/>
+  <text x="88" y="486" class="head">stored INT8 codes</text>
+  <text x="88" y="521" class="mono">row 0 → [ 0,  1,  1,   1]</text>
+  <text x="88" y="549" class="mono">row 1 → [32, 64, 95, 127]</text>
+
+  <text x="64" y="604" class="body">The 8.00 outlier fixes the step for both rows.</text>
+  <text x="64" y="633" class="body">0.04, 0.06, and 0.08 collapse to the same code.</text>
+  <text x="64" y="668" class="badtext">The small row loses most of its structure.</text>
+  <text x="64" y="710" class="small">Metadata: one scale for eight values.</text>
+
+  <rect x="720" y="359" width="646" height="397" class="panel"/>
+  <text x="744" y="394" class="section">B · One scale per output row</text>
+  <text x="744" y="426" class="mono">s₀ = 0.08 / 127  ·  s₁ = 8 / 127</text>
+
+  <rect x="750" y="455" width="570" height="106" class="good"/>
+  <text x="774" y="486" class="head">stored INT8 codes</text>
+  <text x="774" y="521" class="mono">row 0 → [32, 64, 95, 127]</text>
+  <text x="774" y="549" class="mono">row 1 → [32, 64, 95, 127]</text>
+
+  <text x="750" y="604" class="body">Each row uses the full integer range independently.</text>
+  <text x="750" y="633" class="body">The rows share codes but reconstruct at different scales.</text>
+  <text x="750" y="668" class="goodtext">Local relationships survive without adding value bits.</text>
+  <text x="750" y="710" class="small">Metadata: two scales for eight values.</text>
+
+  <path d="M 680 550 L 720 550" class="arrow"/>
+  <text x="612" y="790" class="small">Real quantizers also choose clipping, rounding, zero-point, scale datatype, and layout.</text>
+</svg>
