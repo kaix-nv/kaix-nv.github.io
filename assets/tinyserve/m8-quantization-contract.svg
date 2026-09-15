@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850" role="img" aria-labelledby="title desc">
+  <title id="title">Quantization is a contract from values to execution</title>
+  <desc id="desc">A high-precision weight passes through scale selection, quantization, packing, checkpoint metadata, loading, and one of three execution levels: explicit dequantization, packed fallback, or native low-precision matrix multiplication. Accuracy and systems measurements validate different parts of the path.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfcfe; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .source { fill: #eff6ff; stroke: #60a5fa; stroke-width: 2; rx: 12; }
+      .scheme { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 2; rx: 12; }
+      .storage { fill: #fff7ed; stroke: #fb923c; stroke-width: 2; rx: 12; }
+      .oracle { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 12; }
+      .fallback { fill: #fffbeb; stroke: #f59e0b; stroke-width: 2; rx: 12; }
+      .native { fill: #ecfdf5; stroke: #34d399; stroke-width: 2; rx: 12; }
+      .metric { fill: #f0fdfa; stroke: #2dd4bf; stroke-width: 1.5; rx: 10; }
+      .title { font: 700 28px system-ui, sans-serif; fill: #0f172a; }
+      .section { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px system-ui, sans-serif; fill: #334155; }
+      .small { font: 12px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #1e293b; }
+      .good { font: 700 13px system-ui, sans-serif; fill: #047857; }
+      .warn { font: 700 13px system-ui, sans-serif; fill: #b45309; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+      .branch { fill: none; stroke: #64748b; stroke-width: 1.8; marker-end: url(#arrow); }
+      .rail { fill: none; stroke: #64748b; stroke-width: 1.8; }
+      .dash { fill: none; stroke: #94a3b8; stroke-width: 1.6; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="850"/>
+  <text x="42" y="48" class="title">Quantization: four contracts, three execution levels, two kinds of evidence</text>
+  <text x="42" y="76" class="body">A format label is meaningful only when representation, scales, storage, and the kernel agree.</text>
+
+  <rect x="34" y="101" width="1332" height="250" class="panel"/>
+  <text x="58" y="136" class="section">1 · Produce a self-describing packed tensor</text>
+
+  <rect x="60" y="166" width="190" height="125" class="source"/>
+  <text x="83" y="198" class="head">Source tensor</text>
+  <text x="82" y="229" class="mono">W [out, in] · BF16</text>
+  <text x="82" y="257" class="body">Values to approximate</text>
+
+  <rect x="300" y="155" width="220" height="147" class="scheme"/>
+  <text x="323" y="187" class="head">Choose the scheme</text>
+  <text x="322" y="218" class="body">format · clipping · scale</text>
+  <text x="322" y="244" class="body">axis/block · zero point</text>
+  <text x="322" y="270" class="body">static or dynamic</text>
+
+  <rect x="570" y="155" width="220" height="147" class="scheme"/>
+  <text x="593" y="187" class="head">Quantize and pack</text>
+  <text x="592" y="218" class="mono">W → codes Q</text>
+  <text x="592" y="244" class="mono">Q → bytes</text>
+  <text x="592" y="270" class="body">Two FP4 codes per byte</text>
+
+  <rect x="840" y="155" width="220" height="147" class="storage"/>
+  <text x="863" y="187" class="head">Checkpoint payload</text>
+  <text x="862" y="218" class="body">packed codes + scales</text>
+  <text x="862" y="244" class="body">logical shape + layout</text>
+  <text x="862" y="270" class="body">per-layer format metadata</text>
+
+  <rect x="1110" y="166" width="220" height="125" class="storage"/>
+  <text x="1133" y="198" class="head">Runtime tensor</text>
+  <text x="1132" y="229" class="mono">QuantizedTensor</text>
+  <text x="1132" y="257" class="body">Still packed on the GPU</text>
+
+  <path d="M 250 228 L 300 228" class="arrow"/>
+  <path d="M 520 228 L 570 228" class="arrow"/>
+  <path d="M 790 228 L 840 228" class="arrow"/>
+  <path d="M 1060 228 L 1110 228" class="arrow"/>
+
+  <rect x="34" y="377" width="1332" height="307" class="panel"/>
+  <text x="58" y="412" class="section">2 · Dispatch one of three honest execution levels</text>
+
+  <rect x="72" y="450" width="354" height="165" class="oracle"/>
+  <text x="96" y="483" class="head">A · Fake quant / Q/DQ oracle</text>
+  <text x="96" y="516" class="mono">packed → complete BF16 W</text>
+  <text x="96" y="543" class="mono">Y = X @ Wᵀ</text>
+  <text x="96" y="573" class="body">Checks codec and model numerics.</text>
+  <text x="96" y="597" class="warn">No resident-memory or bandwidth claim</text>
+
+  <rect x="523" y="450" width="354" height="165" class="fallback"/>
+  <text x="547" y="483" class="head">B · Real quant: packed fallback</text>
+  <text x="547" y="516" class="mono">load one packed tile</text>
+  <text x="547" y="543" class="mono">decode tile → wider dot</text>
+  <text x="547" y="573" class="body">Codes stay packed between tiles.</text>
+  <text x="547" y="597" class="warn">Real storage; not native FP8/FP4 MMA</text>
+
+  <rect x="974" y="450" width="354" height="165" class="native"/>
+  <text x="998" y="483" class="head">C · Real quant: native kernel</text>
+  <text x="998" y="516" class="mono">packed operands + scale layout</text>
+  <text x="998" y="543" class="mono">→ matching Tensor Core MMA</text>
+  <text x="998" y="573" class="body">Requires target GPU validation.</text>
+  <text x="998" y="597" class="good">Storage and compute claims are testable</text>
+
+  <path d="M 1220 291 C 1340 310, 1340 430, 1280 430 H 1150" class="branch"/>
+  <path d="M 250 430 L 1150 430" class="rail"/>
+  <path d="M 250 430 L 250 450" class="branch"/>
+  <path d="M 700 430 L 700 450" class="branch"/>
+  <path d="M 1150 430 L 1150 450" class="branch"/>
+
+  <rect x="34" y="710" width="646" height="104" class="metric"/>
+  <text x="58" y="743" class="head">Numerical evidence</text>
+  <text x="58" y="772" class="body">codec parity · linear parity · hidden/logit drift · held-out quality</text>
+  <text x="58" y="797" class="small">Answers: did the chosen approximation preserve useful model behavior?</text>
+
+  <rect x="720" y="710" width="646" height="104" class="metric"/>
+  <text x="744" y="743" class="head">Systems evidence</text>
+  <text x="744" y="772" class="body">packed bytes · peak VRAM · latency · HBM traffic · executed instructions</text>
+  <text x="744" y="797" class="small">Answers: did this runtime actually save memory or execute differently?</text>
+
+  <path d="M 426 615 C 426 670, 357 680, 357 710" class="dash"/>
+  <path d="M 700 615 C 700 674, 900 676, 900 710" class="dash"/>
+  <path d="M 1150 615 C 1150 675, 1070 681, 1070 710" class="dash"/>
+</svg>

@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="820" viewBox="0 0 1360 820" role="img" aria-labelledby="title desc">
+  <title id="title">Exponent bits trade precision for dynamic range</title>
+  <desc id="desc">An eight-bit E4M3 format gives three fraction bits and closely rounds 1.10 but clips 1000 with unit scale. E5M2 gives an extra exponent bit, rounds 1.10 less closely, and represents 1000. Smaller scale groups can reduce the range demanded of the element format.</desc>
+  <defs>
+    <style>
+      .title { font: 700 30px Inter, Arial, sans-serif; fill: #172536; }
+      .subtitle { font: 16px Inter, Arial, sans-serif; fill: #506174; }
+      .head { font: 700 21px Inter, Arial, sans-serif; fill: #172536; }
+      .label { font: 600 15px Inter, Arial, sans-serif; fill: #26394d; }
+      .body { font: 14px Inter, Arial, sans-serif; fill: #43566a; }
+      .mono { font: 600 15px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #26394d; }
+      .bit { font: 700 18px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #172536; text-anchor: middle; dominant-baseline: middle; }
+      .card { fill: #ffffff; stroke: #cad7e3; stroke-width: 2; }
+      .sign { fill: #f7cbc5; stroke: #bd6258; stroke-width: 1.5; }
+      .exp { fill: #cde0f5; stroke: #5680a8; stroke-width: 1.5; }
+      .frac { fill: #d1ead7; stroke: #568d65; stroke-width: 1.5; }
+      .range { fill: #fff1cf; stroke: #b88928; stroke-width: 1.5; }
+      .precision { fill: #e9f5ec; stroke: #62a274; stroke-width: 1.5; }
+      .bad { fill: #fff0eb; stroke: #ce7358; stroke-width: 1.5; }
+      .good { fill: #edf8f1; stroke: #59a170; stroke-width: 1.5; }
+      .rail { stroke: #6a7e92; stroke-width: 2; }
+      .tick { stroke: #6a7e92; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect width="1360" height="820" fill="#f7fafc"/>
+  <text x="54" y="52" class="title">One extra exponent bit buys range by giving up precision</text>
+  <text x="54" y="80" class="subtitle">Fixed scale s = 1, input values [1.10, 1000]. Both formats use eight bits.</text>
+
+  <rect x="54" y="112" width="606" height="405" rx="16" class="card"/>
+  <text x="80" y="151" class="head">E4M3: favor nearby-value resolution</text>
+  <rect x="80" y="178" width="64" height="54" rx="7" class="sign"/>
+  <text x="112" y="205" class="bit">S</text>
+  <rect x="152" y="178" width="272" height="54" rx="7" class="exp"/>
+  <text x="288" y="205" class="bit">EEEE</text>
+  <rect x="432" y="178" width="202" height="54" rx="7" class="frac"/>
+  <text x="533" y="205" class="bit">MMM</text>
+  <text x="80" y="261" class="body">4 exponent bits · 3 fraction bits · maximum finite value 448</text>
+
+  <text x="80" y="303" class="label">Grid near 1</text>
+  <line x1="80" y1="333" x2="584" y2="333" class="rail"/>
+  <line x1="100" y1="322" x2="100" y2="344" class="tick"/>
+  <line x1="220" y1="322" x2="220" y2="344" class="tick"/>
+  <line x1="340" y1="322" x2="340" y2="344" class="tick"/>
+  <line x1="460" y1="322" x2="460" y2="344" class="tick"/>
+  <text x="84" y="367" class="mono">1.000</text>
+  <text x="196" y="367" class="mono">1.125</text>
+  <text x="316" y="367" class="mono">1.250</text>
+  <text x="436" y="367" class="mono">1.375</text>
+  <rect x="80" y="394" width="240" height="76" rx="10" class="precision"/>
+  <text x="100" y="423" class="label">1.10 → 1.125</text>
+  <text x="100" y="450" class="body">absolute error = 0.025</text>
+  <rect x="340" y="394" width="294" height="76" rx="10" class="bad"/>
+  <text x="360" y="423" class="label">1000 → 448</text>
+  <text x="360" y="450" class="body">clips; absolute error = 552</text>
+
+  <rect x="700" y="112" width="606" height="405" rx="16" class="card"/>
+  <text x="726" y="151" class="head">E5M2: favor dynamic range</text>
+  <rect x="726" y="178" width="64" height="54" rx="7" class="sign"/>
+  <text x="758" y="205" class="bit">S</text>
+  <rect x="798" y="178" width="340" height="54" rx="7" class="exp"/>
+  <text x="968" y="205" class="bit">EEEEE</text>
+  <rect x="1146" y="178" width="134" height="54" rx="7" class="frac"/>
+  <text x="1213" y="205" class="bit">MM</text>
+  <text x="726" y="261" class="body">5 exponent bits · 2 fraction bits · maximum finite value 57,344</text>
+
+  <text x="726" y="303" class="label">Grid near 1</text>
+  <line x1="726" y1="333" x2="1230" y2="333" class="rail"/>
+  <line x1="746" y1="322" x2="746" y2="344" class="tick"/>
+  <line x1="906" y1="322" x2="906" y2="344" class="tick"/>
+  <line x1="1066" y1="322" x2="1066" y2="344" class="tick"/>
+  <line x1="1226" y1="322" x2="1226" y2="344" class="tick"/>
+  <text x="730" y="367" class="mono">1.00</text>
+  <text x="882" y="367" class="mono">1.25</text>
+  <text x="1042" y="367" class="mono">1.50</text>
+  <text x="1202" y="367" class="mono">1.75</text>
+  <rect x="726" y="394" width="240" height="76" rx="10" class="bad"/>
+  <text x="746" y="423" class="label">1.10 → 1.00</text>
+  <text x="746" y="450" class="body">absolute error = 0.10</text>
+  <rect x="986" y="394" width="294" height="76" rx="10" class="good"/>
+  <text x="1006" y="423" class="label">1000 → 1024</text>
+  <text x="1006" y="450" class="body">finite; absolute error = 24</text>
+
+  <rect x="54" y="553" width="1252" height="202" rx="16" class="card"/>
+  <text x="80" y="592" class="head">Before changing the element format, reduce the range each scale must cover</text>
+  <rect x="80" y="616" width="348" height="88" rx="10" class="bad"/>
+  <text x="100" y="643" class="label">One scale + one outlier</text>
+  <text x="100" y="670" class="body">ordinary values can underflow</text>
+  <text x="100" y="690" class="body">or use only a few bins</text>
+  <text x="464" y="650" class="head">→</text>
+  <rect x="512" y="616" width="348" height="88" rx="10" class="good"/>
+  <text x="532" y="643" class="label">Smaller scale groups</text>
+  <text x="532" y="670" class="body">each codebook sees a narrower</text>
+  <text x="532" y="690" class="body">local distribution</text>
+  <text x="896" y="650" class="head">→</text>
+  <rect x="944" y="616" width="336" height="88" rx="10" class="range"/>
+  <text x="964" y="643" class="label">Trade-off</text>
+  <text x="964" y="670" class="body">more scale bytes and loads;</text>
+  <text x="964" y="690" class="body">stricter layout and dispatch</text>
+  <text x="80" y="733" class="body">Decision rule: clipping/underflow → more exponent range or smaller groups; in-range rounding → more fraction precision.</text>
+
+  <text x="54" y="793" class="subtitle">The target GPU and checkpoint ABI constrain which bit splits are executable; numerical fit alone is not support.</text>
+</svg>

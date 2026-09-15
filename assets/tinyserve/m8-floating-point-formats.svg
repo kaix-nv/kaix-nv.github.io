@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">How low-precision floating-point formats encode values</title>
+  <desc id="desc">E4M3 and E2M1 split tensor elements into sign, exponent, and fraction bits. E8M0 stores a power-of-two block scale. MXFP4 and NVFP4 reuse E2M1 data with different scale formats and block sizes.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#35506b"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Inter, Arial, sans-serif; fill: #162536; }
+      .subtitle { font: 16px Inter, Arial, sans-serif; fill: #506174; }
+      .card-title { font: 700 20px Inter, Arial, sans-serif; fill: #162536; }
+      .label { font: 600 15px Inter, Arial, sans-serif; fill: #26394d; }
+      .small { font: 14px Inter, Arial, sans-serif; fill: #43566a; }
+      .bit { font: 700 19px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #102030; text-anchor: middle; dominant-baseline: middle; }
+      .equation { font: 600 17px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #20364d; }
+      .card { fill: #ffffff; stroke: #cbd7e3; stroke-width: 2; }
+      .sign { fill: #f7c7c1; stroke: #b95c52; stroke-width: 1.5; }
+      .exp { fill: #c7dcf5; stroke: #4f7da9; stroke-width: 1.5; }
+      .frac { fill: #cae8d2; stroke: #4e8c61; stroke-width: 1.5; }
+      .scale { fill: #f8e2a9; stroke: #a77a17; stroke-width: 1.5; }
+      .data { fill: #e0d4f5; stroke: #7a5ca7; stroke-width: 1.5; }
+      .arrow { stroke: #35506b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1280" height="760" fill="#f7fafc"/>
+  <text x="64" y="55" class="title">From bits to floating-point values</text>
+  <text x="64" y="83" class="subtitle">The element codebook and the external scaling recipe are separate parts of the format contract.</text>
+
+  <rect x="64" y="112" width="360" height="238" rx="16" class="card"/>
+  <text x="88" y="146" class="card-title">FP8 E4M3 data</text>
+  <text x="88" y="174" class="small">1 sign + 4 exponent + 3 fraction bits</text>
+  <rect x="88" y="198" width="42" height="52" rx="5" class="sign"/>
+  <text x="109" y="224" class="bit">0</text>
+  <rect x="136" y="198" width="136" height="52" rx="5" class="exp"/>
+  <text x="204" y="224" class="bit">0111</text>
+  <rect x="278" y="198" width="114" height="52" rx="5" class="frac"/>
+  <text x="335" y="224" class="bit">100</text>
+  <text x="88" y="275" class="small">sign</text>
+  <text x="172" y="275" class="small">exponent</text>
+  <text x="302" y="275" class="small">fraction</text>
+  <text x="88" y="315" class="equation">2^(7-7) × (1 + 4/8) = 1.5</text>
+
+  <rect x="460" y="112" width="360" height="238" rx="16" class="card"/>
+  <text x="484" y="146" class="card-title">FP4 E2M1 data</text>
+  <text x="484" y="174" class="small">1 sign + 2 exponent + 1 fraction bit</text>
+  <rect x="484" y="198" width="62" height="52" rx="5" class="sign"/>
+  <text x="515" y="224" class="bit">0</text>
+  <rect x="552" y="198" width="126" height="52" rx="5" class="exp"/>
+  <text x="615" y="224" class="bit">01</text>
+  <rect x="684" y="198" width="104" height="52" rx="5" class="frac"/>
+  <text x="736" y="224" class="bit">1</text>
+  <text x="484" y="275" class="small">sign</text>
+  <text x="583" y="275" class="small">exponent</text>
+  <text x="708" y="275" class="small">fraction</text>
+  <text x="484" y="315" class="equation">2^(1-1) × (1 + 1/2) = 1.5</text>
+
+  <rect x="856" y="112" width="360" height="238" rx="16" class="card"/>
+  <text x="880" y="146" class="card-title">E8M0 block scale</text>
+  <text x="880" y="174" class="small">8 exponent bits; no sign and no fraction</text>
+  <rect x="880" y="198" width="304" height="52" rx="5" class="scale"/>
+  <text x="1032" y="224" class="bit">01111110</text>
+  <text x="880" y="275" class="small">Stores one positive power-of-two scale.</text>
+  <text x="880" y="315" class="equation">s = 2^(126-127) = 0.5</text>
+
+  <rect x="64" y="388" width="1152" height="118" rx="16" class="card"/>
+  <text x="88" y="423" class="card-title">Why floating-point spacing grows</text>
+  <text x="88" y="454" class="label">E4M3 near 1:</text>
+  <text x="222" y="454" class="equation">1.000, 1.125, 1.250, ... 1.875</text>
+  <text x="650" y="454" class="label">step = 0.125</text>
+  <text x="88" y="484" class="label">E4M3 near 8:</text>
+  <text x="222" y="484" class="equation">8, 9, 10, ... 15</text>
+  <text x="650" y="484" class="label">step = 1</text>
+  <text x="815" y="468" class="small">Same 3 fraction bits;</text>
+  <text x="815" y="488" class="small">a larger exponent widens the gaps.</text>
+
+  <rect x="64" y="544" width="548" height="164" rx="16" class="card"/>
+  <text x="88" y="579" class="card-title">MXFP4</text>
+  <rect x="88" y="605" width="202" height="50" rx="8" class="data"/>
+  <text x="189" y="630" class="label" text-anchor="middle">32 × E2M1 values</text>
+  <path d="M300 630 H352" class="arrow"/>
+  <rect x="364" y="605" width="216" height="50" rx="8" class="scale"/>
+  <text x="472" y="630" class="label" text-anchor="middle">1 × E8M0 scale</text>
+  <text x="88" y="682" class="small">Power-of-two scale shared by 32 values</text>
+
+  <rect x="648" y="544" width="568" height="164" rx="16" class="card"/>
+  <text x="672" y="579" class="card-title">NVFP4</text>
+  <rect x="672" y="605" width="172" height="50" rx="8" class="data"/>
+  <text x="758" y="630" class="label" text-anchor="middle">16 × E2M1</text>
+  <path d="M854 630 H890" class="arrow"/>
+  <rect x="902" y="605" width="156" height="50" rx="8" class="scale"/>
+  <text x="980" y="630" class="label" text-anchor="middle">E4M3 scale</text>
+  <path d="M1068 630 H1094" class="arrow"/>
+  <rect x="1106" y="605" width="86" height="50" rx="8" fill="#d8e8ee" stroke="#567a88" stroke-width="1.5"/>
+  <text x="1149" y="622" class="small" text-anchor="middle">FP32</text>
+  <text x="1149" y="641" class="small" text-anchor="middle">global</text>
+  <text x="672" y="682" class="small">Fractional block scale shared by 16 values, then one tensor scale</text>
+</svg>

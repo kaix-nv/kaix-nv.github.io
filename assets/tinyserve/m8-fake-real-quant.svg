@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="760" viewBox="0 0 1360 760" role="img" aria-labelledby="title desc">
+  <title id="title">Fake quantization versus real packed quantization</title>
+  <desc id="desc">A 4096 by 4096 weight illustrates that fake quantization materializes a 32 MiB BF16 matrix, a real packed fallback retains 16 MiB of INT8 codes and expands only a tile, and a native W8A8 kernel feeds packed operands to an integer matrix instruction.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#52677d"/>
+    </marker>
+    <style>
+      .title { font: 700 30px Inter, Arial, sans-serif; fill: #172536; }
+      .subtitle { font: 16px Inter, Arial, sans-serif; fill: #506174; }
+      .card-title { font: 700 21px Inter, Arial, sans-serif; fill: #172536; }
+      .label { font: 600 15px Inter, Arial, sans-serif; fill: #26394d; }
+      .body { font: 14px Inter, Arial, sans-serif; fill: #43566a; }
+      .mono { font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #26394d; text-anchor: middle; dominant-baseline: middle; }
+      .card { fill: #ffffff; stroke: #cad7e3; stroke-width: 2; }
+      .bf16 { fill: #dceafa; stroke: #5c84ac; stroke-width: 1.5; }
+      .packed { fill: #e2d7f5; stroke: #7c60a6; stroke-width: 1.5; }
+      .scale { fill: #f9e4ac; stroke: #a87b1b; stroke-width: 1.5; }
+      .temp { fill: #f8f0d8; stroke: #b49a52; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .compute { fill: #d7eee1; stroke: #4e8c68; stroke-width: 1.5; }
+      .warning { fill: #fff3ee; stroke: #cf785d; stroke-width: 1.5; }
+      .good { fill: #eef8f1; stroke: #63a878; stroke-width: 1.5; }
+      .arrow { stroke: #52677d; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1360" height="760" fill="#f7fafc"/>
+  <text x="54" y="52" class="title">Fake quant and real quant differ in what remains resident</text>
+  <text x="54" y="80" class="subtitle">Example weight: W[4096, 4096]. Native compute is a stronger claim than packed storage.</text>
+
+  <rect x="54" y="112" width="394" height="544" rx="16" class="card"/>
+  <text x="78" y="150" class="card-title">1 · Fake Q/DQ</text>
+  <text x="78" y="178" class="body">Simulate the values; keep floating-point execution.</text>
+  <rect x="90" y="210" width="322" height="74" rx="10" class="bf16"/>
+  <text x="251" y="238" class="mono">BF16 W</text>
+  <text x="251" y="261" class="mono">32 MiB</text>
+  <path d="M251 284 V326" class="arrow"/>
+  <rect x="90" y="338" width="322" height="74" rx="10" class="temp"/>
+  <text x="251" y="366" class="mono">round → codes → dequant</text>
+  <text x="251" y="389" class="mono">temporary tensors</text>
+  <path d="M251 412 V454" class="arrow"/>
+  <rect x="90" y="466" width="322" height="74" rx="10" class="bf16"/>
+  <text x="251" y="494" class="mono">complete BF16 W-hat</text>
+  <text x="251" y="517" class="mono">32 MiB → BF16 linear</text>
+  <rect x="90" y="570" width="322" height="54" rx="9" class="warning"/>
+  <text x="251" y="598" class="mono">proves numerical behavior only</text>
+
+  <rect x="483" y="112" width="394" height="544" rx="16" class="card"/>
+  <text x="507" y="150" class="card-title">2 · Real packed fallback</text>
+  <text x="507" y="178" class="body">Keep compressed weights; reconstruct one tile.</text>
+  <rect x="519" y="210" width="230" height="74" rx="10" class="packed"/>
+  <text x="634" y="238" class="mono">INT8 codes</text>
+  <text x="634" y="261" class="mono">16 MiB</text>
+  <rect x="765" y="210" width="76" height="74" rx="10" class="scale"/>
+  <text x="803" y="238" class="mono">row</text>
+  <text x="803" y="261" class="mono">scales</text>
+  <path d="M680 284 V326" class="arrow"/>
+  <rect x="519" y="338" width="322" height="74" rx="10" class="temp"/>
+  <text x="680" y="366" class="mono">one BF16 weight tile</text>
+  <text x="680" y="389" class="mono">overwritten by the next tile</text>
+  <path d="M680 412 V454" class="arrow"/>
+  <rect x="519" y="466" width="322" height="74" rx="10" class="compute"/>
+  <text x="680" y="494" class="mono">BF16 activation × BF16 tile</text>
+  <text x="680" y="517" class="mono">no complete W-hat</text>
+  <rect x="519" y="570" width="322" height="54" rx="9" class="good"/>
+  <text x="680" y="598" class="mono">real storage, wider compute</text>
+
+  <rect x="912" y="112" width="394" height="544" rx="16" class="card"/>
+  <text x="936" y="150" class="card-title">3 · Real native W8A8</text>
+  <text x="936" y="178" class="body">Keep packed weights and quantize activations.</text>
+  <rect x="948" y="210" width="150" height="74" rx="10" class="packed"/>
+  <text x="1023" y="238" class="mono">INT8 W</text>
+  <text x="1023" y="261" class="mono">+ scales</text>
+  <rect x="1114" y="210" width="156" height="74" rx="10" class="packed"/>
+  <text x="1192" y="238" class="mono">runtime INT8 X</text>
+  <text x="1192" y="261" class="mono">+ row scales</text>
+  <path d="M1109 284 V326" class="arrow"/>
+  <rect x="948" y="338" width="322" height="74" rx="10" class="compute"/>
+  <text x="1109" y="366" class="mono">INT8 × INT8 MMA</text>
+  <text x="1109" y="389" class="mono">wider integer accumulator</text>
+  <path d="M1109 412 V454" class="arrow"/>
+  <rect x="948" y="466" width="322" height="74" rx="10" class="scale"/>
+  <text x="1109" y="494" class="mono">apply activation × weight scales</text>
+  <text x="1109" y="517" class="mono">return BF16 output</text>
+  <rect x="948" y="570" width="322" height="54" rx="9" class="good"/>
+  <text x="1109" y="598" class="mono">real storage + native compute</text>
+
+  <rect x="54" y="686" width="1252" height="44" rx="10" fill="#eef3f7" stroke="#c3d0dc" stroke-width="1.5"/>
+  <text x="680" y="708" class="label" text-anchor="middle" dominant-baseline="middle">The decisive check: can the runtime delete the complete BF16 weight and still execute the layer?</text>
+</svg>
