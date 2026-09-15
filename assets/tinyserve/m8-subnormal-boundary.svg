@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="420" viewBox="0 0 1060 420" role="img" aria-labelledby="title desc">
+  <title id="title">E4M3 subnormals bridge zero and the smallest normal</title>
+  <desc id="desc">At scale one, the positive E4M3 values near zero are equally spaced by one over 512. Zero is followed by seven subnormals from one over 512 to seven over 512. Eight over 512 is the smallest normal. The next normal values nine and ten over 512 have the same spacing. The step doubles only at the next exponent boundary, one over 32. Values at or below the midpoint one over 1024 round to zero under ties-to-even.</desc>
+  <defs>
+    <style>
+      text { font-family: system-ui, sans-serif; fill: #19324a; }
+      .title { font-size: 25px; font-weight: 700; }
+      .label { font-size: 18px; font-weight: 650; }
+      .body { font-size: 17px; }
+      .small { font-size: 15px; fill: #4d6276; }
+      .mono { font-family: ui-monospace, monospace; font-size: 17px; }
+    </style>
+  </defs>
+  <rect width="1060" height="420" rx="16" fill="#f7fafc"/>
+  <text x="32" y="42" class="title">Subnormals fill the gap near zero; they do not add fraction bits</text>
+  <text x="32" y="72" class="body">E4M3FN · positive values · external scale = 1 · positions on the axis are linear</text>
+  <rect x="135" y="109" width="542" height="117" rx="10" fill="#fff1dc"/>
+  <rect x="719" y="109" width="309" height="117" rx="10" fill="#e6f3ee"/>
+  <text x="153" y="138" class="label">7 positive subnormals</text>
+  <text x="737" y="138" class="label">First normal interval</text>
+  <path d="M65 183 H1004" stroke="#52647a" stroke-width="2"/>
+  <g fill="#b67b25">
+    <circle cx="164" cy="183" r="6"/><circle cx="248" cy="183" r="6"/>
+    <circle cx="332" cy="183" r="6"/><circle cx="416" cy="183" r="6"/>
+    <circle cx="500" cy="183" r="6"/><circle cx="584" cy="183" r="6"/>
+    <circle cx="668" cy="183" r="6"/>
+  </g>
+  <circle cx="80" cy="183" r="6" fill="#52647a"/>
+  <g fill="#28795c"><circle cx="752" cy="183" r="7"/><circle cx="836" cy="183" r="6"/><circle cx="920" cy="183" r="6"/></g>
+  <text x="80" y="213" text-anchor="middle" class="mono">0</text>
+  <text x="164" y="213" text-anchor="middle" class="mono">1/512</text>
+  <text x="668" y="213" text-anchor="middle" class="mono">7/512</text>
+  <text x="752" y="213" text-anchor="middle" class="mono">8/512</text>
+  <text x="836" y="213" text-anchor="middle" class="mono">9/512</text>
+  <text x="920" y="213" text-anchor="middle" class="mono">10/512</text>
+  <text x="737" y="249" class="small">8/512 = 1/64 = min normal</text>
+  <text x="32" y="266" class="body">Every neighboring dot shown is 1/512 apart, including across the subnormal/normal boundary.</text>
+  <rect x="32" y="287" width="485" height="104" rx="10" fill="#fff" stroke="#c4d2df"/>
+  <text x="50" y="317" class="label">Below the first dot</text>
+  <text x="50" y="346" class="mono">0 ≤ x ≤ 1/1024 → +0 (RNE)</text>
+  <text x="50" y="374" class="small">The midpoint ties to zero; relative error reaches 100%.</text>
+  <rect x="537" y="287" width="491" height="104" rx="10" fill="#fff" stroke="#c4d2df"/>
+  <text x="555" y="317" class="label">Farther into the normal range</text>
+  <text x="555" y="346" class="mono">At 1/32, spacing doubles to 1/256.</text>
+  <text x="555" y="374" class="small">Normal gaps grow with the exponent; subnormal gaps do not.</text>
+</svg>

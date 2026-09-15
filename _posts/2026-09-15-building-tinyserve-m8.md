@@ -15,9 +15,9 @@ excerpt: "A practical guide to INT8, FP8, MXFP4, and NVFP4: exponent-versus-prec
 </style>
 
 *Milestone 8 of [building an LLM inference engine from scratch](/series/tinyserve/).
-Previous implementation chapter: [M7w — pay once, reuse eight times](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/m7w-kda-solve-factors.md).*
+Previous implementation chapter: [M7w — pay once, reuse eight times](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/m7w-kda-solve-factors.md).*
 
-Code and evidence: [`tinyserve` @ `15f1223`](https://github.com/kaix-nv/tinyserve/tree/15f12238455d282155dad61c27fedb82165adf60).
+Code and evidence: [`tinyserve` @ `3846ae7`](https://github.com/kaix-nv/tinyserve/tree/3846ae7c1883acfe483bc1c350db277d9d826ef0).
 This article covers M8a–M8d. Click any figure to open it at full size.
 
 Tinyserve has so far loaded most model weights as BF16. That keeps the
@@ -51,7 +51,8 @@ after the format contract is testable; this article does not invent numbers
 for kernels that do not exist yet.
 
 **Reading guide.** Start with scales and [fake versus real quantization](#fake-quantization-and-real-quantization-change-different-things),
-then the [floating-point bit budget](#how-do-we-choose-exponent-and-fraction-bits)
+then the [numerical limits](#numerical-limits-nans-infinities-normals-and-subnormals),
+[floating-point bit budget](#how-do-we-choose-exponent-and-fraction-bits),
 and [format map](#a-map-of-the-formats-m8-needs-to-explain). The
 [performance model](#a-performance-model-for-quantization) explains what fewer
 bits can buy. The measured INT8 path follows it; [M8d](#m8d-make-the-fp8fp4-format-contract-executable)
@@ -344,7 +345,7 @@ separate export step must still create packed codes and checkpoint metadata.
 ### Real quantization starts at packing
 
 The following snippets illustrate the separation used by M8a in
-[`tinyserve/quantization.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/quantization.py). The implementation
+[`tinyserve/quantization.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quantization.py). The implementation
 keeps the codec, the full Q/DQ oracle, and the packed serving path separate so
 their tensor lifetimes can be inspected directly. The generic `spec` and
 `quantized_linear` below are schematic interfaces, not Tinyserve APIs: the
@@ -414,10 +415,10 @@ the running kernel must actually consume those packed operands.
 
 ### What changes in Tinyserve
 
-The current [`dequantize_mxfp4()` loader path](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/loader.py) reads
+The current [`dequantize_mxfp4()` loader path](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/loader.py) reads
 two packed E2M1 values per byte, expands E8M0 scales, and returns one complete
 model-dtype tensor. `load_model()` then assigns it to an ordinary
-[`nn.Linear` projection](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/models/kimi.py) before moving the model
+[`nn.Linear` projection](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/models/kimi.py) before moving the model
 to the GPU. This is useful checkpoint-decoding evidence, but the runtime is
 BF16: packed-on-disk does not mean packed-in-VRAM.
 
@@ -561,15 +562,6 @@ bits. Likewise, E2M1 occupies four bits. E8M0 is different: it has eight
 exponent bits, no sign, and no fraction; it is used as a positive
 power-of-two **scale**, not as the signed tensor element.
 
-| format | bit layout | exponent bias | important property |
-|---|---|---:|---|
-| BF16 | S1E8M7 | 127 | wide range, but only 7 fraction bits |
-| FP16 | S1E5M10 | 15 | 10 fraction bits, but much less range than BF16 |
-| FP8 E4M3 | S1E4M3 | 7 | NVIDIA variant reaches $\pm448$ and has NaN but no infinity |
-| FP8 E5M2 | S1E5M2 | 15 | reaches $\pm57344$ and includes infinity and NaN |
-| FP4 E2M1 | S1E2M1 | 1 | only 16 codes; finite magnitudes stop at 6 |
-| E8M0 | E8M0 | 127 | unsigned exponent-only, power-of-two block scale |
-
 The exponent controls range; the fraction controls how many values fit inside
 each power-of-two interval. Take the E4M3 bits:
 
@@ -633,6 +625,220 @@ same format because MXFP4 shares one power-of-two E8M0 scale across 32 values,
 whereas NVFP4 shares a fractional E4M3 scale across 16 values and adds one
 FP32 global scale. Changing the scale metadata while leaving the packed
 nibbles untouched changes every reconstructed value.
+
+## Numerical limits: NaNs, infinities, normals, and subnormals
+
+Bit counts alone do not define a floating-point format. We also need its
+exponent bias, which patterns are special, and what happens near zero.
+The following reference uses **positive, unscaled magnitudes**. The signed
+formats have matching negative values and both `+0` and `-0`.
+"Denormal" and "subnormal" mean the same thing here.
+
+### Special values and exponent bias
+
+**NaN** means "not a number": a marker for an invalid or undefined numerical
+result, not a very large value. **Infinity** is a separate signed value beyond
+every finite magnitude. Whether an overflowing *conversion* saturates to a
+finite endpoint, returns infinity, or produces NaN is a conversion policy,
+not something the presence of an infinity encoding decides by itself.
+
+In this table, $E$ and $F$ are the unsigned exponent and fraction fields;
+the sign bit is omitted from the special-pattern rules.
+
+| format | sign / exponent / fraction bits | exponent bias | NaN encodings | infinity encodings |
+|---|---|---:|---|---|
+| FP32 | 1 / 8 / 23 | 127 | $E=255,\ F\ne0$ | $E=255,\ F=0$ |
+| BF16 | 1 / 8 / 7 | 127 | $E=255,\ F\ne0$ | $E=255,\ F=0$ |
+| FP16 | 1 / 5 / 10 | 15 | $E=31,\ F\ne0$ | $E=31,\ F=0$ |
+| FP8 E4M3FN | 1 / 4 / 3 | 7 | $E=15,\ F=7$: bytes `0x7f`, `0xff` | none |
+| FP8 E5M2 | 1 / 5 / 2 | 15 | $E=31,\ F\ne0$ | $E=31,\ F=0$ |
+| FP4 E2M1 | 1 / 2 / 1 | 1 | none | none |
+| E8M0 scale | 0 / 8 / 0 | 127 | byte `0xff` | none |
+
+Here **E4M3FN** is the OCP/NVIDIA finite-with-NaNs encoding, exposed by
+PyTorch as `float8_e4m3fn`; this chapter shortens its name to E4M3 elsewhere.
+Other FP8 variants, such as FNUZ, must not inherit this table by name alone.
+See the [OCP MX encoding tables](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf)
+and NVIDIA's [E4M3 definition](https://docs.nvidia.com/cuda/cuda-math-api/cuda_math_api/struct____nv__fp8__e4m3.html).
+NVIDIA also documents the concrete [BF16](https://docs.nvidia.com/cuda/cuda-math-api/cuda_math_api/group__CUDA__MATH__INTRINSIC__BFLOAT16__CONSTANTS.html)
+and [FP16](https://docs.nvidia.com/cuda/cuda-math-api/cuda_math_api/group__CUDA__MATH__INTRINSIC__HALF__CONSTANTS.html)
+special-value and endpoint constants.
+
+The bias shifts the exponent's origin: an ordinary E4M3 exponent field `1`
+means $1-7=-6$, not $+1$. Increasing only the bias by one would halve the
+finite values while leaving their max/min ratio unchanged. Extra exponent
+**bits** can widen the range; a different **bias** primarily moves it.
+
+Do not apply the IEEE-style "all exponent bits set means special" rule to
+every format. E4M3 uses most of its $E=15$ patterns for finite numbers:
+`0 | 1111 | 110` is $2^8(1+6/8)=448$. Only the final fraction pattern is
+NaN. E2M1 reserves no patterns for NaN or infinity at all. These choices
+recover finite values from a very small code budget, but require explicit
+nonfinite-input handling in the converter. M8d rejects NaN/Inf inputs and
+saturates finite overflow; that is its chosen reference policy.
+
+### Normal and denormal endpoints
+
+A normal value has an implicit leading **1**. When the exponent field is
+zero, a subnormal instead has a leading **0** and holds the exponent at
+$1-\text{bias}$:
+
+$$
+x_{sub}=(-1)^S\,2^{1-\text{bias}}\frac{F}{2^M}.
+$$
+
+For these signed formats, the endpoints follow directly:
+
+$$
+\begin{aligned}
+x_{min,normal} &= 2^{1-\text{bias}}, \\
+x_{min,sub} &= 2^{1-\text{bias}-M}, \\
+x_{max,sub} &= (1-2^{-M})\,2^{1-\text{bias}}.
+\end{aligned}
+$$
+
+The maximum normal must additionally respect the reserved special patterns.
+Exact powers-of-two expressions below are authoritative; decimals are rounded.
+
+**Normal values**
+
+| format | max normal / max finite | min normal |
+|---|---|---|
+| FP32 | $(2-2^{-23})2^{127}\approx3.4028235\times10^{38}$ | $2^{-126}\approx1.1754944\times10^{-38}$ |
+| BF16 | $(2-2^{-7})2^{127}\approx3.3895314\times10^{38}$ | $2^{-126}\approx1.1754944\times10^{-38}$ |
+| FP16 | $65{,}504$ | $2^{-14}\approx6.1035156\times10^{-5}$ |
+| FP8 E4M3FN | $448$ | $2^{-6}=0.015625$ |
+| FP8 E5M2 | $57{,}344$ | $2^{-14}\approx6.1035156\times10^{-5}$ |
+| FP4 E2M1 | $6$ | $1$ |
+
+**Denormal (subnormal) values**
+
+| format | max denorm | min denorm / min positive |
+|---|---|---|
+| FP32 | $(1-2^{-23})2^{-126}$ | $2^{-149}\approx1.4012985\times10^{-45}$ |
+| BF16 | $(1-2^{-7})2^{-126}$ | $2^{-133}\approx9.1835496\times10^{-41}$ |
+| FP16 | $1023\times2^{-24}\approx6.0975552\times10^{-5}$ | $2^{-24}\approx5.9604645\times10^{-8}$ |
+| FP8 E4M3FN | $7\times2^{-9}=0.013671875$ | $2^{-9}=0.001953125$ |
+| FP8 E5M2 | $3\times2^{-16}\approx4.5776367\times10^{-5}$ | $2^{-16}\approx1.5258789\times10^{-5}$ |
+| FP4 E2M1 | $0.5$ | $0.5$ |
+
+For example, E4M3 has seven positive subnormals: $1/512$ through $7/512$.
+The next value, $8/512=1/64$, is the smallest normal. The gap at this
+boundary stays $1/512$; there is no sudden jump in spacing.
+
+[![E4M3 fills the gap between zero and its first normal with seven evenly
+spaced subnormals](/assets/tinyserve/m8-subnormal-boundary.svg)](/assets/tinyserve/m8-subnormal-boundary.svg)
+
+Subnormals provide **gradual underflow**, not full relative precision. Their
+absolute step stays fixed as values approach zero, so the relative rounding
+error grows. The format can encode these values, but a particular instruction
+or compiler mode may flush them to zero. For example, NVIDIA documents this
+distinction for FP32 in its [floating-point compiler flags](https://docs.nvidia.com/cuda/floating-point/index.html#compiler-flags).
+A stored-format table is not proof that every execution path preserves its
+smallest values.
+
+### Dynamic range needs a denominator
+
+"Dynamic range" is ambiguous unless we say which minimum we mean. Here it
+is a **dimensionless ratio**, not the signed interval and not a count of
+significant bits:
+
+$$
+R_{normal}=\frac{x_{max,finite}}{x_{min,normal}},
+\qquad
+R_{all}=\frac{x_{max,finite}}{x_{min,positive}}.
+$$
+
+The second includes subnormals, but never zero, NaN, or infinity. If reporting
+range in binary orders of magnitude, use $\log_2 R$ and identify which $R$.
+
+| format | normal-only range $R_{normal}$ | including denormals $R_{all}$ |
+|---|---:|---:|
+| FP32 | $\approx2.8948021\times10^{76}$ | $\approx2.4283360\times10^{83}$ |
+| BF16 | $\approx2.8834944\times10^{76}$ | $\approx3.6908728\times10^{78}$ |
+| FP16 | $1{,}073{,}217{,}536$ | $1{,}098{,}974{,}756{,}864$ |
+| FP8 E4M3FN | $28{,}672$ | $229{,}376$ |
+| FP8 E5M2 | $939{,}524{,}096$ | $3{,}758{,}096{,}384$ |
+| FP4 E2M1 | $6$ | $12$ |
+
+These ratios are calculated from the endpoint table, not hardware throughput
+claims. For example, E4M3 gives $448/(1/512)=229{,}376$, about 17.8 binary
+orders of magnitude, despite storing each value in only eight bits. That does
+**not** give it 17.8 bits of precision: it still has only three fraction bits.
+
+**E8M0 is a different case.** It has no sign, zero, fractional significand,
+or subnormal encoding. Valid scale bytes `0x00` through `0xfe` mean
+$2^{-127}$ through $2^{127}$; `0xff` means NaN. Thus its finite scale ratio is
+$2^{254}\approx2.8948022\times10^{76}$. Normal/denormal minima and maxima are
+not separate categories for this scale-only encoding. Byte zero denotes the
+*smallest scale*, not a zero scale.
+
+### What the limits imply for quantization
+
+**BF16 versus FP16: range is not precision.** BF16's normal exponent range
+matches FP32's, but its largest finite value is slightly smaller and its
+subnormal tail is much shorter. FP16 has a far narrower range, yet three more
+fraction bits than BF16. Near 1, $1+2^{-10}$ is exact in FP16 but rounds to
+1 in BF16. Conversely, $2^{16}=65{,}536$ is finite in BF16 but beyond FP16's
+largest finite value. Neither datatype dominates both dimensions.
+
+**E4M3 versus E5M2: small values can matter as much as outliers.** At scale
+1, E4M3's minimum positive value is $2^{-9}$, so its round-to-nearest zero
+boundary is $2^{-10}$. At that exact midpoint, ties-to-even chooses zero.
+This gives a small, exact underflow example:
+
+| input, before any external scaling | E4M3 result | E5M2 result |
+|---|---|---|
+| $2^{-11}=0.00048828125$ | $0$ | exact |
+| $2^{-10}=0.0009765625$ | $0$ (tie) | exact |
+| $3\times2^{-11}=0.00146484375$ | $2^{-9}=0.001953125$ | exact |
+
+E5M2 preserves these values, but gives up one fraction bit throughout its
+normal range. The right question is whether a workload loses more from
+clipping/underflow or from coarser rounding of the values it already covers.
+
+**FP4 needs local scales, not just a large global range.** For one block with
+a fixed positive effective scale $c$, the E2M1 codebook spans nonzero
+magnitudes from $c/2$ to $6c$. Its ratio remains **12**:
+
+$$
+\frac{6c}{c/2}=12.
+$$
+
+Scaling moves that interval but cannot widen it or add values between its
+codes. With an ideal scale $c=1000/6$, a block maximum of `1000` is exact,
+but its smallest positive reconstruction is about `83.33`; a weight of `1`
+rounds to zero. Moving those weights into different scale groups can preserve
+both. A bigger global scale alone cannot.
+
+This is how to read MXFP4 and NVFP4 without inventing new element limits:
+
+| scheme | effective scale $c$ for one block | element limits within that block |
+|---|---|---|
+| MXFP8 E4M3 / E5M2 | one E8M0 scale per 32 values | corresponding FP8 endpoints above, all multiplied by $c$ |
+| MXFP4 | one E8M0 scale per 32 values | min positive $c/2$, max $6c$; ratio 12 |
+| NVFP4 | one E4M3 block scale per 16 values times an FP32 global scale | min positive $c/2$, max $6c$; ratio 12 when $c>0$ |
+
+Different blocks can cover very different intervals, so a complete tensor can
+span much more than 12:1. E8M0 offers a huge choice of scale exponents but
+only powers of two. NVFP4's E4M3 scales offer finer local choices and smaller
+groups, while the FP32 global scale moves the tensor-wide range. Neither
+changes E2M1's eight nonnegative magnitudes. A rounded NVFP4 block scale of
+zero makes that whole block zero; the positive-scale ratio then no longer
+applies. Finally, reconstructed products must still fit the destination and
+accumulator types: an enormous formal scale range is not an unlimited
+execution range.
+
+Special values can also live in the **scale**, not only in the element.
+MXFP4's E2M1 codes contain no NaN, but a NaN E8M0 scale marks its whole block
+as NaN under the MX contract. M8d's matrix Q/DQ interface instead rejects
+nonfinite scales. Inspecting four-bit data alone cannot establish that the
+decoded tensor is finite.
+
+The endpoint and rounding examples are checked against actual code patterns
+in [`tests/test_quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tests/test_quant_formats.py). They test
+representation and conversion, not preservation by an unimplemented FP4
+serving kernel.
 
 ## How do we choose exponent and fraction bits?
 
@@ -1315,8 +1521,8 @@ llama.cpp, and 215 for Ollama. M8a INT8 reaches 185 tok/s under Tinyserve's
 more favorable engine-internal timer, so it does not close the external-engine
 gap. Those engines use different kernels and, for some lanes, different
 quantization/layout contracts; this comparison must not be used to attribute
-the difference to INT8 alone. The [structured M8a evidence](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/m8a-int8-a6000-2026-09-14.json)
-and the [frozen cross-engine protocol](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/cross-engine-a6000-2026-08-29.md)
+the difference to INT8 alone. The [structured M8a evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8a-int8-a6000-2026-09-14.json)
+and the [frozen cross-engine protocol](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/cross-engine-a6000-2026-08-29.md)
 retain the boundaries.
 
 ### M8b result: the checkpoint now matches the runtime representation
@@ -1324,7 +1530,7 @@ retain the boundaries.
 M8a proved that GPU-resident weights can remain packed, but its input artifact
 was still BF16. Every process had to read the larger matrix, allocate the
 packed replacement, and temporarily hold both. M8b moves that conversion to
-[`examples/export_int8.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/examples/export_int8.py), outside the serving
+[`examples/export_int8.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/examples/export_int8.py), outside the serving
 startup path.
 
 [![M8a repacks BF16 weights during every startup, while M8b stores canonical
@@ -1394,7 +1600,7 @@ reaches 184.93 tok/s, versus M8a runtime packing's 185.32 tok/s under the same
 settings: a 0.2% difference around the unchanged execution path. M8b changes
 storage and startup—not request execution or M8a's losing latency result.
 
-The [structured M8b evidence](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/m8b-packed-checkpoint-a6000-2026-09-14.json)
+The [structured M8b evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8b-packed-checkpoint-a6000-2026-09-14.json)
 retains hashes, raw samples, measurement boundaries, and the local artifact
 path.
 
@@ -1463,7 +1669,7 @@ and model quality are different tests.
 ### Follow one projection through the implementation
 
 `QuantizedLinear.forward()` flattens the leading dimensions and selects
-`w8a8_linear()` in [`int8_kernels.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/int8_kernels.py):
+`w8a8_linear()` in [`int8_kernels.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/int8_kernels.py):
 
 1. `_quantize_rows_kernel` reduces each row to its maximum absolute value,
    writes INT8 activation codes, and writes an FP32 scale. These temporary
@@ -1613,7 +1819,7 @@ for default promotion. Use the paired table for the two tested causal
 comparisons; do not mix its different profiling/KV settings with this table.
 
 The external-engine figures in the
-[August calibration](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/cross-engine-a6000-2026-08-29.md) are still
+[August calibration](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/cross-engine-a6000-2026-08-29.md) are still
 historical references, **not fresh M8c runs** of llama.cpp, Ollama, FreeToken,
 or vLLM. They also differ in format and timing boundary. M8c's evidence does
 not establish an apples-to-apples INT8 ranking against those engines.
@@ -1632,7 +1838,7 @@ been established. The existing driver/NVML mismatch also prevents recording
 the clock and thermal envelope; the paired intervals describe variation
 within these runs, not that unmeasured source of uncertainty.
 
-The [structured M8c evidence](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/m8c-native-int8-a6000-2026-09-15.json)
+The [structured M8c evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8c-native-int8-a6000-2026-09-15.json)
 retains checkpoint/source hashes, instruction excerpts, the literal quality
 corpus, microbench samples, fixed-phase measurements, paired samples, and
 all six calibration conditions. The full regression run passes 159 tests
@@ -1641,7 +1847,7 @@ with 9 skipped; correctness and performance were checked on physical GPU 1.
 ## M8d: make the FP8/FP4 format contract executable
 
 The format map is useful only if we can follow its bits back to numbers.
-[`quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/quant_formats.py) adds a small reference
+[`quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quant_formats.py) adds a small reference
 implementation with a deliberately ordinary layout: row-major bytes, blocks
 along the input dimension $K$, and the first FP4 value in the low nibble.
 It is not a ModelOpt checkpoint loader or a tensor-core layout adapter.
@@ -1729,7 +1935,7 @@ that this canonical layout deliberately does not claim to provide.
 
 ### Inspect declarations without pretending they are execution
 
-[`quant_inspect.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/tinyserve/quant_inspect.py) reads ModelOpt JSON and
+[`quant_inspect.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quant_inspect.py) reads ModelOpt JSON and
 safetensors headers without importing model code or materializing weights.
 It keeps three questions separate:
 
@@ -1754,18 +1960,19 @@ block FP8 weight-only, not automatically MXFP8. No weights are downloaded and
 the conversion report remains producer-provided evidence, not an independent
 verification of tensor values.
 
-[`examples/inspect_quantization.py`](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/examples/inspect_quantization.py)
+[`examples/inspect_quantization.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/examples/inspect_quantization.py)
 provides both a small `--demo` matrix and `--model` header inspection. The
 `M8d: FP8/FP4 codecs and checkpoint metadata` entry in
-[launch.json](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/.vscode/launch.json) runs both on the CPU. Useful breakpoints
+[launch.json](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/.vscode/launch.json) runs both on the CPU. Useful breakpoints
 are scale selection in `quantize_matrix()`, `pack_nibbles()`, and
 `resolve_rule()`; no serving process or native FP4 GPU is required.
 
-The 39 focused tests cover every FP8 byte against PyTorch's E4M3FN/E5M2 decoding,
+The focused tests cover every FP8 byte against PyTorch's E4M3FN/E5M2 decoding,
 all finite-code round trips and rounding midpoints, all E2M1 codes, E8M0 edge
 values, odd-column packing, block boundaries, scale underflow, and header-only
-inspection. The full regression suite passes **198 tests, with 9 skipped**.
-The [M8d evidence receipt](https://github.com/kaix-nv/tinyserve/blob/15f12238455d282155dad61c27fedb82165adf60/docs/benchmarks/m8d-format-contract-2026-09-15.json)
+inspection. With the numerical-limit checks added, the full regression suite
+passes **205 tests, with 9 skipped**; the format/inspection subset passes 46.
+The [M8d evidence receipt](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8d-format-contract-2026-09-15.json)
 records the local inspection boundary. No FP8/FP4 serving performance has been
 measured: M8d changes neither the serving loader nor its kernels.
 
