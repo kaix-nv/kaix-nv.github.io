@@ -29,6 +29,26 @@ tokens. The engine now needs policy, not just storage:
 
 M3 built the allocator. M4 adds the scheduler that makes those choices.
 
+## Static batching versus continuous batching
+
+Static batching chooses a fixed cohort of requests and runs that cohort
+until every request finishes. If A finishes before B, A's row becomes idle,
+but a waiting request C cannot reuse the slot until the whole cohort drains.
+This is simple, but variable output lengths leave compute and KV capacity
+unused.
+
+Continuous batching—also called **iteration-level scheduling**—reconsiders
+the running set after each engine iteration. Finished requests leave, their
+KV blocks return to the pool, and waiting requests can enter while older
+requests are still generating. The batch is therefore continuous in time,
+not fixed in membership.
+
+Some explanations call this *dynamic batching*. That term is ambiguous: it
+can also mean collecting requests for a short time and then executing the
+resulting batch as a fixed cohort. This series uses *continuous batching* for
+the iteration-level policy in which membership can change between engine
+iterations.
+
 ## The request state machine
 
 `serve()` keeps future arrivals outside the scheduler until their
@@ -73,6 +93,11 @@ The running batch can therefore change after every iteration. That is
 the "continuous" in continuous batching. Notice that M4's *prefill
 phase* may contain several model forwards—one per admitted prompt. It is
 not a single packed prefill kernel.
+
+For a broader introduction and comparison with static batching, see
+[Anyscale's continuous-batching tutorial](https://www.anyscale.com/blog/continuous-batching-llm-inference).
+Its performance results come from a different serving stack and workload;
+the measurements later in this chapter are the evidence for tinyserve.
 
 ## Admission and preemption
 
