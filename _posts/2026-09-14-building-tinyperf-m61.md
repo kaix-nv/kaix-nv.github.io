@@ -132,6 +132,21 @@ two knobs answer different questions.
 TTFT 0.95 geometric (0.77–1.03), TPOT 1.00 (0.90–1.07). Two constants,
 each fitted on four cells and checked on four it had not seen.
 
+> **Erratum (milestone 62).** The skew of 1.4 was an *effective*
+> constant, not the router's. Milestone 62 read the router directly: a
+> decode step touches 4 / 5.5 / 8.4 / 9.7 / 12.5 / 15.9 of 32 experts at
+> batch 1 / 2 / 4 / 8 / 16 / 32 — a Zipf exponent of 2.15, so batch 8
+> touches 10, not 13. The step times fitted here matched because the
+> fused-MoE decode kernel streams the touched experts' weights at only
+> 0.70 of the calibrated DRAM rate once an expert has more than one row
+> (the engine's own kernel profile), and the timing fit had folded that
+> kernel inefficiency into a larger expert count. The two are now
+> separate, measured constants (`routing_skew = 2.15`,
+> `moe_dram_efficiency = 0.70`); the batch-1 result, within 2% with
+> nothing fitted, stands. The MXFP4 held-out numbers above move too
+> (the Marlin kernel streams at 0.53; the MXFP4 grid re-lands at
+> 0.91–1.18).
+
 The skew was fitted on bf16 and the MXFP4 run of milestone 60 never saw
 it, which makes that run a held-out check of the routing rule alone:
 
