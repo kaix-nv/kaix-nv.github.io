@@ -118,6 +118,14 @@ dense decode at higher batch, and is the open item.
 > token picks `top_k` *distinct* experts — as `e(1 − (1 − k/e)^t)` for `t`
 > tokens, and the with-replacement `e(1 − (1 − 1/e)^a)` was an
 > approximation to it.
+>
+> **Erratum (milestone 62).** Half right. The router IS concentrated —
+> measured directly, a batch-8 step touches 9.7 of 32 experts (Zipf 2.15),
+> fewer still than milestone 61's fitted 13 — but the other half of the
+> decode overshoot was the Marlin MoE kernel, which streams the touched
+> experts' weights at 0.53 of the calibrated DRAM rate once an expert has
+> more than one row (0.74 with one). With both measured the MXFP4 grid
+> lands at 0.91–1.18 on decode.
 
 ## What this settles about the reference disagreement
 
