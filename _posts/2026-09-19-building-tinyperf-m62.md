@@ -195,6 +195,15 @@ the live columns is a measurement — a link benchmark, a kernel read, a
 router histogram, a kernel profile — and none of it is a fit to these
 cells.
 
+> **Note (milestone 63).** The two streaming constants became curves in
+> rows per touched expert, derived from unprofiled step times at batch 1
+> to 64 rather than from profiler traces — which, milestone 63 found, read
+> these kernels 7–15% long. The router's counts moved onto the preset as
+> a measured table. With both, the single-GPU decode grids land at
+> 0.93–1.11 (bf16) and 0.95–1.09 (MXFP4) over batch 1–64, and this
+> two-GPU grid at 0.93–0.96 / 0.84–0.92 / 0.71–0.73 for batch 1 / 8 / 32
+> — the batch-32 rank is still the open item.
+
 ## Two notes for whoever runs this next
 
 **A GPU that says "busy or unavailable" with nothing on it is hung.**
