@@ -138,6 +138,16 @@ measured step time at batch 16 and above. Kernel durations under CUPTI
 are usually trusted; here they are not, and the milestone-62 curve drawn
 from traces would have put the model 16–28% high at large batch.
 
+> **Note (milestone 64).** "Slower in company" was the wrong picture.
+> Sampled at 20 kHz, the kernel runs at 91% of the DRAM roof inside the
+> step and 94% alone; it is not slower, the step *reads more bytes* — about
+> 6 GB per decode step beyond what its kernels need at batch 8 and 32,
+> roughly half an expert's weights per touched expert per layer, and
+> almost nothing at batch 1. Where those bytes come from is not
+> established; what they are not is listed in milestone 64. The curves
+> above are unchanged: they measure the pipeline, which is what a step
+> costs.
+
 ## Errata and what stays open
 
 Milestone 62's two constants (0.70 / 0.53) are superseded by the curves;
