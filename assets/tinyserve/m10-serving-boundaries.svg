@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="930" viewBox="0 0 1280 930" role="img" aria-labelledby="title desc">
+  <title id="title">M10: open the caller boundary, keep the execution engine</title>
+  <desc id="desc">Before M10, serve receives a complete prompt list, runs its internal continuous-batching loop, and returns completed outputs. The M10a session persists across live submissions, cancellation commands, and synchronous steps. A single owner reuses the existing paged execution helpers. HTTP is outside M10a and covered by the separate M10b adapter.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto-start-reverse"><path d="M0 0 L9 4.5 L0 9 Z" fill="#52627a"/></marker>
+    <style>
+      text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: #203047; }
+      .title { font-size: 27px; font-weight: 700; }
+      .heading { font-size: 20px; font-weight: 650; }
+      .body { font-size: 17px; }
+      .small { font-size: 16px; fill: #52627a; }
+      .code { font-family: ui-monospace, "DejaVu Sans Mono", monospace; font-size: 16px; }
+      .arrow { fill: none; stroke: #52627a; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1280" height="930" fill="#fff"/>
+  <text x="32" y="44" class="title">Open the caller boundary; keep the execution engine</text>
+  <text x="32" y="76" class="body">M10a · continuous batching already exists · new live control over the same paged execution helpers</text>
+
+  <rect x="32" y="100" width="1216" height="202" rx="14" fill="#f7f9fc" stroke="#cbd5e1"/>
+  <text x="52" y="130" class="heading">BEFORE M10 · a closed workload inside one blocking call</text>
+  <rect x="52" y="148" width="268" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+  <text x="70" y="180" class="heading">Complete prompt list</text>
+  <text x="70" y="210" class="body">All requests known upfront</text>
+  <text x="70" y="237" class="small">Arrival times can be delayed,</text>
+  <text x="70" y="260" class="small">but membership is fixed.</text>
+  <path d="M320 213 H362" class="arrow"/>
+  <rect x="368" y="148" width="520" height="130" rx="10" fill="#eaf2ff" stroke="#93b4e6"/>
+  <text x="388" y="180" class="heading">LLM.serve()</text>
+  <text x="388" y="210" class="body">Local scheduler + pending list + request registry</text>
+  <text x="388" y="237" class="body">Repeat: admit → decode → bounded prefill</text>
+  <text x="388" y="260" class="small">Tokens are generated internally throughout the loop.</text>
+  <path d="M888 213 H930" class="arrow"/>
+  <rect x="936" y="148" width="292" height="130" rx="10" fill="#fff" stroke="#cbd5e1"/>
+  <text x="954" y="180" class="heading">Completed results</text>
+  <text x="954" y="210" class="body">Returned after all work ends</text>
+  <text x="954" y="237" class="small">No external submit, token</text>
+  <text x="954" y="260" class="small">event, or cancel during the call</text>
+
+  <rect x="32" y="326" width="1216" height="464" rx="14" fill="#f6fbf9" stroke="#9bcbbb"/>
+  <text x="52" y="358" class="heading">M10a · an open session advanced by one owner</text>
+  <rect x="52" y="394" width="242" height="230" rx="10" fill="#fff" stroke="#9bcbbb"/>
+  <text x="70" y="425" class="heading">Local caller</text>
+  <text x="70" y="468" class="code">submit(prompt)</text>
+  <text x="70" y="498" class="code">cancel(request_id)</text>
+  <text x="70" y="528" class="code">step()</text>
+  <text x="70" y="576" class="body">Receive token IDs</text>
+  <text x="70" y="602" class="body">and terminal events</text>
+  <path d="M294 452 H346" class="arrow"/>
+  <path d="M352 581 H300" class="arrow"/>
+
+  <rect x="352" y="384" width="538" height="328" rx="12" fill="#fff" stroke="#58a38b" stroke-width="2"/>
+  <text x="374" y="417" class="heading">ServingSession · persistent control state</text>
+  <text x="374" y="442" class="small">Scheduler, request IDs, and request page ownership</text>
+  <rect x="372" y="458" width="498" height="44" rx="7" fill="#e8f5ee"/>
+  <text x="388" y="486" class="body">submit / cancel: enqueue or mark; no forward</text>
+  <rect x="372" y="516" width="498" height="153" rx="7" fill="#eaf2ff"/>
+  <text x="388" y="542" class="heading">One synchronous step()</text>
+  <text x="388" y="574" class="body">1. Cancel → admit → reserve decode capacity</text>
+  <text x="388" y="605" class="body">2. Batch decode → bounded prefill</text>
+  <text x="388" y="636" class="body">3. Return events; retain unfinished requests</text>
+  <text x="374" y="693" class="small">One step may launch several model forwards.</text>
+
+  <path d="M890 533 H941" class="arrow"/>
+  <path d="M947 621 H896" class="arrow"/>
+  <rect x="947" y="407" width="281" height="264" rx="10" fill="#fff" stroke="#93b4e6"/>
+  <text x="965" y="439" class="heading">Existing execution</text>
+  <text x="965" y="477" class="code">_paged_decode()</text>
+  <text x="965" y="509" class="code">_paged_prefill_batch()</text>
+  <text x="965" y="541" class="code">_paged_chunk_prefill()</text>
+  <path d="M965 560 H1210" stroke="#cbd5e1"/>
+  <text x="965" y="589" class="body">Same model and KV pool</text>
+  <text x="965" y="618" class="body">Same backend dispatch</text>
+  <text x="965" y="647" class="body">Eligible graph replay kept</text>
+
+  <rect x="52" y="644" width="242" height="88" rx="10" fill="#e8f5ee"/>
+  <text x="70" y="676" class="heading">Idle is not closed</text>
+  <text x="70" y="704" class="body">Later requests can join.</text>
+  <text x="52" y="760" class="body">Commands are accepted between steps. Concurrent clients do not require concurrent owners of the model.</text>
+
+  <rect x="32" y="812" width="1216" height="87" rx="12" fill="#f5f1fc" stroke="#c6b6e8" stroke-dasharray="6 4"/>
+  <text x="52" y="845" class="heading">M10b ADAPTER · HTTP and text streaming around the same session</text>
+  <text x="52" y="876" class="body">Client handlers → command inbox → single engine owner → per-request output buffers → response streams</text>
+</svg>
