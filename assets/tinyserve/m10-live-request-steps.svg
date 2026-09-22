@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1050" viewBox="0 0 1280 1050" role="img" aria-labelledby="title desc">
+  <title id="title">M10 live request lifecycle in four steps</title>
+  <desc id="desc">With prefill budget four, step one processes four of A's five prompt tokens. B arrives for step two, which finishes A and prefills B in separate forwards. Before step three A is cancelled and C arrives. B decodes and finishes while C prefills. Step four decodes and finishes C. Every output is returned at its step boundary. The newest sampled token has not yet entered KV.</desc>
+  <style>
+    text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; fill: #203047; }
+    .title { font-size: 27px; font-weight: 700; }
+    .heading { font-size: 19px; font-weight: 650; }
+    .body { font-size: 17px; }
+    .small { font-size: 16px; fill: #52627a; }
+    .step { font-size: 30px; font-weight: 700; }
+    .token { font-size: 16px; font-weight: 650; text-anchor: middle; }
+    .a { fill: #eaf2ff; stroke: #8eb1e8; }
+    .b { fill: #e6f5ef; stroke: #82c6b0; }
+    .c { fill: #f0e9fc; stroke: #b49bdf; }
+    .unused { fill: #f1f4f8; stroke: #cbd5e1; stroke-dasharray: 4 3; }
+  </style>
+  <rect width="1280" height="1050" fill="#fff"/>
+  <text x="32" y="44" class="title">Three live requests, four engine steps</text>
+  <text x="32" y="76" class="body">Prefill budget = 4 tokens per step · no EOS or preemption · enough KV capacity · illustrative token IDs</text>
+  <rect x="32" y="96" width="18" height="18" rx="4" class="a"/>
+  <text x="60" y="111" class="small">A: prompt 5, output limit 4</text>
+  <rect x="366" y="96" width="18" height="18" rx="4" class="b"/>
+  <text x="394" y="111" class="small">B: prompt 3, output limit 2</text>
+  <rect x="710" y="96" width="18" height="18" rx="4" class="c"/>
+  <text x="738" y="111" class="small">C: prompt 2, output limit 2</text>
+
+  <rect x="32" y="134" width="1216" height="664" rx="12" fill="#fff" stroke="#cbd5e1"/>
+  <path d="M44 134 H1236 Q1248 134 1248 146 V180 H32 V146 Q32 134 44 134" fill="#edf2f8"/>
+  <rect x="33" y="180" width="1214" height="130" fill="#fcfdff"/>
+  <rect x="33" y="462" width="1214" height="192" fill="#fcfdff"/>
+  <path d="M112 134 V798 M342 134 V798 M602 134 V798 M872 134 V798 M32 180 H1248 M32 310 H1248 M32 462 H1248 M32 654 H1248" stroke="#cbd5e1" fill="none"/>
+  <text x="50" y="164" class="heading">Step</text>
+  <text x="130" y="164" class="heading">Before this step</text>
+  <text x="360" y="164" class="heading">Decode first</text>
+  <text x="620" y="164" class="heading">Then prefill</text>
+  <text x="890" y="164" class="heading">Events returned at the end</text>
+
+  <text x="62" y="251" class="step">1</text>
+  <text x="130" y="221" class="body">Submit A</text>
+  <text x="130" y="252" class="small">A enters PREFILLING.</text>
+  <text x="360" y="221" class="body">No RUNNING request</text>
+  <text x="620" y="213" class="body">First 4 of A's 5 tokens</text>
+  <rect x="620" y="228" width="47" height="34" rx="5" class="a"/>
+  <rect x="674" y="228" width="47" height="34" rx="5" class="a"/>
+  <rect x="728" y="228" width="47" height="34" rx="5" class="a"/>
+  <rect x="782" y="228" width="47" height="34" rx="5" class="a"/>
+  <text x="643.5" y="251" class="token">A1</text>
+  <text x="697.5" y="251" class="token">A2</text>
+  <text x="751.5" y="251" class="token">A3</text>
+  <text x="805.5" y="251" class="token">A4</text>
+  <text x="620" y="289" class="small">4 / 4 budget used</text>
+  <text x="890" y="221" class="body">None</text>
+  <text x="890" y="252" class="small">A's prompt is not complete.</text>
+
+  <text x="62" y="391" class="step">2</text>
+  <text x="130" y="350" class="body">Submit B</text>
+  <text x="130" y="381" class="small">A keeps its cached prefix.</text>
+  <text x="360" y="350" class="body">Still no RUNNING request</text>
+  <text x="620" y="341" class="body">Finish A, then prefill B</text>
+  <rect x="620" y="356" width="47" height="34" rx="5" class="a"/>
+  <rect x="674" y="356" width="47" height="34" rx="5" class="b"/>
+  <rect x="728" y="356" width="47" height="34" rx="5" class="b"/>
+  <rect x="782" y="356" width="47" height="34" rx="5" class="b"/>
+  <text x="643.5" y="379" class="token">A5</text>
+  <text x="697.5" y="379" class="token">B1</text>
+  <text x="751.5" y="379" class="token">B2</text>
+  <text x="805.5" y="379" class="token">B3</text>
+  <text x="620" y="418" class="small">1 + 3 = 4; two forwards</text>
+  <text x="620" y="442" class="small">Shared budget, not one batch</text>
+  <text x="890" y="350" class="body">A: token a0</text>
+  <text x="890" y="381" class="body">B: token b0</text>
+  <text x="890" y="423" class="small">Both requests become RUNNING.</text>
+
+  <text x="62" y="564" class="step">3</text>
+  <text x="130" y="501" class="body">Cancel A; submit C</text>
+  <text x="130" y="532" class="small">Drop A's page references</text>
+  <text x="130" y="556" class="small">before the next forward.</text>
+  <text x="130" y="607" class="small">C can reuse the pages.</text>
+  <text x="360" y="501" class="body">B: consume b0 → emit b1</text>
+  <text x="360" y="532" class="small">Output limit reached:</text>
+  <text x="360" y="556" class="small">finish B, release its pages.</text>
+  <text x="360" y="607" class="small">No decode for cancelled A.</text>
+  <text x="620" y="493" class="body">All 2 of C's prompt tokens</text>
+  <rect x="620" y="508" width="47" height="34" rx="5" class="c"/>
+  <rect x="674" y="508" width="47" height="34" rx="5" class="c"/>
+  <rect x="728" y="508" width="47" height="34" rx="5" class="unused"/>
+  <rect x="782" y="508" width="47" height="34" rx="5" class="unused"/>
+  <text x="643.5" y="531" class="token">C1</text>
+  <text x="697.5" y="531" class="token">C2</text>
+  <text x="620" y="572" class="small">2 / 4 budget used</text>
+  <text x="620" y="604" class="small">C becomes RUNNING.</text>
+  <text x="890" y="499" class="body">A: finished (cancelled)</text>
+  <text x="890" y="531" class="body">B: token b1</text>
+  <text x="890" y="563" class="body">B: finished (length)</text>
+  <text x="890" y="595" class="body">C: token c0</text>
+  <text x="890" y="631" class="small">A's earlier a0 is not retracted.</text>
+
+  <text x="62" y="731" class="step">4</text>
+  <text x="130" y="696" class="body">No new commands</text>
+  <text x="360" y="696" class="body">C: consume c0 → emit c1</text>
+  <text x="360" y="728" class="small">Finish C, release its pages.</text>
+  <text x="620" y="696" class="body">No prefill work</text>
+  <text x="620" y="728" class="small">0 / 4 budget used</text>
+  <text x="890" y="696" class="body">C: token c1</text>
+  <text x="890" y="728" class="body">C: finished (length)</text>
+  <text x="890" y="771" class="small">Now idle; session stays open.</text>
+
+  <text x="32" y="835" class="heading">The KV detail: an emitted token is consumed by the next decode, not the one that emitted it.</text>
+  <rect x="32" y="852" width="592" height="130" rx="10" class="a"/>
+  <text x="52" y="883" class="heading">A after step 2</text>
+  <text x="52" y="915" class="body">5 prompt tokens cached | a0 emitted, still uncached</text>
+  <text x="52" y="952" class="small">Cancellation skips that next decode and releases A's ownership.</text>
+  <rect x="648" y="852" width="600" height="130" rx="10" class="b"/>
+  <text x="668" y="883" class="heading">B after step 2</text>
+  <text x="668" y="915" class="body">3 prompt tokens cached | b0 emitted, still uncached</text>
+  <text x="668" y="952" class="small">Step 3 writes b0's KV, predicts b1, then finishes B.</text>
+  <text x="32" y="1020" class="small">Token names are illustrative. Prefix caching is off in the worked page example; released pages are reusable, not new VRAM.</text>
+</svg>
