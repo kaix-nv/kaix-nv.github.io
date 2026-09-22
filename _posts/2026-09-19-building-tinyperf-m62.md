@@ -203,6 +203,20 @@ cells.
 > 0.93–1.11 (bf16) and 0.95–1.09 (MXFP4) over batch 1–64, and this
 > two-GPU grid at 0.93–0.96 / 0.84–0.92 / 0.71–0.73 for batch 1 / 8 / 32
 > — the batch-32 rank is still the open item.
+>
+> **Erratum (milestone 65).** The router histogram and the kernel profile
+> in this post were both right about what they measured and wrong as
+> inputs. The histogram counted experts at the prompt's last position;
+> decode routing spreads wider over the steps a TPOT covers (13.1 at batch
+> 8, 21.3 at batch 32 on the random-token protocol). Divided by the true
+> counts, the fused-MoE kernel streams at the calibrated DRAM rate — not
+> 0.66–0.70 — whenever a launch's tokens do not exceed the rank's
+> experts. The batch-32 rank's "0.50" is vLLM's default Triton config
+> switching to 64-row blocks because the rank gathers 32 tokens but holds
+> only 16 experts (0.70 of the rate, measured on one GPU between batch 32
+> and 33). With both, this grid lands at 0.84–0.98 on decode, batch 32 at
+> 0.91–0.93; the idle replica's dummy tokens route to their own four
+> experts, which closes batch 1 (0.95–0.98).
 
 ## Two notes for whoever runs this next
 

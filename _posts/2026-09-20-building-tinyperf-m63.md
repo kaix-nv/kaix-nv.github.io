@@ -147,6 +147,19 @@ from traces would have put the model 16–28% high at large batch.
 > established; what they are not is listed in milestone 64. The curves
 > above are unchanged: they measure the pipeline, which is what a step
 > costs.
+>
+> **Erratum (milestone 65).** The curve is withdrawn. Its fall from 1.0 at
+> one row per expert to 0.53 at fourteen was the router table on the
+> preset undercounting decode routing by 25–40% (the table counted
+> experts at the prompt's last position; decode spreads wider), plus one
+> real effect: vLLM's default Triton config switches to 64-row blocks when
+> a launch's tokens exceed the 32 experts, which costs 30% of the
+> streaming rate between batch 32 and 33. With the engine's own decode
+> routing, the bf16 kernel streams at the calibrated DRAM rate in the
+> small-block regime and 0.70 of it in the big-block one; the Marlin
+> kernel at ~0.80 throughout. The batch-sweep table above lands at
+> 0.90–1.04 (bf16) and 0.93–1.02 (MXFP4) with those two facts and nothing
+> fitted.
 
 ## Errata and what stays open
 

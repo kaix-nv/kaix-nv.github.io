@@ -126,6 +126,14 @@ dense decode at higher batch, and is the open item.
 > experts' weights at 0.53 of the calibrated DRAM rate once an expert has
 > more than one row (0.74 with one). With both measured the MXFP4 grid
 > lands at 0.91–1.18 on decode.
+>
+> **Erratum (milestone 65).** The router count above was taken at the
+> prompt's last position; decode steps spread wider. Read off the engine's
+> own routers over the 128 decode steps a TPOT covers, a batch-8 step on
+> these prompts touches 13.3 to 13.9 experts, not 9.7 — close to
+> milestone 61's fitted 13 after all. Paired launch by launch with that routing, the
+> Marlin kernel streams at ~0.80 of the calibrated rate, not 0.53, and
+> this grid lands at 0.96–1.03 on decode with nothing fitted.
 
 ## What this settles about the reference disagreement
 
