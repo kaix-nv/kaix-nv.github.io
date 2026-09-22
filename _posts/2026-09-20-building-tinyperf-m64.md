@@ -11,6 +11,19 @@ excerpt: "An investigation, not a mechanism. Nsight Systems, Nsight Compute and 
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — no model change · Data: `data/validation/isolation_gap_gpt_oss_20b_rtx_a6000.json`.*
 
+> **Correction (milestone 65) — this post's conclusion is wrong.** There
+> is no pipeline effect and the step does not read bytes its kernels
+> don't need. Routing *drifts* during a decode: at batch 8 a step touches
+> 9 experts at the first decode step and about 14 by step 30. The isolated
+> replay and the Nsight Compute step below both used the second decode
+> step (~10 experts); the in-step averages spanned all 32 steps (12.7);
+> and the "necessary bytes" came from the milestone-62 router table (9.7),
+> which counted experts at the prompt's last position. Paired launch by
+> launch with the routing of the same step, the kernel inside the engine
+> streams at 702 / 695 GB/s — 96% of the DRAM roof — and its time is
+> linear in the experts that layer touched. The measurements below stand;
+> the interpretation does not. Milestone 65 has the evidence.
+
 Milestone 63 ended on a finding it could not explain: vLLM's Triton
 fused-MoE decode kernel, replayed alone on the same weights with the same
 routing, ran 1.4–1.6× faster than inside the engine's decode step at

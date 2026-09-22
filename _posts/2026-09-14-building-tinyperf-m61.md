@@ -146,6 +146,17 @@ each fitted on four cells and checked on four it had not seen.
 > nothing fitted, stands. The MXFP4 held-out numbers above move too
 > (the Marlin kernel streams at 0.53; the MXFP4 grid re-lands at
 > 0.91–1.18).
+>
+> **Erratum (milestone 65).** The milestone-62 correction above was
+> itself wrong, and this post's fitted skew was closer to the truth. The
+> router count 9.7 was taken at the prompt's last position; a decode step
+> routes generated tokens, and routing spreads as the decode proceeds.
+> Averaged over the 128 decode steps a TPOT covers, the engine's own
+> routers touch 13.1 experts at batch 8 and 21.3 at batch 32 on these
+> prompts — the 1.4 skew said 13 and 23. The fused-MoE kernel, paired
+> launch by launch with each step's routing, streams at the calibrated
+> DRAM rate (1.0, not 0.70) up to 32 tokens per launch. This grid lands at
+> 0.90–1.02 on decode with the measured routing and no fitted term.
 
 The skew was fitted on bf16 and the MXFP4 run of milestone 60 never saw
 it, which makes that run a held-out check of the routing rule alone:
