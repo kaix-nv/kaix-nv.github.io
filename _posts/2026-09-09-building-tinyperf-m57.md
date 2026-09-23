@@ -11,6 +11,14 @@ excerpt: "The pure decode step carries no engine cost; the mixed step carries a 
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `mixed_step_*` in `methodology.py`, `padded_batch` in `serving.py`, `sweep.tip_fraction`.*
 
+> **Erratum (milestone 67).** Setting the per-sequence constant to zero on
+> milestone 56's greedy data removed a real cost from these top-p sweeps:
+> the sampler, 4.7 ms per step at 64 rows. The agreement that followed
+> relied on the decode price rounding each batch's maximum context up to
+> 256 tokens. Priced with the sampler, the saturated branch's TPOT is
+> 0.97–0.98 and throughput 1.04–1.05
+> ([milestone 67]({% post_url 2026-09-22-building-tinyperf-m67 %})).
+
 Three milestones of serving-dynamics work left one residual: the knee.
 Below it the engine was within a few percent, past it within ten, and at
 the transition the real server tipped over while the model did not. This

@@ -11,6 +11,16 @@ excerpt: "The residual milestone 54 refused to fit, fitted on a workload chosen 
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `per_seq_step_overhead_us` in `methodology.py`, applied per step in `serving.py`.*
 
+> **Erratum (milestone 67).** The size is right and the attribution is
+> wrong. Both sweeps here ran vLLM's server-default sampling: `vllm bench
+> serve` 0.15.1 sends no sampling parameters, so Qwen3's generation config
+> applied top-p, and top-p sorts every row's full 151,936-token
+> vocabulary on every step. Measured on the kernel, that costs 410 µs per
+> step plus 66.6 µs per row, against the 63 µs per sequence fitted below.
+> The cost is the sampler, not scheduling or detokenizing. Milestone 57
+> removed the constant on greedy data; milestone 67 prices the sampler
+> directly ([milestone 67]({% post_url 2026-09-22-building-tinyperf-m67 %})).
+
 Milestone 54 ended with a residual it refused to fit. Under saturation the
 live server's decode steps ran 10 ms longer than the model's at sixty-four
 sequences, 6 ms at twenty, 1 ms at four — a cost that scales with the
