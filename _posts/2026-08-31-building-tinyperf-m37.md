@@ -11,6 +11,16 @@ excerpt: "Same four GPUs, two designs: the TPOT-jitter collapse is structural, t
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `tinyperf/disagg.py` · Demo: `examples/26_disagg.py`.*
 
+> **Erratum (milestone 66).** The table below no longer reproduces. Its
+> colocated rows moved with the engine constants of milestones 54–57, and
+> milestone 66 rebuilt both disaggregated pools on that engine. At 40/s,
+> `examples/26` now prints 2P+2D TTFT p95 520 ms (not 269) against 1196
+> colocated, TPOT p50 6.79 vs 7.56 ms (10% faster, not 25%) and 5850 vs
+> 5690 tok/s (3% more, not 11%). The three regimes, the jitter collapse
+> and the ~40% cost of the wrong split all stand. What shrank is the size
+> of the win at saturation. Milestone 66 also measured disaggregation on
+> silicon for the first time: [milestone 66]({% post_url 2026-09-22-building-tinyperf-m66 %}).
+
 Milestone 13's engine colocates prefill and decode, and every milestone
 since has managed the consequence: admitted prompts steal steps from
 decoding requests. Chunked prefill (M19) softened the interference;
