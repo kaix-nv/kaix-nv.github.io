@@ -11,6 +11,12 @@ excerpt: "Inject one prefill into a steadily decoding batch and the spike in eve
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `tools/measure_mixed_step.py`, `async_scheduling` in `serving.py`.*
 
+> **Erratum (milestone 67).** This post's step measurements sent
+> `temperature: 0` (greedy). The load sweeps they are compared with ran
+> top-p, which costs 4.7 ms more per step at 64 rows. So the "14% high"
+> verdict on milestone 55's constant compared a greedy step with a top-p
+> constant ([milestone 67]({% post_url 2026-09-22-building-tinyperf-m67 %})).
+
 Milestone 54 changed how the model prices a step that carries both a
 running decode batch and a prefill chunk — from the maximum of the two to
 their sum less one pass over the weights — on the strength of a load
