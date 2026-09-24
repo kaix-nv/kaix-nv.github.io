@@ -266,211 +266,305 @@ head.
 ## Prefill runs the same recurrence in chunks
 
 Everything above is written one token at a time. That is the right form for
-decode, where there is exactly one new token per step. It is the wrong form for
-prefill, where thousands of prompt tokens arrive at once: applying equation 6
-sequentially means thousands of dependent $V \times K$ updates, none of which
-can use tensor cores, and the GPU idles. The other extreme, materializing the
-full $T \times T$ causal attention matrix that equation 4 implies, is quadratic
-in sequence length and defeats the point of a fixed-size state.
+decode, where there is exactly one new token per step. During prefill, however,
+thousands of prompt tokens are available together. A token-by-token loop
+exposes a long chain of dependent matrix-vector products and rank-one updates.
+Chunking reorganizes the same recurrence into matrix multiplications.
 
-The chunkwise form sits between the two. Cut the sequence into chunks of $C$
-tokens, typically 64. Carry the state across chunk boundaries as in the
-recurrent form. Inside a chunk, compute all $C$ outputs with a few dense matrix
-multiplies. Sequential work drops from $T$ steps to $T / C$ steps, and the work
-inside each step is what tensor cores are built for.
+Cut the sequence into chunks of $C$ tokens, typically 64. A *boundary state*
+is the state entering one chunk: for tokens 65 to 128 it is the state after
+token 64. Carry that state from chunk to chunk, and compute the interactions
+inside each chunk with $C \times C$ matrices. The state dependency chain has
+$\lceil T/C\rceil$ steps instead of $T$, while the chunk-local preparation can
+run across all chunks in parallel.
 
-Getting there takes three moves, and it helps to know the plan before the
-details. First, write the state at any position inside a chunk as the boundary
-state plus a sum over the chunk's own innovations. Second, notice that for the
-delta rule the innovations themselves are unknowns, and that they satisfy a
-small triangular linear system that can be solved in one shot. Third, arrange
-that solve so it does not depend on the boundary state, so every chunk's solve
-can run in parallel before the sequential pass over states. Once the
-innovations are in hand, the outputs and the next boundary state are two
-matmuls each.
+We keep the convention used throughout this post:
+$S \in \mathbb{R}^{V \times K}$, so reading a key means $S k$.
+For this section, call each innovation $r_i$; it is the vector named $u_i$
+in equation 7. This lets us reserve uppercase $U$ for the transformed values
+produced during chunk preparation, matching FLA's tensor named `u`.
+All positions below are local to one chunk.
 
 ### Move 1: the state inside a chunk, in terms of the boundary state
 
-Take one chunk. Let $S_0$ be the state at its start, and index positions inside
-the chunk by $j = 1, \dots, C$. Write $g_j = \alpha_1 \alpha_2 \cdots \alpha_j$
-for the cumulative decay from the chunk start to position $j$, with $g_0 = 1$.
-Unrolling the innovation form of the recurrence, equation 7, from $S_0$ instead
-of from zero gives the state at any position in the chunk as
+Let $S_0$ be the incoming boundary state and
+$g_j = \alpha_1 \alpha_2 \cdots \alpha_j$, with $g_0 = 1$.
+Equation 7 becomes
 
 $$
-S_j = g_j\, S_0 + \sum_{m=1}^{j} \frac{g_j}{g_m}\, u_m k_m^\top . \tag{8}
-$$
-
-This is equation 4 with two changes: the sum starts at the chunk boundary
-rather than at token 1, and everything before the boundary is compressed into
-the single term $g_j S_0$. The ratio $g_j / g_m$ is the product of the decays
-strictly after position $m$ up to $j$: dividing $g_j = \alpha_1 \cdots \alpha_j$
-by $g_m = \alpha_1 \cdots \alpha_m$ cancels the shared prefix and leaves
-$\alpha_{m+1} \cdots \alpha_j$. It is the same weight that appeared in equation
-4, written as a ratio of two per-position numbers so that it can later sit in a
-matrix.
-
-Equation 8 needs two ingredients: the cumulative decays $g_j$, which are a
-running product of known gates, and the innovations $u_1, \dots, u_j$. For
-plain gated linear attention the innovation is just the value, $u_m = v_m$,
-and equation 8 is already computable. For the delta rule it is not, because
-each $u_m$ is defined through the state it is written into. That is the
-problem the next move solves.
-
-### Move 2: the delta rule's innovations satisfy a triangular system
-
-For Gated DeltaNet the innovation at position $m$ is the write strength times
-the error against the decayed state just before it, $u_m = \beta_m (v_m -
-\alpha_m S_{m-1} k_m)$. That looks like it forces a sequential loop: $u_m$
-needs $S_{m-1}$, which needs $u_{m-1}$, and so on. But $S_{m-1}$ is given by
-equation 8 at $j = m-1$. Substitute it in, and use $\alpha_m g_{m-1} = g_m$:
-
-$$
-u_m = \beta_m v_m - \beta_m g_m\, S_0 k_m
-      - \beta_m \sum_{n=1}^{m-1} \frac{g_m}{g_n}\, (k_n^\top k_m)\, u_n .
-$$
-
-Read the three terms. The first is the raw value. The second is what the
-boundary state predicts for $k_m$, after decay; it is known before the chunk
-starts. The third is what the earlier writes *in this chunk* predict for
-$k_m$: each $u_n$ was written along $k_n$, reading $k_m$ picks it up scaled by
-the key overlap $k_n^\top k_m$, and the decay between $n$ and $m$ scales it
-again. The unknown $u_m$ appears on the left, and the unknowns $u_1, \dots,
-u_{m-1}$ appear on the right, each multiplied by a known number. That is a
-linear equation, and the dependence only runs backwards, so it is triangular.
-
-Stack the $C$ equations. Let $U, V \in \mathbb{R}^{C \times V}$ and $K \in
-\mathbb{R}^{C \times K}$ hold the chunk's innovations, values, and keys as
-rows. Moving the $u_n$ terms to the left gives
-
-$$
-(I + L)\, U = \operatorname{diag}(\beta)\big(V - \operatorname{diag}(g)\, K S_0^\top\big),
+r_j = \beta_j(v_j - \alpha_j S_{j-1} k_j),
 \qquad
-L_{mn} = \beta_m \frac{g_m}{g_n}\, k_n^\top k_m \;\; (n < m). \tag{9}
+S_j = \alpha_j S_{j-1} + r_j k_j^\top.
 $$
 
-$L$ is strictly lower triangular, so $I + L$ has ones on the diagonal, is
-always invertible, and is inverted by forward substitution in $O(C^2)$
-operations per chunk, negligible next to the matmuls. Solving equation 9 gives
-all $C$ innovations at once, with no loop over positions.
-
-### Move 3: take the boundary state out of the solve
-
-As written, the right-hand side of equation 9 contains $S_0$. Chunk $t$'s
-solve cannot start until chunk $t-1$'s state is known, so the solves would be
-as sequential as the states, and the parallelism would be lost again. The
-Gated DeltaNet paper avoids this by splitting the right-hand side. The system
-is linear, so solve it once against $V$ and once against $K$, and combine
-afterwards:
+Unrolling the state update from $S_0$ gives
 
 $$
-T = (I + L)^{-1} \operatorname{diag}(\beta), \qquad
-\tilde U = T\, V, \qquad
-W = T\, K, \qquad
-U = \tilde U - \operatorname{diag}(g)\, W S_0^\top . \tag{10}
+S_j = g_j S_0 + \sum_{m=1}^{j} \frac{g_j}{g_m}\,r_m k_m^\top. \tag{8}
 $$
 
-$T$, $\tilde U$, and $W$ depend only on the chunk's own keys, values, gates,
-and write strengths. They are computed for every chunk in parallel, in one
-batched pass, before any state exists. The boundary state then enters through
-one matmul per chunk, $W S_0^\top$, inside the sequential pass that carries $S$
-from chunk to chunk. Substituting the last line of equation 10 into equation 9
-and using $(I + L)\,T = \operatorname{diag}(\beta)$ confirms it solves the
-system.
+The first term is the incoming memory after $j$ decays. In the second term,
+$r_m$ was written at position $m$ and decayed by every token after it:
+$g_j/g_m = \alpha_{m+1}\cdots\alpha_j$. The newest write has weight 1.
+
+For plain gated linear attention the write is already known from the value.
+For the delta rule, $r_m$ depends on what the state predicts for $k_m$.
+The next move removes those intermediate states from the equations.
+
+### Move 2: derive the corrections for two tokens
+
+First set every $\alpha_i = 1$ to isolate the delta rule. Token 1 sees
+exactly the chunk's incoming state:
+
+$$
+r_1 = \beta_1 v_1 - \beta_1 S_0 k_1
+    = \tilde u_1 - S_0 w_1,
+\qquad
+\tilde u_1 := \beta_1 v_1,\quad w_1 := \beta_1 k_1.
+$$
+
+Here $\tilde u_1$ is the correction with zero incoming memory, and $w_1$
+is the key coefficient that tells us how incoming memory changes it.
+
+Token 2 sees $S_1 = S_0 + r_1 k_1^\top$. Substitute that state into its
+correction:
+
+$$
+\begin{aligned}
+r_2
+&= \beta_2(v_2 - S_1 k_2)\\
+&= \beta_2 v_2 - \beta_2 S_0 k_2
+   - \beta_2(k_1^\top k_2)r_1.
+\end{aligned}
+$$
+
+The last term subtracts what token 1's write already contributes when we read
+$k_2$. Now substitute $r_1 = \tilde u_1 - S_0 w_1$ and collect the terms
+that multiply the original boundary state:
+
+$$
+r_2 =
+\underbrace{\left[\beta_2 v_2
+  - \beta_2(k_1^\top k_2)\tilde u_1\right]}_{\tilde u_2}
+-
+S_0\underbrace{\left[\beta_2 k_2
+  - \beta_2(k_1^\top k_2)w_1\right]}_{w_2}.
+$$
+
+So $r_2 = \tilde u_2 - S_0 w_2$ too. This substitution works for every token:
+each correction is a chunk-local value term minus the incoming state applied
+to a chunk-local key coefficient.
+
+Stack the vectors as rows:
+$R_{i,:}=r_i^\top$, $U_{i,:}=\tilde u_i^\top$, and $W_{i,:}=w_i^\top$.
+Transposing each token equation gives
+
+$$
+\boxed{R = U - W S_0^\top}.
+$$
+
+That formula is the result of eliminating the intermediate states. $W$ is a
+computed activation derived from the keys and gates, not a learned weight
+matrix. $U$ contains transformed values, not the original values or the final
+corrections. Both can be prepared without knowing $S_0$.
+
+| quantity | shape for one chunk and head | meaning |
+|---|---|---|
+| $K$ | $C \times K$ | original keys, stacked as rows |
+| $V$ | $C \times V$ | original values, stacked as rows |
+| $W$ | $C \times K$ | coefficients of the incoming state |
+| $U$ | $C \times V$ | corrections with zero incoming state |
+| $R$ | $C \times V$ | actual corrections, given this chunk's $S_0$ |
+| $S_0$ | $V \times K$ | memory carried from previous chunks |
+
+The symbols $K$ and $V$ denote either a dimension or its stacked matrix, as
+indicated by context. With the transposed state convention
+$H_0 := S_0^\top \in \mathbb{R}^{K \times V}$, the same formula is
+$R = U - W H_0$.
+
+### Move 3: compute those coefficients with a triangular solve
+
+Bring the scalar decay back. Substitute equation 8 at position $m-1$ into
+$r_m = \beta_m(v_m-\alpha_m S_{m-1}k_m)$ and use
+$\alpha_m g_{m-1}=g_m$:
+
+$$
+r_m = \beta_m v_m - \beta_m g_m S_0 k_m
+      - \sum_{n=1}^{m-1}
+        \beta_m\frac{g_m}{g_n}(k_n^\top k_m)r_n.
+$$
+
+These are the same three contributions as in the two-token example:
+the value we want to write, the prediction from the boundary state, and
+the prediction from earlier writes within the chunk. All coefficients are
+known from the chunk's inputs. Only earlier corrections appear on the
+right, so the system is triangular.
+
+Let $D_\beta=\operatorname{diag}(\beta)$,
+$D_g=\operatorname{diag}(g)$, and define
+
+$$
+L_{mn} =
+\begin{cases}
+\beta_m \dfrac{g_m}{g_n}\,k_n^\top k_m, & n<m,\\
+0, & n\ge m.
+\end{cases}
+$$
+
+Stack the token equations as rows and move the earlier corrections to the
+left:
+
+$$
+(I+L)R = D_\beta V-D_\beta D_g K S_0^\top. \tag{9}
+$$
+
+$I+L$ is lower triangular with ones on its diagonal, so it is invertible.
+Instead of solving equation 9 after the boundary state arrives, solve for
+the two sets of coefficients in advance:
+
+$$
+\begin{aligned}
+(I+L)U &= D_\beta V,\\
+(I+L)W &= D_\beta D_g K,\\
+R &= U-W S_0^\top.
+\end{aligned} \tag{10}
+$$
+
+To check the last line, multiply it by $I+L$ and substitute the first two:
+$(I+L)(U-W S_0^\top)=D_\beta V-D_\beta D_g K S_0^\top$.
+That is exactly equation 9.
+
+**The decay belongs inside the right-hand side of the solve for $W$.**
+If $A=(I+L)^{-1}$, then $W=A D_\beta D_g K$.
+In general this is not $D_g A D_\beta K$: a diagonal decay matrix does not
+commute with the triangular transform. The two-token substitution explains
+why: token 2's coefficient mixes its own key with token 1's coefficient, and
+the decay must follow those dependencies.
+
+All inputs to these two solves are local to a chunk, so preparation can run
+for all chunks in parallel. Once a chunk's boundary state arrives, the
+corrections require one matrix product, $W S_0^\top$, and a subtraction.
+A triangular solve still has dependencies internally; chunking does not make
+those disappear. It makes the solves independent of the state chain.
 
 ### Putting it together: outputs and the next boundary state
 
-With $U$ known, apply equation 8 to each query and stack the $C$ results as
-rows of an output matrix $O \in \mathbb{R}^{C \times V}$. Let $Q \in
-\mathbb{R}^{C \times K}$ hold the queries as rows, and let $\Gamma$ be the
-$C \times C$ matrix with entries $\Gamma_{jm} = g_j / g_m$ for $m \le j$ and
-zero above the diagonal. Then
+With $R$ known, apply equation 8 to each query. Let
+$Q\in\mathbb{R}^{C\times K}$ contain the queries as rows, and define the
+causal decay matrix $\Gamma_{jm}=g_j/g_m$ for $m\le j$, with zeros above
+the diagonal. The output rows are
 
 $$
-O = \underbrace{\operatorname{diag}(g)\, Q\, S_0^\top}_{\text{inter-chunk}}
-  + \underbrace{\big(\Gamma \odot Q K^\top\big)\, U}_{\text{intra-chunk}} . \tag{11}
+O =
+\underbrace{D_g Q S_0^\top}_{\text{incoming memory}}
++
+\underbrace{(\Gamma\odot QK^\top)R}_{\text{writes within this chunk}}.
+\tag{11}
 $$
 
-The first term is what the carried state contributes to every position: one
-$C \times K$ by $K \times V$ matmul. The second is a masked $C \times C$
-attention matrix applied to the chunk's own innovations: entry $(j, m)$ of
-$Q K^\top$ is $q_j^\top k_m$, the mask $\Gamma$ supplies both causality and the
-decay weight, and the product with $U$ sums $\frac{g_j}{g_m} u_m (k_m^\top q_j)$
-over $m \le j$, which is row $j$ of equation 8 applied to $q_j$.
+The first term reads the incoming memory at every query, with the appropriate
+decay. The second combines the chunk's corrections: entry $(j,m)$ supplies
+the key-query overlap and the decay from write $m$ to output $j$.
+As in equation 7, any query scale can be absorbed into $Q$.
 
-The state handed to the next chunk is equation 8 at $j = C$, also as matmuls:
+The state passed to the next chunk is equation 8 at $j=C$:
 
 $$
-S_C = g_C\, S_0 + U^\top \operatorname{diag}\!\Big(\frac{g_C}{g_m}\Big) K . \tag{12}
+S_C = g_C S_0
+    + R^\top\operatorname{diag}\!\left(\frac{g_C}{g_m}\right)K.
+\tag{12}
 $$
 
-The whole algorithm is therefore:
+Each correction is weighted by how much it decays before the chunk ends.
+The incoming state is weighted by the decay across the entire chunk.
 
-1. For every chunk in parallel: cumulative decays $g$, the decay-weighted key
-   overlaps that fill $L$, the triangular solve for $T$, and $\tilde U = T V$
-   and $W = T K$.
-2. Sequentially over chunks: $U = \tilde U - \operatorname{diag}(g) W
-   S_0^\top$, the outputs by equation 11, and the next boundary state by
-   equation 12.
-
-Step 1 is where all the parallel matmul work lives. Step 2 touches the
-$V \times K$ state once per chunk, and each of its operations is a matmul with
-$C$ as one dimension. Every operation in both steps is a dense matmul, an
-elementwise product on a $C \times C$ tile, or the small triangular solve.
+For example, with $C=64$, key dimension 128, and value dimension 128,
+$W S_0^\top$ is a $[64,128]\times[128,128]$ product producing all 64
+correction rows. The state update multiplies a $[128,64]$ matrix of
+corrections by the $[64,128]$ keys. Those are matrix multiplications over a
+whole chunk, replacing the sequence of 64 state-dependent token updates.
 
 ### Where this comes from, and where it lives in the code
 
-This is the Gated DeltaNet paper's algorithm. Its equation 10 is this post's
-equation 6 with the factors written as $S_{t-1}\big(\alpha_t (I - \beta_t k_t
-k_t^\top)\big) + \beta_t v_t k_t^\top$, the same recurrence. Its equations 6
-and 7 are this post's equation 10 for the ungated case, and its $\tilde U$
-formula in section 3.3 is the gated one, where the matrix being inverted is
-written $I + \mathrm{strictLower}\big(\operatorname{diag}(\beta)\,(\Gamma
-\odot K K^\top)\big)$; $\Gamma \odot K K^\top$ is exactly the decay-weighted
-key overlap $\frac{g_m}{g_n} k_n^\top k_m$ that fills $L$ here. The paper calls
-the split in Move 3 the UT transform, and the pair $(W, \tilde U)$ the WY
-representation, after the classical result that a product of Householder
-reflectors $\prod (I - \beta_m k_m k_m^\top)$ equals $I$ minus a rank-$C$
-matrix $K^\top W$. Notation differs in one place: the paper writes the
-within-chunk cumulative decay as $\gamma^{\,r}_{[t]}$, which is $g_r$ here;
-$\gamma$ is reserved in this post for ReplaySSM's running product.
+This is the chunkwise delta-rule construction developed in
+[Parallelizing Linear Transformers with the Delta Rule over Sequence Length](https://arxiv.org/abs/2406.06484)
+and extended with decay in
+[Gated Delta Networks](https://arxiv.org/abs/2412.06464).
+The transformed key and value tensors are commonly called a WY
+representation. The coefficient derivation above explains what those tensors
+mean before introducing that name.
 
-FLA follows the paper's split exactly. In
-[`chunk.py`](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py)
-the step labelled "fused kkt + solve_tril + recompute_w_u" is Step 1 above,
-run over all chunks at once: form the decay-weighted $K K^\top$, invert the
-unit lower-triangular matrix, and produce $W$ and $\tilde U$. Only afterwards
-does the state kernel run Step 2, sweeping the chunks in order. The triangular
-solve lives in `fla/ops/utils/solve_tril.py`, which inverts $16 \times 16$
-blocks and assembles the $64 \times 64$ result. The decode kernel never touches
-any of this: with one token per step the system in equation 9 is a single
-scalar.
+In FLA, the
+[forward caller](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py)
+arranges the work in three stages:
+
+1. **Prepare every chunk independently.** Compute cumulative decays and key
+   overlaps, perform the triangular-system preparation, and produce `w` and
+   `u`, corresponding to $W$ and $U$.
+2. **Carry the state across chunks.** The
+   [state kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_delta_h.py)
+   computes `v_new = u - w @ state`, using the $K\times V$ state convention,
+   and advances the state with equation 12. It saves each chunk's incoming
+   state for the next stage.
+3. **Compute outputs across chunks in parallel.** The
+   [output kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_o.py)
+   uses those saved states and `v_new` to evaluate equation 11.
+
+The state kernel's parameter named `v` receives the prepared `u` tensor.
+Its `v_new` is $R$. That naming distinction matters when reading the code:
+the subtraction operates on transformed values.
+
+In this post's $V\times K$ convention, the state sweep is:
+
+```python
+S = initial_state
+for chunk in chunks:
+    h[chunk] = S                       # save the state entering this chunk
+    R = U[chunk] - W[chunk] @ S.T
+    v_new[chunk] = R                   # save before end-of-chunk decay
+
+    weights = g[chunk][-1] / g[chunk]
+    S = g[chunk][-1] * S + R.T @ (weights[:, None] * K[chunk])
+final_state = S
+```
+
+This is algebraic pseudocode. FLA represents the cumulative decay in log
+space, using `exp2` of cumulative logs and their differences instead of
+dividing two potentially tiny products. Its kernel retains tiles of the
+carried state across loop iterations, parallelizing over sequences, heads,
+and value-dimension tiles. Chunks remain sequential within each program.
+
+Two ordering details connect the state sweep to the output kernel.
+`h[chunk]` stores the state **before** the chunk updates it.
+`v_new` stores the corrections **before** weighting them for the end of the
+chunk. The output kernel needs those corrections at every intermediate
+position, with each output's own decay weights.
 
 ### What this buys and where it stops
 
-| form | sequential steps | work | tensor cores |
-|---|---:|---:|---|
-| recurrent, equation 6 | $T$ | $O(T \cdot VK)$ | no |
-| fully parallel, equation 4 | 1 | $O(T^2 (K + V))$ | yes, but quadratic |
-| chunkwise, equations 8 to 12 | $T / C$ | $O(T C (K + V) + (T/C)\, VK \cdot C)$ | yes |
+With fixed $C$, the main matrix-multiplication work is
+$O(TKV + TC(K+V))$: state reads and updates contribute the first term,
+and chunk-local key overlaps and readouts contribute the second.
+The triangular preparation adds work per chunk and can be a meaningful
+runtime cost. There is no full $T\times T$ attention matrix.
 
-With $C = 64$ the chunkwise form is linear in $T$, uses matmuls for everything
-but a small triangular solve, and this is what FLA's chunk kernel implements
-for Gated DeltaNet. It is compute-bound in the way prefill should be.
+Chunking therefore exposes matrix multiplication and shortens the state
+dependency chain. It does not guarantee that every prefill shape is
+compute-bound; head size, chunk size, batch size, the triangular solve,
+and intermediate-memory traffic all matter.
 
-It does nothing for decode. With one new token per step the chunk has size 1,
-equation 11 collapses back to equation 7, and the cost is once again the read
-and write of the $V \times K$ state. That is why the two halves of this post
-look so different: prefill is a matmul problem solved by chunking, while decode
-is a memory-traffic problem that the next section quantifies. It also shows
-what a prefix checkpoint is: the carried state $S_C$ at a chunk boundary,
-which is exactly what DASC compresses later in the post, and what the DASC
-replay recomputes over its last 256 tokens using this chunk kernel. And it
-previews ReplaySSM: that method touches the state once per window of decode
-tokens, the way this form touches it once per chunk of prefill tokens. Its
-end-of-window flush is a chunk update of the form of equation 12 with $U$
-already known, since each innovation was computed at its own token, so the
-flush needs no triangular solve at all.
+The algebra also checks out at $C=1$: $L=0$,
+$U=\beta v^\top$, and $W=\beta\alpha k^\top$.
+Thus $R=\beta(v^\top-\alpha k^\top S_0^\top)$, which is exactly the
+single-token innovation in equation 7. With only one new token available,
+there is no chunk of prompt tokens to batch together. Decode returns to
+the state-traffic problem quantified next.
+
+A prefix checkpoint is the carried state $S_C$ at a boundary; this is what
+DASC compresses later in the post. ReplaySSM also uses a boundary state,
+but spans a window of decode tokens. Its flush can use the sum in equation
+12 with corrections already known, because each correction was computed
+when its token arrived. It needs no triangular solve at flush time.
 
 ## What one decode token actually costs
 
