@@ -283,9 +283,15 @@ $S \in \mathbb{R}^{V \times K}$, so reading a key means $S k$.
 For this section, call each innovation $r_i$; it is the vector named $u_i$
 in equation 7. This lets us reserve uppercase $U$ for the transformed values
 produced during chunk preparation, matching FLA's tensor named `u`.
-All positions below are local to one chunk.
+All positions below are local to one chunk, and the decay gates stay present
+throughout the derivation. Each move supplies the input to the next:
+first express the state through the boundary state and the unknown
+corrections; then use two tokens to derive the corrections as
+$R=U-WS_0^\top$; finally compute those same $U$ and $W$ for a whole chunk
+with triangular solves.
 
-### Move 1: the state inside a chunk, in terms of the boundary state
+### Move 1: express the state through the boundary state and corrections
+{: #move-1-the-state-inside-a-chunk-in-terms-of-the-boundary-state}
 
 Let $S_0$ be the incoming boundary state and
 $g_j = \alpha_1 \alpha_2 \cdots \alpha_j$, with $g_0 = 1$.
@@ -309,51 +315,62 @@ $g_j/g_m = \alpha_{m+1}\cdots\alpha_j$. The newest write has weight 1.
 
 For plain gated linear attention the write is already known from the value.
 For the delta rule, $r_m$ depends on what the state predicts for $k_m$.
-The next move removes those intermediate states from the equations.
+The next move substitutes this state expansion into the correction rule and
+collects the coefficients of the boundary state.
 
-### Move 2: derive the corrections for two tokens
+### Move 2: collect the boundary-state coefficients for two tokens
+{: #move-2-derive-the-corrections-for-two-tokens}
 
-First set every $\alpha_i = 1$ to isolate the delta rule. Token 1 sees
-exactly the chunk's incoming state:
+For token 1, equation 8 gives $S_1=g_1S_0+r_1k_1^\top$, where
+$g_1=\alpha_1$. Its correction is
 
 $$
-r_1 = \beta_1 v_1 - \beta_1 S_0 k_1
-    = \tilde u_1 - S_0 w_1,
+r_1 = \beta_1v_1-\beta_1g_1S_0k_1
+    = \tilde u_1-S_0w_1,
 \qquad
-\tilde u_1 := \beta_1 v_1,\quad w_1 := \beta_1 k_1.
+\tilde u_1:=\beta_1v_1,\quad w_1:=\beta_1g_1k_1.
 $$
 
 Here $\tilde u_1$ is the correction with zero incoming memory, and $w_1$
 is the key coefficient that tells us how incoming memory changes it.
+The decay $g_1$ is already part of that coefficient.
 
-Token 2 sees $S_1 = S_0 + r_1 k_1^\top$. Substitute that state into its
-correction:
+Token 2 reads the decayed state $\alpha_2S_1$. Substitute the same state
+expansion, with $g_2=\alpha_2g_1$:
 
 $$
 \begin{aligned}
 r_2
-&= \beta_2(v_2 - S_1 k_2)\\
-&= \beta_2 v_2 - \beta_2 S_0 k_2
-   - \beta_2(k_1^\top k_2)r_1.
+&=\beta_2(v_2-\alpha_2S_1k_2)\\
+&=\beta_2v_2-\beta_2g_2S_0k_2
+  -\beta_2\frac{g_2}{g_1}(k_1^\top k_2)r_1.
 \end{aligned}
 $$
 
-The last term subtracts what token 1's write already contributes when we read
-$k_2$. Now substitute $r_1 = \tilde u_1 - S_0 w_1$ and collect the terms
-that multiply the original boundary state:
+The last term subtracts what token 1's write contributes when token 2 reads
+$k_2$. Its coefficient combines the write strength $\beta_2$, the decay
+$g_2/g_1=\alpha_2$, and the key overlap. Name that scalar
 
 $$
-r_2 =
-\underbrace{\left[\beta_2 v_2
-  - \beta_2(k_1^\top k_2)\tilde u_1\right]}_{\tilde u_2}
--
-S_0\underbrace{\left[\beta_2 k_2
-  - \beta_2(k_1^\top k_2)w_1\right]}_{w_2}.
+L_{21}:=\beta_2\frac{g_2}{g_1}(k_1^\top k_2).
 $$
 
-So $r_2 = \tilde u_2 - S_0 w_2$ too. This substitution works for every token:
-each correction is a chunk-local value term minus the incoming state applied
-to a chunk-local key coefficient.
+Now substitute $r_1=\tilde u_1-S_0w_1$ and collect everything that
+multiplies the original boundary state:
+
+$$
+\begin{aligned}
+r_2
+&=\beta_2v_2-\beta_2g_2S_0k_2-L_{21}(\tilde u_1-S_0w_1)\\
+&=\underbrace{(\beta_2v_2-L_{21}\tilde u_1)}_{\tilde u_2}
+  -S_0\underbrace{(\beta_2g_2k_2-L_{21}w_1)}_{w_2}.
+\end{aligned}
+$$
+
+So both tokens have the form $r_i=\tilde u_i-S_0w_i$, using the same decay
+convention as Move 1. The value coefficient $\tilde u_i$ and key coefficient
+$w_i$ depend only on inputs within the chunk. Repeating this substitution
+for later tokens gives one such pair per position.
 
 Stack the vectors as rows:
 $R_{i,:}=r_i^\top$, $U_{i,:}=\tilde u_i^\top$, and $W_{i,:}=w_i^\top$.
@@ -382,11 +399,12 @@ indicated by context. With the transposed state convention
 $H_0 := S_0^\top \in \mathbb{R}^{K \times V}$, the same formula is
 $R = U - W H_0$.
 
-### Move 3: compute those coefficients with a triangular solve
+### Move 3: compute the same coefficients for the whole chunk
+{: #move-3-compute-those-coefficients-with-a-triangular-solve}
 
-Bring the scalar decay back. Substitute equation 8 at position $m-1$ into
-$r_m = \beta_m(v_m-\alpha_m S_{m-1}k_m)$ and use
-$\alpha_m g_{m-1}=g_m$:
+The two-token calculation is the first two rows of a general construction.
+For any position $m$, substitute the state expansion from Move 1 into the
+same correction rule, using $\alpha_m g_{m-1}=g_m$:
 
 $$
 r_m = \beta_m v_m - \beta_m g_m S_0 k_m
@@ -411,16 +429,26 @@ L_{mn} =
 \end{cases}
 $$
 
-Stack the token equations as rows and move the earlier corrections to the
-left:
+The matrix entry $L_{21}$ is the scalar computed in Move 2. Each later
+row has one such coefficient for every earlier token. Stack the token
+equations as rows and move those earlier corrections to the left:
 
 $$
 (I+L)R = D_\beta V-D_\beta D_g K S_0^\top. \tag{9}
 $$
 
-$I+L$ is lower triangular with ones on its diagonal, so it is invertible.
-Instead of solving equation 9 after the boundary state arrives, solve for
-the two sets of coefficients in advance:
+Collecting boundary-state coefficients as in Move 2 gives the recurrences
+
+$$
+\tilde u_m = \beta_m v_m-\sum_{n<m}L_{mn}\tilde u_n,
+\qquad
+w_m = \beta_m g_m k_m-\sum_{n<m}L_{mn}w_n.
+$$
+
+For $m=1$ the sums are empty; for $m=2$ these are exactly the definitions
+of $\tilde u_2$ and $w_2$ above. Stack the coefficient vectors as rows.
+Since $I+L$ is lower triangular with ones on its diagonal, the two
+coefficient systems have unique solutions:
 
 $$
 \begin{aligned}
