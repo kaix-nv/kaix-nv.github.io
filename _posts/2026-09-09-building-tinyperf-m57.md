@@ -19,6 +19,13 @@ scratch](/series/tinyperf/). Code:
 > 0.97–0.98 and throughput 1.04–1.05
 > ([milestone 67]({% post_url 2026-09-22-building-tinyperf-m67 %})).
 
+> **Erratum (milestone 69).** The mixed-step constants fitted here, 3.3 ms
+> plus 213 µs per running sequence, were two mechanisms seen at one
+> context. The first is the decode rows' attention re-read per query head
+> in a mixed step; the second is cuBLAS's 1024/1025-row tile edge. Both
+> are priced since milestone 69 and the constants are 0
+> ([milestone 69]({% post_url 2026-09-24-building-tinyperf-m69 %})).
+
 Three milestones of serving-dynamics work left one residual: the knee.
 Below it the engine was within a few percent, past it within ten, and at
 the transition the real server tipped over while the model did not. This

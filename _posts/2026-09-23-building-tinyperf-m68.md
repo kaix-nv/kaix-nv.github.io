@@ -11,6 +11,11 @@ excerpt: "The decode step, priced from vLLM's attention and GEMM kernels measure
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — mean-context pricing in `serving.py`, the decode-attention and GEMM constants in `methodology.py`, `tools/measure_decode_attention.py`, `tools/measure_mixed_attention.py` · Data: `data/validation/comparison_qwen3_8b_rtx_a6000_context.txt`, `engine_steps_varied_qwen3_8b_rtx_a6000.json`.*
 
+> **Note (milestone 69).** The 33–64-row GEMM constant below was the first
+> stretch of cuBLAS's row curve, which milestone 69 measures to 1280 rows.
+> The mixed step this post found is priced there
+> ([milestone 69]({% post_url 2026-09-24-building-tinyperf-m69 %})).
+
 Milestone 67 left the model with a known wrong term. `simulate` priced
 a decode step at the running batch's *maximum* context, rounded *up* to a
 multiple of 256 tokens. Attention reads each sequence's own cache, so the

@@ -17,6 +17,14 @@ scratch](/series/tinyperf/). Code:
 > verdict on milestone 55's constant compared a greedy step with a top-p
 > constant ([milestone 67]({% post_url 2026-09-22-building-tinyperf-m67 %})).
 
+> **Erratum (milestone 69).** The mixed-step cells below are the clients'
+> largest inter-token gap. Under async scheduling that under-reads a mixed
+> step, because its delay splits across two gaps. On the engine's own GPU
+> clock, a step with 8 decodes and a 256-token chunk takes 60.1 ms, where
+> this post's client read 50.0. The "chunk + decode minus one weight pass"
+> formula it confirmed was a proxy for one forward at the combined rows
+> ([milestone 69]({% post_url 2026-09-24-building-tinyperf-m69 %})).
+
 Milestone 54 changed how the model prices a step that carries both a
 running decode batch and a prefill chunk — from the maximum of the two to
 their sum less one pass over the weights — on the strength of a load
