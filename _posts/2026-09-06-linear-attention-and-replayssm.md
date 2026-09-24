@@ -1,1047 +1,712 @@
 ---
 layout: post
 math: true
-title: "Linear attention from first principles: ReplaySSM and DASC"
+title: "Linear attention from first principles: chunked prefill, ReplaySSM, and DASC"
 date: 2026-09-06 10:00:00 -0700
 categories: [linear-attention, llm-serving]
-excerpt: "How softmax attention becomes a fixed-size matrix, why decoding that matrix is a memory-bandwidth problem, and how two methods, ReplaySSM at decode time and DASC in the prefix cache, both stop storing state the model can rebuild."
+excerpt: "One recurrent state, three serving questions: how to compute it in chunks, how to avoid rewriting it at every decode step, and which parts to keep in a prefix cache."
 ---
 
-*A standalone note. It grew out of the hybrid-model milestones in
-[building tinyserve](/series/tinyserve/), where Qwen3.5 and Kimi-K3 spend
-most of their decode time in linear-attention layers.*
+*A standalone note from the hybrid-model work in
+[building tinyserve](/series/tinyserve/).*
 
-Transformers pay for long context with a KV cache that grows every token.
-Linear attention pays instead with a fixed-size matrix per head that must be
-read and rewritten every token. That trade looks like a clear win on paper, and
-in practice it moves the bottleneck rather than removing it: a decode step in a
-Gated DeltaNet layer is a pure memory-bandwidth problem, and the matrix traffic
-is the whole problem.
+Linear attention replaces a growing history of keys and values with a
+fixed-size recurrent state. That changes the serving problem: we need to
+build the state efficiently during prefill, update it during decode, and
+sometimes save it for prefix reuse.
 
-This post derives the linear-attention family from softmax attention in five
-short steps, works out exactly what a decode token costs, and then explains two
-methods that attack the state from opposite sides. ReplaySSM, from the Dao Lab,
-removes half of the decode traffic by asking why the state should be written at
-all. DASC, from Yu et al., shrinks prefix-cache checkpoints by asking which
-heads have already forgotten the prefix. Both turn out to be the same idea.
+This post follows one state matrix through those three jobs:
 
-## From softmax to a matrix
-
-Start with ordinary causal attention for token $t$:
-
-$$
-y_t = \frac{\sum_{i=1}^{t} \exp(q_t^\top k_i)\, v_i}{\sum_{j=1}^{t} \exp(q_t^\top k_j)}. \tag{1}
-$$
-
-Every previous key and value participates. The cache holds all of them, so
-memory is $O(t \cdot d)$ and so is the work per token.
-
-Replace $\exp(q^\top k)$ by an inner product of feature maps,
-$\phi(q)^\top \phi(k)$. The query is the same in every term, so it factors out
-of the sum:
-
-$$
-y_t = \sum_{i=1}^{t} \phi(q_t)^\top \phi(k_i)\, v_i
-    = \Big( \sum_{i=1}^{t} v_i\, \phi(k_i)^\top \Big) \phi(q_t)
-    = S_t\, \phi(q_t).
-$$
-
-Two facts make the middle step legal. First, $\phi(q_t)^\top \phi(k_i)$ is a
-scalar, and a scalar times a vector can be written in either order, so
-$\big(\phi(q_t)^\top \phi(k_i)\big) v_i = v_i \big(\phi(k_i)^\top \phi(q_t)\big)$.
-Second, that product is $v_i \phi(k_i)^\top$ applied to $\phi(q_t)$, because for
-any vectors $a, b, c$ the outer product obeys $(a b^\top) c = a (b^\top c)$: the
-matrix $a b^\top$ times $c$ is $a$ scaled by the dot product $b^\top c$. Since
-$\phi(q_t)$ does not depend on the summation index $i$, it can be pulled outside
-the sum, leaving $\sum_{i=1}^{t} v_i \phi(k_i)^\top$ as a matrix that no longer knows
-anything about the query.
-
-The entire history has collapsed into one matrix $S_t \in \mathbb{R}^{V \times K}$
-with a one-step recurrence:
-
-$$
-S_t = S_{t-1} + v_t k_t^\top, \qquad y_t = S_t q_t. \tag{2}
-$$
-
-The recurrence is just the sum written incrementally: $S_t = \sum_{i=1}^{t}
-v_i k_i^\top$ and $S_{t-1} = \sum_{i=1}^{t-1} v_i k_i^\top$ differ by exactly
-the $i = t$ term.
-
-Modern variants drop $\phi$ and the normalizer, L2-normalize $q$ and $k$, and
-put an RMSNorm on the output instead. Memory is $O(VK)$ regardless of context.
-Each decode token costs one read and one write of $S$.
-
-## Three refinements that make it work
-
-### Forgetting
-
-The plain recurrence never forgets. A scalar gate
-$\alpha_t \in (0,1)$ per head fixes that:
-
-$$
-S_t = \alpha_t S_{t-1} + v_t k_t^\top. \tag{3}
-$$
-
-Unrolling means substituting the recurrence into itself until only inputs
-remain. Start from $S_0 = 0$ and apply the rule three times:
-
-$$
-\begin{aligned}
-S_1 &= v_1 k_1^\top, \\
-S_2 &= \alpha_2 S_1 + v_2 k_2^\top
-     = \alpha_2\, v_1 k_1^\top + v_2 k_2^\top, \\
-S_3 &= \alpha_3 S_2 + v_3 k_3^\top
-     = \alpha_3 \alpha_2\, v_1 k_1^\top + \alpha_3\, v_2 k_2^\top + v_3 k_3^\top.
-\end{aligned}
-$$
-
-Each substitution multiplies everything already present by one more $\alpha$
-and adds one new undecayed term. After $t$ steps the term from token $i$ has
-been multiplied by $\alpha_{i+1}, \alpha_{i+2}, \dots, \alpha_t$, one factor
-for every token that arrived after it, and the newest term by nothing:
-
-$$
-S_t = \sum_{i=1}^{t} \Big( \prod_{j=i+1}^{t} \alpha_j \Big) v_i k_i^\top. \tag{4}
-$$
-
-The empty product for $i = t$ is 1. If every $\alpha$ equals a constant
-$\alpha$, the weight on token $i$ is $\alpha^{\,t-i}$, which is exponential
-forgetting with a horizon set by how close $\alpha$ is to 1.
-
-This is the Mamba2 and gated-linear-attention family.
-
-### The delta rule
-
-Treat $S$ as an associative memory that maps keys to
-values: reading key $k$ returns $S k$. After storing $v_1$ under $k_1$ we want
-$S k_1 \approx v_1$. Plain linear attention stores by adding an outer product,
-$S \leftarrow S + v k^\top$, so reading $k$ back returns $v\,(k^\top k)$ plus
-interference from every other stored key. If the same key is written twice,
-the two values add and a read returns their sum. This memory can append a fact
-but never update one.
-
-The delta rule fixes that by treating a write as an *error correction*. It is
-built in three steps.
-
-*Step 1: measure how wrong the memory currently is.* Read $k_t$ from the old
-state. $S_{t-1} k_t$ is what the memory would answer right now. Compare it to
-what we want it to answer:
-
-$$
-e_t = S_{t-1} k_t - v_t .
-$$
-
-This is a vector of length $V$. If the memory already held $v_t$ under $k_t$,
-the error is zero and there is nothing to do.
-
-*Step 2: turn the error into a matrix that lives only along $k_t$.* We want
-to change the memory's answer for $k_t$ without disturbing its answer for
-other keys. The outer product $e_t k_t^\top$ is a $V \times K$ matrix with
-exactly that property: multiplying it by $k_t$ gives $e_t\,(k_t^\top k_t) =
-e_t$ when $k_t$ has unit length, and multiplying it by any vector orthogonal
-to $k_t$ gives zero.
-
-*Step 3: subtract a fraction of it.* Subtracting all of $e_t k_t^\top$ would
-remove the whole error at once. A factor $\beta_t \in (0, 1)$ removes part of
-it:
-
-$$
-S_t = S_{t-1} - \beta_t (S_{t-1} k_t - v_t) k_t^\top
-    = S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top. \tag{5}
-$$
-
-The first form is Step 3 with $e_t$ written out. It is still a rank-one
-update, the same shape as plain linear attention, but the vector being written
-is the error rather than the raw value.
-
-*Check that it does what we wanted.* Read $k_t$ from the new state:
-
-$$
-S_t k_t = S_{t-1} k_t - \beta_t\, e_t\,(k_t^\top k_t)
-        = S_{t-1} k_t - \beta_t (S_{t-1} k_t - v_t)
-        \qquad\text{using } k_t^\top k_t = 1 .
-$$
-
-With $\beta_t = 1$ the right side is $S_{t-1} k_t - S_{t-1} k_t + v_t = v_t$.
-The read returns exactly the new value, whatever was stored before. With
-$\beta_t = 0.5$ it returns the midpoint of old and new.
-
-*Where "gradient step" comes in.* Steps 1 to 3 are one step of gradient
-descent on the loss $\tfrac{1}{2}\lVert S k_t - v_t \rVert^2$ with learning
-rate $\beta_t$. By the chain rule the derivative of $\tfrac{1}{2}\lVert r
-\rVert^2$ with respect to $r$ is $r$, and $r = S k_t - v_t$ depends on $S$
-through right-multiplication by $k_t$, which contributes $k_t^\top$. So the
-gradient is $(S k_t - v_t)\, k_t^\top$, the matrix from Step 2. The gradient
-view is not needed to understand the rule; it explains why this particular
-update is the natural one.
-
-*The second form is the first form rearranged.* Expand the bracket:
-$S_{t-1} - \beta_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top$. The first two
-terms both have $S_{t-1}$ on the left; factor it out to get
-$S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top$. This form says the
-same thing in two stages. First, multiply the old state by $(I - \beta_t k_t
-k_t^\top)$; with unit $k_t$ and $\beta_t = 1$ that matrix zeroes the $k_t$
-component of every row of $S$ and leaves the other components alone. Second,
-add $\beta_t v_t k_t^\top$, which writes the new value into the now-empty slot.
-Erase, then write.
-
-Plain linear attention would have *added* $v_t$ on top of
-whatever was already stored under $k_t$. That is the difference between an
-accumulator and an error-correcting memory, and it is why DeltaNet models
-handle repeated keys so much better than their predecessors.
-
-Where the two ingredients come from in Gated DeltaNet: the layer L2-normalizes
-$q$ and $k$ inside the kernel, which is what makes $k_t^\top k_t = 1$ and the
-overwrite exact; and $\beta_t = \sigma(x_t W_\beta)$ is one scalar per head in
-$(0, 1)$, computed from the current token. An optional flag doubles it to
-$(0, 2)$, so the eigenvalue $1 - \beta_t$ of the projection can go negative and
-the model can flip the sign of a stored association rather than only shrink it.
-
-What the rule buys is retrieval. In-context recall, copying, and key-value
-lookup all need a memory that can update a slot, and DeltaNet-family models
-beat gated linear attention on exactly those tasks. What it costs shows up
-later in this post: because the innovation depends on the current state through
-$S_{t-1} k_t$, the state must be *read* on every token even when it is not
-written, which is why ReplaySSM cannot use its cheapest output-only path for
-delta-rule models.
-
-Two things the rule glosses over. It is one gradient step, not a solve, so
-with $\beta_t < 1$ or a non-unit key the write is partial and the old value
-lingers. And each write only corrects the $k_t$ direction, so a key that is not
-exactly orthogonal to earlier keys still picks up interference from them; the
-state dimension and the number of stored facts both matter.
-
-### Both together: Gated DeltaNet
-
-Decay first, then the delta step on the
-decayed state:
-
-$$
-S_t = \alpha_t S_{t-1} + \beta_t\big(v_t - \alpha_t S_{t-1} k_t\big) k_t^\top. \tag{6}
-$$
-
-To see where this comes from, take the delta rule's second form and replace
-$S_{t-1}$ by the decayed state $\alpha_t S_{t-1}$ everywhere:
-
-$$
-S_t = \alpha_t S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top
-    = \alpha_t S_{t-1} - \beta_t \alpha_t S_{t-1} k_t k_t^\top + \beta_t v_t k_t^\top .
-$$
-
-The last two terms share the factor $\beta_t(\cdot) k_t^\top$; pulling it out
-gives $\beta_t (v_t - \alpha_t S_{t-1} k_t) k_t^\top$. The quantity in the
-bracket is the retrieval error measured against the *decayed* memory, which is
-the right thing to correct since the decayed memory is what the next reader
-will see.
-
-Name the rank-one innovation $u_t := \beta_t(v_t - \alpha_t S_{t-1} k_t)$.
-Then the update and readout are
-
-$$
-S_t = \alpha_t S_{t-1} + u_t k_t^\top, \qquad
-y_t = S_t q_t = \alpha_t S_{t-1} q_t + u_t\,(k_t^\top q_t). \tag{7}
-$$
-
-The readout on the right is the update rule multiplied through by $q_t$:
-$(\alpha_t S_{t-1} + u_t k_t^\top)\, q_t = \alpha_t S_{t-1} q_t + u_t k_t^\top q_t$,
-and $k_t^\top q_t$ is a scalar, so $u_t k_t^\top q_t = u_t\,(k_t^\top q_t)$ by
-the same outer-product rule used in the first section. That is the whole
-derivation, but it changes what a kernel has to do.
-
-The second form matters for what follows: the output needs two matrix-vector
-products against the *old* state, one with $k_t$ to form the innovation and one
-with $q_t$, and never needs $S_t$ to exist as a matrix.
-
-### Where the scalars come from
-
-In the FLA implementation: $q$, $k$, $v$ are
-projections followed by a width-4 depthwise causal convolution and SiLU; $q$
-and $k$ are L2-normalized; $\alpha_t = \exp(-\exp(A_{\log}) \cdot
-\mathrm{softplus}(x_t W_a + \mathrm{dt\_bias}))$ with learned per-head
-$A_{\log}$ and $\mathrm{dt\_bias}$, which is Mamba2's discretized decay
-reused verbatim; and $\beta_t = \sigma(x_t W_\beta)$. Kimi's KDA differs in
-one place: $\alpha_t$ is a vector over key channels instead of a scalar per
-head.
-
-## Prefill runs the same recurrence in chunks
-
-Everything above is written one token at a time. That is the right form for
-decode, where there is exactly one new token per step. During prefill, however,
-thousands of prompt tokens are available together. A token-by-token loop
-exposes a long chain of dependent matrix-vector products and rank-one updates.
-Chunking reorganizes the same recurrence into matrix multiplications.
-
-Cut the sequence into chunks of $C$ tokens, typically 64. A *boundary state*
-is the state entering one chunk: for tokens 65 to 128 it is the state after
-token 64. Carry that state from chunk to chunk, and compute the interactions
-inside each chunk with $C \times C$ matrices. The state dependency chain has
-$\lceil T/C\rceil$ steps instead of $T$, while the chunk-local preparation can
-run across all chunks in parallel.
-
-We keep the convention used throughout this post:
-$S \in \mathbb{R}^{V \times K}$, so reading a key means $S k$.
-For this section, call each innovation $r_i$; it is the vector named $u_i$
-in equation 7. This lets us reserve uppercase $U$ for the transformed values
-produced during chunk preparation, matching FLA's tensor named `u`.
-All positions below are local to one chunk, and the decay gates stay present
-throughout the derivation. Each move supplies the input to the next:
-first express the state through the boundary state and the unknown
-corrections; then use two tokens to derive the corrections as
-$R=U-WS_0^\top$; finally compute those same $U$ and $W$ for a whole chunk
-with triangular solves.
-
-### Move 1: express the state through the boundary state and corrections
-{: #move-1-the-state-inside-a-chunk-in-terms-of-the-boundary-state}
-
-Let $S_0$ be the incoming boundary state and
-$g_j = \alpha_1 \alpha_2 \cdots \alpha_j$, with $g_0 = 1$.
-Equation 7 becomes
-
-$$
-r_j = \beta_j(v_j - \alpha_j S_{j-1} k_j),
-\qquad
-S_j = \alpha_j S_{j-1} + r_j k_j^\top.
-$$
-
-Unrolling the state update from $S_0$ gives
-
-$$
-S_j = g_j S_0 + \sum_{m=1}^{j} \frac{g_j}{g_m}\,r_m k_m^\top. \tag{8}
-$$
-
-The first term is the incoming memory after $j$ decays. In the second term,
-$r_m$ was written at position $m$ and decayed by every token after it:
-$g_j/g_m = \alpha_{m+1}\cdots\alpha_j$. The newest write has weight 1.
-
-For plain gated linear attention the write is already known from the value.
-For the delta rule, $r_m$ depends on what the state predicts for $k_m$.
-The next move substitutes this state expansion into the correction rule and
-collects the coefficients of the boundary state.
-
-### Move 2: collect the boundary-state coefficients for two tokens
-{: #move-2-derive-the-corrections-for-two-tokens}
-
-For token 1, equation 8 gives $S_1=g_1S_0+r_1k_1^\top$, where
-$g_1=\alpha_1$. Its correction is
-
-$$
-r_1 = \beta_1v_1-\beta_1g_1S_0k_1
-    = \tilde u_1-S_0w_1,
-\qquad
-\tilde u_1:=\beta_1v_1,\quad w_1:=\beta_1g_1k_1.
-$$
-
-Here $\tilde u_1$ is the correction with zero incoming memory, and $w_1$
-is the key coefficient that tells us how incoming memory changes it.
-The decay $g_1$ is already part of that coefficient.
-
-Token 2 reads the decayed state $\alpha_2S_1$. Substitute the same state
-expansion, with $g_2=\alpha_2g_1$:
-
-$$
-\begin{aligned}
-r_2
-&=\beta_2(v_2-\alpha_2S_1k_2)\\
-&=\beta_2v_2-\beta_2g_2S_0k_2
-  -\beta_2\frac{g_2}{g_1}(k_1^\top k_2)r_1.
-\end{aligned}
-$$
-
-The last term subtracts what token 1's write contributes when token 2 reads
-$k_2$. Its coefficient combines the write strength $\beta_2$, the decay
-$g_2/g_1=\alpha_2$, and the key overlap. Name that scalar
-
-$$
-L_{21}:=\beta_2\frac{g_2}{g_1}(k_1^\top k_2).
-$$
-
-Now substitute $r_1=\tilde u_1-S_0w_1$ and collect everything that
-multiplies the original boundary state:
-
-$$
-\begin{aligned}
-r_2
-&=\beta_2v_2-\beta_2g_2S_0k_2-L_{21}(\tilde u_1-S_0w_1)\\
-&=\underbrace{(\beta_2v_2-L_{21}\tilde u_1)}_{\tilde u_2}
-  -S_0\underbrace{(\beta_2g_2k_2-L_{21}w_1)}_{w_2}.
-\end{aligned}
-$$
-
-So both tokens have the form $r_i=\tilde u_i-S_0w_i$, using the same decay
-convention as Move 1. The value coefficient $\tilde u_i$ and key coefficient
-$w_i$ depend only on inputs within the chunk. Repeating this substitution
-for later tokens gives one such pair per position.
-
-Stack the vectors as rows:
-$R_{i,:}=r_i^\top$, $U_{i,:}=\tilde u_i^\top$, and $W_{i,:}=w_i^\top$.
-Transposing each token equation gives
-
-$$
-\boxed{R = U - W S_0^\top}.
-$$
-
-That formula is the result of eliminating the intermediate states. $W$ is a
-computed activation derived from the keys and gates, not a learned weight
-matrix. $U$ contains transformed values, not the original values or the final
-corrections. Both can be prepared without knowing $S_0$.
-
-| quantity | shape for one chunk and head | meaning |
+| Job | Question | Method |
 |---|---|---|
-| $K$ | $C \times K$ | original keys, stacked as rows |
-| $V$ | $C \times V$ | original values, stacked as rows |
-| $W$ | $C \times K$ | coefficients of the incoming state |
-| $U$ | $C \times V$ | corrections with zero incoming state |
-| $R$ | $C \times V$ | actual corrections, given this chunk's $S_0$ |
-| $S_0$ | $V \times K$ | memory carried from previous chunks |
+| [Prefill](#prefill-runs-the-same-recurrence-in-chunks) | How can many token updates become matrix multiplications? | Chunked evaluation of the recurrence |
+| [Decode](#what-one-decode-token-actually-costs) | Can we defer writing the full state back to memory? | ReplaySSM |
+| [Prefix reuse](#dasc-do-not-store-what-the-model-has-already-forgotten) | Which parts of a saved state can we omit? | DASC |
 
-The symbols $K$ and $V$ denote either a dimension or its stacked matrix, as
-indicated by context. With the transposed state convention
-$H_0 := S_0^\top \in \mathbb{R}^{K \times V}$, the same formula is
-$R = U - W H_0$.
+The distinction matters. Chunked prefill and ReplaySSM reorganize the same
+computation in exact arithmetic. DASC deliberately approximates a saved state.
 
-### Move 3: compute the same coefficients for the whole chunk
-{: #move-3-compute-those-coefficients-with-a-triangular-solve}
+## Start with an associative memory
+{: #from-softmax-to-a-matrix }
 
-The two-token calculation is the first two rows of a general construction.
-For any position $m$, substitute the state expansion from Move 1 into the
-same correction rule, using $\alpha_m g_{m-1}=g_m$:
+For one attention head, use this notation throughout:
 
-$$
-r_m = \beta_m v_m - \beta_m g_m S_0 k_m
-      - \sum_{n=1}^{m-1}
-        \beta_m\frac{g_m}{g_n}(k_n^\top k_m)r_n.
-$$
+| Symbol | Shape | Meaning |
+|---|---|---|
+| $q_t, k_t$ | $d_k$ | Query and key, written as column vectors |
+| $v_t$ | $d_v$ | Value |
+| $S_t$ | $d_v \times d_k$ | State after processing token $t$ |
+| $r_t$ | $d_v$ | Correction written by token $t$ |
+| $\alpha_t$ | scalar | Decay of the previous state |
+| $\beta_t$ | scalar | Strength of the correction |
+| $y_t$ | $d_v$ | Output, $S_t q_t$ |
 
-These are the same three contributions as in the two-token example:
-the value we want to write, the prediction from the boundary state, and
-the prediction from earlier writes within the chunk. All coefficients are
-known from the chunk's inputs. Only earlier corrections appear on the
-right, so the system is triangular.
+Batch, layer, and head indices are omitted. Some kernels store the transpose
+of $S$; that changes the written matrix order, not the recurrence.
 
-Let $D_\beta=\operatorname{diag}(\beta)$,
-$D_g=\operatorname{diag}(g)$, and define
+Ordinary causal attention reads the entire key/value history:
 
 $$
-L_{mn} =
+y_t =
+\frac{\sum_{i=1}^{t} \exp(q_t^\top k_i)\,v_i}
+     {\sum_{i=1}^{t} \exp(q_t^\top k_i)}.
+$$
+
+To see how a recurrent state becomes possible, replace the exponential
+similarity by a feature inner product, $\phi(q)^\top\phi(k)$. This is a
+different attention rule unless the feature map exactly represents the
+original kernel. Its numerator and denominator can both be accumulated:
+
+$$
+S_t = \sum_{i=1}^{t} v_i\phi(k_i)^\top,
+\qquad
+z_t = \sum_{i=1}^{t}\phi(k_i),
+\qquad
+y_t = \frac{S_t\phi(q_t)}{z_t^\top\phi(q_t)}.
+$$
+
+The key identity is $(v k^\top)q = v(k^\top q)$: an outer product stores a
+value along a key direction, and a query reads it back according to its
+overlap with that key. This recurrent formulation is the starting point of
+[linear attention](https://arxiv.org/abs/2006.16236).
+
+For the rest of this post, we study an **unnormalized recurrent layer**.
+Here $q$ and $k$ denote the vectors actually passed to the recurrence, after
+any feature transformation or normalization. The simplest update is
+
+$$
+S_t = S_{t-1} + v_t k_t^\top,
+\qquad
+y_t = S_t q_t.
+$$
+
+This is an associative memory. It has a fixed $d_v \times d_k$ shape,
+regardless of sequence length. It is also imperfect: repeated writes can
+interfere, and old information never fades.
+
+## From additive writes to Gated DeltaNet
+{: #three-refinements-that-make-it-work }
+
+### Correct what the state already predicts
+
+Before storing $v_t$ at key $k_t$, read the current prediction $S_{t-1}k_t$.
+The delta rule writes the prediction error:
+
+$$
+r_t = \beta_t(v_t-S_{t-1}k_t),
+\qquad
+S_t = S_{t-1}+r_t k_t^\top.
+$$
+
+Why is this useful? If $\|k_t\|_2=1$, reading the same key after the update
+gives
+
+$$
+S_t k_t
+= (1-\beta_t)S_{t-1}k_t+\beta_t v_t.
+$$
+
+At $\beta_t=1$, the state now returns $v_t$ for that key. At smaller
+$\beta_t$, it moves partway toward the new value. Other key directions can
+still be affected when they overlap with $k_t$.
+
+### Decay first, then correct
+
+Gated DeltaNet also forgets some of the old state. The prediction must use
+that **decayed** state:
+
+$$
+\boxed{
+\begin{aligned}
+r_t &= \beta_t\bigl(v_t-\alpha_t S_{t-1}k_t\bigr),\\
+S_t &= \alpha_t S_{t-1}+r_t k_t^\top,\\
+y_t &= S_t q_t.
+\end{aligned}
+}
+\tag{1}
+$$
+
+Equation (1) is the recurrence used in every derivation below. In particular,
+the $\alpha_t$ inside the correction is essential. Predicting from
+$S_{t-1}$ instead would define a different update.
+
+Equivalently,
+
+$$
+S_t
+= \alpha_t S_{t-1}(I-\beta_t k_t k_t^\top)
+  + \beta_t v_t k_t^\top.
+\tag{2}
+$$
+
+Equation (1) exposes the rank-one write; equation (2) exposes how old state
+is transformed. We will need both views.
+
+This is the scalar-decay setting of
+[Gated Delta Networks](https://arxiv.org/abs/2412.06464).
+Kimi Delta Attention uses a decay vector over key channels: with our
+$d_v \times d_k$ convention, decay becomes right multiplication by a
+diagonal matrix. The scalar formulas below should not be reused unchanged
+for that case.
+
+## Prefill: solve the corrections, then carry the state
+{: #prefill-runs-the-same-recurrence-in-chunks }
+
+During decode, only one new token is available. During prefill, all the
+tokens in the prompt are available, so we would like to process many at once.
+
+The obstacle is in equation (1): $r_t$ depends on $S_{t-1}$, which depends
+on earlier corrections. Chunked prefill separates those dependencies into
+two parts:
+
+1. Interactions among tokens inside a chunk.
+2. Dependence on the state entering that chunk.
+
+Take a chunk of $C$ tokens. Reset its local token indices to $1,\ldots,C$,
+and call its incoming state $S_0$. Define cumulative decay
+
+$$
+g_0=1,
+\qquad
+g_i=\prod_{j=1}^{i}\alpha_j.
+$$
+
+Thus $g_i$ is how much of the incoming state remains at token $i$, while
+$g_i/g_j$ is the decay from just after token $j$ through token $i$.
+Assume $\alpha_j>0$ for this notation.
+
+### Step 1: expand two tokens to find the coefficients
+{: #move-1-the-state-inside-a-chunk-in-terms-of-the-boundary-state }
+
+The first correction is already an affine function of $S_0$:
+
+$$
+r_1
+= \beta_1 v_1-S_0(\beta_1 g_1 k_1)
+= \widetilde u_1-S_0 w_1,
+$$
+
+where
+
+$$
+\widetilde u_1=\beta_1 v_1,
+\qquad
+w_1=\beta_1 g_1 k_1.
+$$
+
+For token 2, substitute $S_1=\alpha_1S_0+r_1k_1^\top$ into equation (1):
+
+$$
+\begin{aligned}
+r_2
+&= \beta_2\bigl(v_2-\alpha_2 S_1 k_2\bigr)\\
+&= \beta_2 v_2-\beta_2 g_2 S_0 k_2
+   -\beta_2\alpha_2(k_1^\top k_2)r_1.
+\end{aligned}
+$$
+
+Name the coefficient of $r_1$:
+
+$$
+L_{21}
+= \beta_2\frac{g_2}{g_1}(k_1^\top k_2).
+$$
+
+Now substitute $r_1=\widetilde u_1-S_0w_1$ and collect terms:
+
+$$
+\begin{aligned}
+r_2
+&= \beta_2v_2-\beta_2g_2S_0k_2
+   -L_{21}(\widetilde u_1-S_0w_1)\\
+&= \underbrace{\bigl(\beta_2v_2-L_{21}\widetilde u_1\bigr)}
+      _{\widetilde u_2}
+   -S_0\underbrace{\bigl(\beta_2g_2k_2-L_{21}w_1\bigr)}
+      _{w_2}.
+\end{aligned}
+$$
+
+This is where $W$ comes from. Each $w_i$ collects the coefficients multiplying
+the incoming state, including the effects of earlier corrections.
+$\widetilde u_i$ collects everything independent of that state.
+
+Neither is a learned weight matrix. Both are computed from the current
+chunk's inputs.
+
+### Step 2: turn the substitution into a triangular solve
+{: #move-2-derive-the-corrections-for-two-tokens }
+
+Unrolling the state through token $i-1$ gives
+
+$$
+S_{i-1}
+= g_{i-1}S_0
+  +\sum_{j<i}\frac{g_{i-1}}{g_j}r_jk_j^\top.
+$$
+
+Substituting this into the correction equation yields
+
+$$
+r_i
+= \beta_i v_i-\beta_i g_i S_0k_i
+  -\sum_{j<i}
+    \beta_i\frac{g_i}{g_j}(k_j^\top k_i)r_j.
+\tag{3}
+$$
+
+Stack token vectors as rows:
+
+$$
+K\in\mathbb R^{C\times d_k},
+\qquad
+V,R\in\mathbb R^{C\times d_v}.
+$$
+
+Row $i$ of $R$ is $r_i^\top$. Define diagonal matrices
+$D_\beta=\operatorname{diag}(\beta_1,\ldots,\beta_C)$ and
+$D_g=\operatorname{diag}(g_1,\ldots,g_C)$, and a strictly lower-triangular
+matrix
+
+$$
+L_{ij}=
 \begin{cases}
-\beta_m \dfrac{g_m}{g_n}\,k_n^\top k_m, & n<m,\\
-0, & n\ge m.
+\beta_i(g_i/g_j)(k_i^\top k_j), & j<i,\\
+0, & j\ge i.
 \end{cases}
 $$
 
-The matrix entry $L_{21}$ is the scalar computed in Move 2. Each later
-row has one such coefficient for every earlier token. Stack the token
-equations as rows and move those earlier corrections to the left:
+Equation (3) is then
 
 $$
-(I+L)R = D_\beta V-D_\beta D_g K S_0^\top. \tag{9}
+(I+L)R=D_\beta V-D_\beta D_g K S_0^\top.
 $$
 
-Collecting boundary-state coefficients as in Move 2 gives the recurrences
+Solve the two state-independent systems
 
 $$
-\tilde u_m = \beta_m v_m-\sum_{n<m}L_{mn}\tilde u_n,
+\boxed{
+(I+L)U=D_\beta V,
 \qquad
-w_m = \beta_m g_m k_m-\sum_{n<m}L_{mn}w_n.
+(I+L)W=D_\beta D_g K.
+}
+\tag{4}
 $$
 
-For $m=1$ the sums are empty; for $m=2$ these are exactly the definitions
-of $\tilde u_2$ and $w_2$ above. Stack the coefficient vectors as rows.
-Since $I+L$ is lower triangular with ones on its diagonal, the two
-coefficient systems have unique solutions:
+The diagonal of $I+L$ is all ones, so these are triangular solves.
+$U$ has shape $C\times d_v$ and $W$ has shape $C\times d_k$.
+Their rows are exactly the $\widetilde u_i^\top$ and $w_i^\top$ from
+the two-token derivation.
+
+By linearity of the solve,
 
 $$
-\begin{aligned}
-(I+L)U &= D_\beta V,\\
-(I+L)W &= D_\beta D_g K,\\
-R &= U-W S_0^\top.
-\end{aligned} \tag{10}
+\boxed{R=U-WS_0^\top.}
+\tag{5}
 $$
 
-To check the last line, multiply it by $I+L$ and substitute the first two:
-$(I+L)(U-W S_0^\top)=D_\beta V-D_\beta D_g K S_0^\top$.
-That is exactly equation 9.
+That is the full derivation of the kernel expression `R = U - W @ S`.
+A kernel that stores the incoming state as $d_k\times d_v$ calls
+$S_0^\top$ its `S`, so the transpose disappears in code.
 
-**The decay belongs inside the right-hand side of the solve for $W$.**
-If $A=(I+L)^{-1}$, then $W=A D_\beta D_g K$.
-In general this is not $D_g A D_\beta K$: a diagonal decay matrix does not
-commute with the triangular transform. The two-token substitution explains
-why: token 2's coefficient mixes its own key with token 1's coefficient, and
-the decay must follow those dependencies.
+The placement of $D_g$ matters: it belongs **inside the right-hand side
+of the solve for $W$**. Scaling an ungated solution afterward is generally
+different because $D_g$ and the triangular solve do not commute.
 
-All inputs to these two solves are local to a chunk, so preparation can run
-for all chunks in parallel. Once a chunk's boundary state arrives, the
-corrections require one matrix product, $W S_0^\top$, and a subtraction.
-A triangular solve still has dependencies internally; chunking does not make
-those disappear. It makes the solves independent of the state chain.
+### Step 3: use the corrections for outputs and the next state
+{: #move-3-compute-those-coefficients-with-a-triangular-solve }
 
-### Putting it together: outputs and the next boundary state
-
-With $R$ known, apply equation 8 to each query. Let
-$Q\in\mathbb{R}^{C\times K}$ contain the queries as rows, and define the
-causal decay matrix $\Gamma_{jm}=g_j/g_m$ for $m\le j$, with zeros above
-the diagonal. The output rows are
+Once the actual corrections are known,
 
 $$
-O =
-\underbrace{D_g Q S_0^\top}_{\text{incoming memory}}
-+
-\underbrace{(\Gamma\odot QK^\top)R}_{\text{writes within this chunk}}.
+S_i=g_iS_0+\sum_{j\le i}\frac{g_i}{g_j}r_jk_j^\top.
+\tag{6}
+$$
+
+Apply this state to query $q_i$:
+
+$$
+y_i=g_iS_0q_i+
+    \sum_{j\le i}\frac{g_i}{g_j}r_j(k_j^\top q_i).
+$$
+
+Let $Q\in\mathbb R^{C\times d_k}$ and $O\in\mathbb R^{C\times d_v}$
+stack queries and outputs as rows. Define the causal decay matrix
+
+$$
+\Gamma_{ij}=
+\begin{cases}
+g_i/g_j, & j\le i,\\
+0, & j>i.
+\end{cases}
+$$
+
+Then the whole chunk's outputs are
+
+$$
+\boxed{
+O=D_g Q S_0^\top+
+  \bigl(\Gamma\odot QK^\top\bigr)R.
+}
+\tag{7}
+$$
+
+The state passed to the next chunk is
+
+$$
+\boxed{
+S_C=g_CS_0+
+R^\top\operatorname{diag}(g_C/g_1,\ldots,g_C/g_C)K.
+}
+\tag{8}
+$$
+
+These are matrix multiplications. The sequential dependency has been
+concentrated into the state passed between chunks; the local preparation
+and output work can run across chunks in parallel.
+
+### Where `fla_chunk_delta_h` fits
+
+In the FLA-style pipeline, the stages have different responsibilities:
+
+| Stage | Inputs it needs | What it computes |
+|---|---|---|
+| Prepare each chunk | Keys, values, gates, correction strengths | $U,W$ from equation (4) |
+| Carry state between chunks | $U,W$, keys, gates, incoming state | $R$ and $S_C$ from equations (5) and (8) |
+| Produce outputs | Queries, keys, gates, $R$, saved incoming states | $O$ from equation (7) |
+
+`fla_chunk_delta_h` is the middle stage. In the implementation discussed
+here, `h` saves the state **entering** each chunk, and `v_new` stores the
+corrected values $R$. The kernel also advances the carried state for the
+next chunk. The decay factors needed to reach the chunk boundary are
+applied during the state update; they are not already folded into `v_new`.
+
+This explains why the kernel can look simple once $U$ and $W$ exist:
+the triangular solve has already accounted for the interactions inside
+the chunk. What remains is to insert the actual incoming state.
+
+Implementations usually represent cumulative decay in log space rather
+than forming long products directly. A code path using `exp2` expresses
+those logs in base 2. Floating-point precision and tiling still affect
+numerical agreement; the identities above describe exact arithmetic.
+
+The chunkwise delta-rule construction is developed in
+[Parallelizing Linear Transformers with the Delta Rule over Sequence Length](https://arxiv.org/abs/2406.06484)
+and extended to gated updates in
+[Gated Delta Networks](https://arxiv.org/abs/2412.06464).
+The FLA [forward caller](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py),
+[state kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_delta_h.py),
+and [output kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_o.py)
+show the corresponding pipeline.
+
+## Decode: the cost of materializing state
+{: #what-one-decode-token-actually-costs }
+
+During ordinary decode, a fused recurrent kernel reads $S_{t-1}$, computes
+the correction and output, and writes $S_t$ back to memory.
+
+For batch size $B$, $N_h$ heads per layer, and $b$ bytes per state element,
+the dense state occupies
+
+$$
+M=B N_h d_v d_k b
+$$
+
+bytes per layer. Reading and writing it moves roughly $2M$ bytes per token,
+before counting projections, gates, convolution state, or other model work.
+
+For example, an FP32 state with $B=256$, $N_h=4$, and
+$d_k=d_v=256$ occupies 256 MiB per layer. A dense update moves about
+512 MiB per layer. Across 24 layers, that is 12 GiB of state traffic per
+decode step.
+
+This can make large-batch recurrent decoding bandwidth-bound. It is not a
+universal statement about the whole model: at smaller batches, launch
+overhead and other operations can dominate, and the importance of state
+traffic depends on the architecture and hardware.
+
+The state is needed to compute future predictions. But must its newest
+version be written to global memory after every token?
+
+## ReplaySSM: keep an anchor and recent corrections
+{: #replayssm-why-write-the-state-at-all }
+
+Equation (6) already provides another representation of the state.
+Take $S_0$ to be the last materialized checkpoint, or **anchor**.
+After $t$ additional tokens,
+
+$$
+S_t=g_tS_0+\sum_{i=1}^{t}\frac{g_t}{g_i}r_i k_i^\top.
+\tag{9}
+$$
+
+Instead of immediately writing the dense $S_t$, keep $S_0$ plus a short
+buffer of corrections, keys, and decay information. The logical state
+changes every token; its dense representation need not.
+
+For a scalar illustration, let $S_0=8$, every decay be $1/2$, and the
+successive additive writes $r_i k_i$ be $4,2,6$:
+
+| Token | Recurrent update | State |
+|---|---|---|
+| 1 | $\frac12\cdot8+4$ | $8$ |
+| 2 | $\frac12\cdot8+2$ | $6$ |
+| 3 | $\frac12\cdot6+6$ | $9$ |
+
+The anchor representation gives the same answer:
+
+$$
+S_3=
+\underbrace{\tfrac18\cdot8}_{\text{anchor}}
++\underbrace{\tfrac14\cdot4+\tfrac12\cdot2+6}_{\text{recent writes}}
+=9.
+$$
+
+No information was discarded. This equality does not require the anchor
+to have decayed to a small value.
+
+### What a GDN replay step has to compute
+
+There are two state reads in the mathematics of equation (1):
+
+$$
+p_t=\alpha_t S_{t-1}k_t,
+\qquad
+r_t=\beta_t(v_t-p_t),
+$$
+
+followed by
+
+$$
+y_t=\alpha_t S_{t-1}q_t+r_t(k_t^\top q_t).
+$$
+
+Both $S_{t-1}k_t$ and $S_{t-1}q_t$ can be obtained from the anchor plus
+buffer using equation (9). A fused kernel can load an anchor tile,
+reconstruct the required current-state tile, use it for these products,
+and avoid storing that reconstructed tile.
+
+For GDN, the [ReplaySSM construction](https://dao-lab.ai/blog/2026/replayssm/)
+caches **correction vectors** together with keys and log decays.
+In our notation, a record is $(r_i,k_i,\log\alpha_i)$; the source calls
+the correction $u_i$. These are not raw values $v_i$, because each
+correction has already incorporated the prediction from its preceding
+state.
+
+After a window of $P$ tokens, materialize equation (9) once, make it the
+new anchor, and clear the buffer. A window bounds both storage and replay
+work. Longer windows save writes but increase reconstruction cost.
+
+### What the traffic saving does and does not mean
+
+If the implementation reads one full anchor per token and fuses the flush
+write into the last step, a $P$-token window moves:
+
+- Dense recurrence: $2P$ full matrices.
+- Replay: $P+1$ full matrices, plus buffer traffic.
+
+The ratio for dense-state traffic alone is
+
+$$
+\frac{2P}{P+1}.
+$$
+
+At $P=8$, this is $16/9\approx1.78$. It approaches 2 as the window grows.
+It is not an end-to-end speedup prediction: buffer accesses, extra
+arithmetic, occupancy, and the rest of the model still matter.
+
+![Dense recurrence moves sixteen full state matrices over eight tokens; replay moves nine, plus vector traffic.](/assets/linear-attention/replayssm-write-traffic.svg)
+
+Replay is exact as an algebraic reorganization, subject to floating-point
+rounding and the chosen buffer precision. Omitting or quantizing the
+anchor would introduce an additional approximation.
+
+Speculative decoding adds another benefit: accepted history can be tracked
+through buffer records rather than a full matrix snapshot for every draft
+token. For GDN, computing the draft corrections still requires accounting
+for their causal interactions, using a triangular solve closely related
+to prefill. Rollback must also restore decay bookkeeping; simply truncating
+a buffer is insufficient if its older entries were rescaled in place.
+
+### Published results and a local prototype
+
+The [ReplaySSM report](https://dao-lab.ai/blog/2026/replayssm/) gives
+end-to-end standard-decode speedups up to $1.48\times$. Its speculative
+results reach $1.87$–$1.96\times$ relative to vLLM **standard** decoding.
+These are different comparisons. Its fixed-memory speculative tests also
+report roughly $3$–$3.3\times$ batch capacity.
+
+My early A6000 prototype used a 340M Gated DeltaNet with 24 layers,
+four heads per layer, and $d_k=d_v=256$. With an eight-token window:
+
+| Batch | Attention-kernel speedup | Full 24-layer decode speedup |
+|---|---:|---:|
+| 256 | $1.742\times$ | $1.126\times$ |
+| 512 | $1.746\times$ | $1.282\times$ |
+
+These are historical measurements from that prototype, not measurements
+of the published implementation or new results from this write-up.
+The gap between kernel and full-decode speedup is the practical reason
+to keep those measurements separate.
+
+## DASC: decide what a prefix checkpoint must retain
+{: #dasc-do-not-store-what-the-model-has-already-forgotten }
+
+ReplaySSM keeps enough information to reproduce the state. DASC asks a
+different question: for **prefix reuse**, can we save a smaller checkpoint
+and tolerate a small reconstruction error?
+
+A hybrid model may cache recurrent states at prefix boundaries alongside
+its full-attention KV cache and convolution states. With many cached
+prefixes, these recurrent checkpoints can consume substantial memory.
+DASC targets that persisted state.
+
+The intuition is that some parts of the state forget old history quickly.
+A recent suffix may therefore be enough to reconstruct them approximately,
+while slower-forgetting parts still need their saved checkpoint.
+
+### Why decay suggests a retention horizon
+
+Consider two copies of the same layer with different initial states, but
+the **same subsequent keys, values, and gates**. From equation (2), their
+state difference satisfies
+
+$$
+\Delta_t
+=\alpha_t\Delta_{t-1}(I-\beta_t k_tk_t^\top).
+\tag{10}
+$$
+
+If $\|k_t\|_2=1$ and $0\le\beta_t\le2$, the matrix
+$I-\beta_tk_tk_t^\top$ has spectral norm at most one. Therefore
+
+$$
+\|\Delta_t\|_F
+\le
+\left(\prod_{i=1}^{t}\alpha_i\right)\|\Delta_0\|_F.
 \tag{11}
 $$
 
-The first term reads the incoming memory at every query, with the appropriate
-decay. The second combines the chunk's corrections: entry $(j,m)$ supplies
-the key-query overlap and the decay from write $m$ to output $j$.
-As in equation 7, any query scale can be absorbed into $Q$.
-
-The state passed to the next chunk is equation 8 at $j=C$:
+This gives a precise, conditional version of “the layer forgets its
+starting state.” For a constant decay $\alpha$, the number of steps
+needed to attenuate that starting-state difference by a factor
+$\epsilon$ is
 
 $$
-S_C = g_C S_0
-    + R^\top\operatorname{diag}\!\left(\frac{g_C}{g_m}\right)K.
+H_{\mathrm{ret}}=\frac{\log\epsilon}{\log\alpha}.
 \tag{12}
 $$
 
-Each correction is weighted by how much it decays before the chunk ends.
-The incoming state is weighted by the decay across the entire chunk.
+For $\epsilon=10^{-3}$:
 
-For example, with $C=64$, key dimension 128, and value dimension 128,
-$W S_0^\top$ is a $[64,128]\times[128,128]$ product producing all 64
-correction rows. The state update multiplies a $[128,64]$ matrix of
-corrections by the $[64,128]$ keys. Those are matrix multiplications over a
-whole chunk, replacing the sequence of 64 state-dependent token updates.
-
-### Where this comes from, and where it lives in the code
-
-This is the chunkwise delta-rule construction developed in
-[Parallelizing Linear Transformers with the Delta Rule over Sequence Length](https://arxiv.org/abs/2406.06484)
-and extended with decay in
-[Gated Delta Networks](https://arxiv.org/abs/2412.06464).
-The transformed key and value tensors are commonly called a WY
-representation. The coefficient derivation above explains what those tensors
-mean before introducing that name.
-
-In FLA, the
-[forward caller](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/gated_delta_rule/chunk.py)
-arranges the work in three stages:
-
-1. **Prepare every chunk independently.** Compute cumulative decays and key
-   overlaps, perform the triangular-system preparation, and produce `w` and
-   `u`, corresponding to $W$ and $U$.
-2. **Carry the state across chunks.** The
-   [state kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_delta_h.py)
-   computes `v_new = u - w @ state`, using the $K\times V$ state convention,
-   and advances the state with equation 12. It saves each chunk's incoming
-   state for the next stage.
-3. **Compute outputs across chunks in parallel.** The
-   [output kernel](https://github.com/fla-org/flash-linear-attention/blob/main/fla/ops/common/chunk_o.py)
-   uses those saved states and `v_new` to evaluate equation 11.
-
-The state kernel's parameter named `v` receives the prepared `u` tensor.
-Its `v_new` is $R$. That naming distinction matters when reading the code:
-the subtraction operates on transformed values.
-
-In this post's $V\times K$ convention, the state sweep is:
-
-```python
-S = initial_state
-for chunk in chunks:
-    h[chunk] = S                       # save the state entering this chunk
-    R = U[chunk] - W[chunk] @ S.T
-    v_new[chunk] = R                   # save before end-of-chunk decay
-
-    weights = g[chunk][-1] / g[chunk]
-    S = g[chunk][-1] * S + R.T @ (weights[:, None] * K[chunk])
-final_state = S
-```
-
-This is algebraic pseudocode. FLA represents the cumulative decay in log
-space, using `exp2` of cumulative logs and their differences instead of
-dividing two potentially tiny products. Its kernel retains tiles of the
-carried state across loop iterations, parallelizing over sequences, heads,
-and value-dimension tiles. Chunks remain sequential within each program.
-
-Two ordering details connect the state sweep to the output kernel.
-`h[chunk]` stores the state **before** the chunk updates it.
-`v_new` stores the corrections **before** weighting them for the end of the
-chunk. The output kernel needs those corrections at every intermediate
-position, with each output's own decay weights.
-
-### What this buys and where it stops
-
-With fixed $C$, the main matrix-multiplication work is
-$O(TKV + TC(K+V))$: state reads and updates contribute the first term,
-and chunk-local key overlaps and readouts contribute the second.
-The triangular preparation adds work per chunk and can be a meaningful
-runtime cost. There is no full $T\times T$ attention matrix.
-
-Chunking therefore exposes matrix multiplication and shortens the state
-dependency chain. It does not guarantee that every prefill shape is
-compute-bound; head size, chunk size, batch size, the triangular solve,
-and intermediate-memory traffic all matter.
-
-The algebra also checks out at $C=1$: $L=0$,
-$U=\beta v^\top$, and $W=\beta\alpha k^\top$.
-Thus $R=\beta(v^\top-\alpha k^\top S_0^\top)$, which is exactly the
-single-token innovation in equation 7. With only one new token available,
-there is no chunk of prompt tokens to batch together. Decode returns to
-the state-traffic problem quantified next.
-
-A prefix checkpoint is the carried state $S_C$ at a boundary; this is what
-DASC compresses later in the post. ReplaySSM also uses a boundary state,
-but spans a window of decode tokens. Its flush can use the sum in equation
-12 with corrections already known, because each correction was computed
-when its token arrived. It needs no triangular solve at flush time.
-
-## What one decode token actually costs
-
-Take a small concrete model: 24 layers, 4 heads, $K = V = 256$, state in fp32.
-One head's state is $256 \times 256 \times 4 = 256$ KiB. One sequence carries
-1 MiB per layer and 24 MiB across the model.
-
-The dense kernel handles a batch of $B$ sequences in one launch. Per layer per
-token it must load every state, apply $\alpha_t S + u_t k_t^\top$, and store
-every state back. Every entry changes when $\alpha_t \ne 1$, so nothing can
-be skipped:
-
-$$
-\text{bytes} = \underbrace{2}_{\text{read+write}} \cdot
-\underbrace{4}_{\text{fp32}} \cdot B \cdot H \cdot V \cdot K . \tag{13}
-$$
-
-| batch | state moved per layer per token | 24 layers |
-|---:|---:|---:|
-| 64 | 134 MB | 3.2 GB |
-| 256 | 537 MB | 12.9 GB |
-| 512 | 1,074 MB | 25.8 GB |
-
-An RTX A6000 sustains about 768 GB/s. At batch 256 the floor is 0.70 ms per
-layer; the measured kernel takes 0.80 ms. The arithmetic is 65,536 multiply-adds
-per head and takes microseconds. Every tiling and warp-count sweep I ran
-landed within noise of the same number, because none of them changes the bytes.
-
-Two consequences. First, this is bandwidth-bound in the strictest sense, and
-the only lever is to move fewer bytes. Second, the cost is linear in batch while
-the weight traffic for the projections is not, so at small batch the state is a
-rounding error and at batch 256 and above it is most of the layer.
-
-## ReplaySSM: why write the state at all?
-
-The Dao Lab's
-[ReplaySSM](https://dao-lab.ai/blog/2026/replayssm/) starts from the
-observation that half of the traffic above is the write, and the write is not
-needed to produce the output. The output needs the *old* state. The new state
-is needed only so that the *next* token can read it. So instead of eagerly
-summarizing history into $S$ every step, cache the recent inputs and
-reconstruct $S$ only when the cache fills.
-
-![Dense decoding moves the state matrix twice per token; ReplaySSM reads it
-every token and writes it once per eight-token window](/assets/linear-attention/replayssm-write-traffic.svg)
-
-### The identity, with one number first
-
-Forget matrices and let the state be a single number updated by
-"decay, then add": $S_{\text{new}} = \alpha S_{\text{old}} + u$. Take
-$\alpha = 0.5$, start at $S = 8$, and feed in $u = 4, 2, 6$. The dense
-way rewrites $S$ each step: $8 \to 8 \to 6 \to 9$.
-
-Now keep the starting value $A = 8$ untouched, a scale $\gamma$ that starts at
-1, and a list $R$. On each token, multiply $\gamma$ by $\alpha$, multiply every
-entry already in $R$ by $\alpha$, and append the new input unchanged:
-
-| after | $\gamma$ | $A$ | $R$ | $\gamma A + \sum R$ |
-|---|---:|---:|---|---:|
-| start | 1 | 8 | [ ] | 8 |
-| token 1 | 0.5 | 8 | [4] | 8 |
-| token 2 | 0.25 | 8 | [2, 2] | 6 |
-| token 3 | 0.125 | 8 | [1, 1, 6] | 9 |
-
-Same answers, and the slot holding 8 was never written. The list holds each
-past input at its *current* decayed value.
-
-### The same thing with matrices
-
-Let $A$ be the state matrix stored at the start of a window, at step $s$, and
-never written during the window. Let $\gamma_t$ be the product of decays since
-then. Store each innovation as a pair $(R_i, K_i)$ with $K_i = k_i$ and $R_i$
-the value-side vector $u_i$ at its current decayed scale. Then for every $t$
-in the window, summing over the tokens $s+1, \dots, t$ seen since the anchor,
-
-$$
-S_t = \gamma_t A + \sum_{i=s+1}^{t} R_i^{(t)} K_i^\top,
-\qquad R_i^{(t)} = u_i \prod_{j=i+1}^{t} \alpha_j ,
-\qquad K_i = k_i . \tag{14}
-$$
-
-The proof is one substitution. Assume it holds at $t-1$, then
-
-$$
-\begin{aligned}
-S_t &= \alpha_t S_{t-1} + u_t k_t^\top \\
-    &= \alpha_t\Big(\gamma_{t-1} A + \sum_{i=s+1}^{t-1} R_i^{(t-1)} K_i^\top\Big) + u_t k_t^\top \\
-    &= (\alpha_t \gamma_{t-1})\, A + \sum_{i=s+1}^{t-1} \big(\alpha_t R_i^{(t-1)}\big) K_i^\top + u_t k_t^\top \\
-    &= \gamma_t A + \sum_{i=s+1}^{t-1} R_i^{(t)} K_i^\top + R_t^{(t)} K_t^\top
-        \qquad\text{with } R_t^{(t)} := u_t,\; K_t := k_t \\
-    &= \gamma_t A + \sum_{i=s+1}^{t} R_i^{(t)} K_i^\top .
-\end{aligned} \tag{15}
-$$
-
-The last line renames three things without changing any value: $\alpha_t\gamma_{t-1}$
-is $\gamma_t$ by the definition of $\gamma$ as a running product; each
-$\alpha_t R_i^{(t-1)}$ is $R_i^{(t)}$ by the definition of $R$ as the input
-times every decay since it arrived; and the fresh $u_t k_t^\top$ is the
-$i = t$ term with $R_t^{(t)} = u_t$, because the product of decays *after*
-token $t$ up to token $t$ is empty and equals 1. Since the form holds at the
-start of the window, where the list is empty and $\gamma = 1$, it holds at every
-token in the window. Nothing is approximated. It is the same matrix written a
-different way, exactly as the unrolled sum in the gating section was the same
-matrix as the recurrence.
-
-**A worked example.** Take $K = V = 2$, $\beta = 1$, and start a window with the
-anchor $A = I$ in memory, $\gamma = 1$, and an empty list. Run two tokens
-through both the dense rule and the factored rule.
-
-*Token 1:* $\alpha = 0.5$, $k = (1, 0)$, $q = (0, 1)$, $v = (2, 0)$.
-
-Dense: the decayed state is $0.5\,I$, its prediction for $k$ is
-$0.5\,I\,k = (0.5, 0)$, so $u_1 = v - (0.5, 0) = (1.5, 0)$ and
-
-$$
-S_1 = 0.5\,I + u_1 k^\top
-    = \begin{pmatrix} 2 & 0 \\ 0 & 0.5 \end{pmatrix},
-\qquad y_1 = S_1 q = (0, 0.5).
-$$
-
-Factored: $\gamma \leftarrow 0.5$. The list is empty, so the prediction is
-$\gamma A k = 0.5\,(1, 0) = (0.5, 0)$, the same $u_1 = (1.5, 0)$, and the
-output is $\gamma A q + u_1 (k^\top q) = (0, 0.5) + 0 = (0, 0.5)$. Append
-$R_1 = (1.5, 0)$, $K_1 = (1, 0)$. The memory holding $A$ still says $I$.
-Check the implied state:
-
-$$
-\gamma A + R_1 K_1^\top
-= \begin{pmatrix} 0.5 & 0 \\ 0 & 0.5 \end{pmatrix}
-+ \begin{pmatrix} 1.5 & 0 \\ 0 & 0 \end{pmatrix}
-= \begin{pmatrix} 2 & 0 \\ 0 & 0.5 \end{pmatrix} = S_1 .
-$$
-
-*Token 2:* $\alpha = 0.8$, $k = (0, 1)$, $q = (1, 1)$, $v = (0, 1)$.
-
-Dense: decayed state $0.8\,S_1$, prediction $0.8\,S_1 k = (0, 0.4)$,
-innovation $u_2 = (0, 0.6)$, and
-
-$$
-S_2 = 0.8\,S_1 + u_2 k^\top
-    = \begin{pmatrix} 1.6 & 0 \\ 0 & 0.4 \end{pmatrix}
-    + \begin{pmatrix} 0 & 0 \\ 0 & 0.6 \end{pmatrix}
-    = \begin{pmatrix} 1.6 & 0 \\ 0 & 1.0 \end{pmatrix},
-\qquad y_2 = S_2 q = (1.6, 1.0).
-$$
-
-Factored: $\gamma \leftarrow 0.5 \cdot 0.8 = 0.4$, and the existing residual is
-decayed in place, $R_1 \leftarrow 0.8\,(1.5, 0) = (1.2, 0)$. The prediction is
-
-$$
-\gamma A k + R_1 (K_1^\top k) = 0.4\,(0, 1) + (1.2, 0)\cdot 0 = (0, 0.4),
-$$
-
-so $u_2 = (0, 0.6)$ as before. The output is
-
-$$
-\gamma A q + R_1 (K_1^\top q) + u_2 (k^\top q)
-= 0.4\,(1, 1) + (1.2, 0)\cdot 1 + (0, 0.6)\cdot 1 = (1.6, 1.0).
-$$
-
-Append $R_2 = (0, 0.6)$, $K_2 = (0, 1)$. The memory holding $A$ still says
-$I$. Check the implied state:
-
-$$
-\gamma A + R_1 K_1^\top + R_2 K_2^\top
-= \begin{pmatrix} 0.4 & 0 \\ 0 & 0.4 \end{pmatrix}
-+ \begin{pmatrix} 1.2 & 0 \\ 0 & 0 \end{pmatrix}
-+ \begin{pmatrix} 0 & 0 \\ 0 & 0.6 \end{pmatrix}
-= \begin{pmatrix} 1.6 & 0 \\ 0 & 1.0 \end{pmatrix} = S_2 .
-$$
-
-Both outputs and both implied states match the dense computation exactly,
-while the dense path wrote the $2 \times 2$ matrix twice and the factored path
-wrote it zero times. At the flush the kernel would evaluate that last sum once
-and store $S_2$ into $A$'s memory, then reset $\gamma$ to 1 and empty the list.
-Notice also that $R_1$ changed from $(1.5, 0)$ to $(1.2, 0)$ between tokens:
-that is the superscript in $R_i^{(t)}$ made concrete.
-
-### Why the rewritten form is cheap
-
-Multiply the identity by a vector and every rank-one term collapses to a dot
-product:
-
-$$
-\alpha_t S_{t-1} k_t = \gamma_t A k_t + \sum_{i=s+1}^{t-1} R_i^{(t)}\,(K_i^\top k_t),
-\qquad
-\alpha_t S_{t-1} q_t = \gamma_t A q_t + \sum_{i=s+1}^{t-1} R_i^{(t)}\,(K_i^\top q_t). \tag{16}
-$$
-
-This is the identity with both sides multiplied by $k_t$ or $q_t$ on the
-right, then $(R_i K_i^\top)\, k_t = R_i\,(K_i^\top k_t)$ applied to each term
-of the sum, the third time the same outer-product rule has done the work. The
-upper limit is $t-1$ because $u_t$ has not been computed yet; it depends on
-the first of these two products.
-
-$A k_t$ is a matrix-vector product that *reads* $A$ and never writes it. Each
-$K_i^\top k_t$ is a single number, and $R_i$ times that number is a scaled
-256-vector. For a window of eight, the extra reads are a few thousand floats
-against 65,536 in $A$. From these two products the kernel forms
-$u_t = \beta_t(v_t - \alpha_t S_{t-1} k_t)$, emits
-$y_t = \alpha_t S_{t-1} q_t + u_t (k_t^\top q_t)$, and appends $(u_t, k_t)$
-to the list.
-
-Per token this writes one scalar, rescales a handful of short vectors, and
-appends two more. It never writes the $V \times K$ matrix. When the list
-reaches the window length, one flush computes $\gamma_t A + \sum R_i K_i^\top +
-u_t k_t^\top$ as a full matrix and stores it back into $A$'s memory. That is
-the one dense write per window.
-
-ReplaySSM's own framing is slightly different in what it caches: it keeps the
-raw $(v_i, k_i)$ inputs and the decay factors and replays the recurrence at
-flush time. For Mamba2, where the update does not depend on the state, that
-gives an "output-only" kernel with no reconstruction at all until the flush.
-For delta-rule models the innovation $u_t$ depends on what the state predicts
-for $k_t$, so the state must be read every token anyway. The blog calls this
-"state-and-output reconstruction". Storing the innovation rather than the raw
-input, as above, is a small variation that makes the flush a plain sum.
-
-### What it saves and what it costs
-
-Over an eight-token window the dense kernel moves 16 matrix-equivalents and
-the replay kernel about 9, so the kernel-level ceiling is roughly $1.78\times$.
-The price is a sidecar buffer of eight $(R, K)$ pairs per head, $8 \times 512$
-floats against the $65{,}536$ in the matrix, or 6.25% extra state, plus one
-scalar. Longer windows save a little more traffic and cost proportionally more
-sidecar; eight is where the curve flattens for this head size.
-
-ReplaySSM reports 1.43 to 1.48$\times$ end-to-end decode speedup on models from
-4B to 550B parameters. My own implementation of the same idea, inside FLA's
-Gated DeltaNet layer on a 340M model and a single A6000, lands at about
-$1.5\times$ at batch 256 and 512 under CUDA-graph replay. The agreement is not
-a coincidence. Both are bounded by the same ratio of matrix reads to matrix
-writes.
-
-### The second gift: rollback for free
-
-Speculative decoding drafts several tokens and verifies them in one pass. With
-a transformer that is natural: rejected drafts are dropped from the KV cache.
-With a recurrent state it is painful, because the state after draft $k$ has
-irreversibly summarized drafts $1$ through $k$, so an engine must snapshot the
-state per draft position and serially rebuild on rejection.
-
-In the replay representation, drafts are just list entries. Rejecting the last
-three drafts means deleting three pairs. Verifying $k$ drafts becomes one
-matrix multiply of the cached keys against the draft queries instead of $k$
-sequential state updates. ReplaySSM reports 1.87 to 1.96$\times$ throughput
-over its own standard decoding from this, and 3.0 to 3.3$\times$ more
-concurrent requests at a fixed memory budget once per-draft snapshots are gone.
-
-## Two lessons from building it independently
-
-I built this before connecting it to ReplaySSM, and two things went wrong in
-ways the equations above hide.
-
-**Do not divide by $\gamma$.** The obvious way to keep everything under one
-common scale is to store $U_i = u_i / \gamma_i$ so that a single $\gamma_t$
-multiplies the anchor and every pair together. It saves the per-token rescale
-of the list. It also divides by a product of up to eight decays, and for a
-strongly forgetting head that product reaches fp32 zero under ordinary gate
-values. The dense kernel is perfectly happy with $\alpha = 0$; the
-divide-by-$\gamma$ kernel produces `inf` then `NaN`. Decaying the stored
-residuals in place, as in the tables above, costs a few short-vector writes and
-is finite for every input, because each $R_i$ is only ever multiplied by
-numbers in $(0, 1)$.
-
-**Stagger the flush across layers.** If all 24 layers flush on the same token,
-that token carries 24 dense writes and every eighth step is a latency spike.
-Giving each layer a different-length first window spreads the flushes so about
-three layers flush on every token. Mean cost is identical. P99 latency at batch
-512 fell by about 23% in my runs. Nobody who only looks at mean throughput will
-see this problem, and nobody who runs a latency SLO can ignore it.
-
-## DASC: do not store what the model has already forgotten
-
-ReplaySSM applies "reconstruct instead of store" to the state *within* a decode
-window. DASC, from Yu et al., applies the same instinct to the state *across
-requests*, in the prefix cache.
-
-### The problem
-
-Many requests share a long identical beginning: a system prompt, tool
-definitions, a document. Servers compute that prefix once and save whatever
-the model needs to continue from it. For a transformer that is the KV cache of
-the prefix. For a linear-attention model it is the recurrent state after the
-prefix: the matrix $S$ for every head in every layer, plus the short
-convolution tails. It does not grow with prefix length, but it is not small.
-For the 340M GDN model above it is 24.5 MiB per prefix; for the 48B Kimi Linear
-model it is 40 MiB.
-
-A prefix cache lives in a pool of fixed size. At 24.5 MiB per entry a 2 GB pool
-holds about 80 prefixes, and every eviction costs a full recompute on the next
-hit. Whoever shrinks the entry holds more prefixes in the same pool.
-
-### The observation
-
-Go back to the unrolled gated recurrence (4), written for a $T$-token prefix:
-
-$$
-S_T = \sum_{i=1}^{T} \Big( \prod_{j=i+1}^{T} \alpha_j \Big) v_i k_i^\top . \tag{17}
-$$
-
-The weight on a token that arrived $n$ positions ago is roughly $\alpha^n$,
-and $\alpha$ is a learned property of the head. Define a head's *retention
-horizon* as the number of tokens after which that weight has fallen below
-$10^{-3}$:
-
-$$
-H = \frac{\log 10^{-3}}{\log \alpha} . \tag{18}
-$$
-
-Two heads on the same 8,000-token prefix:
-
-| $n$ tokens ago | weight, $\alpha = 0.95$ | weight, $\alpha = 0.9999$ |
-|---:|---:|---:|
-| 10 | 0.60 | 0.999 |
-| 135 | 0.001 | 0.987 |
-| 1,000 | $6 \times 10^{-23}$ | 0.905 |
-| 8,000 | $10^{-179}$ | 0.449 |
-
-The first head has $H \approx 135$. Every term older than 135 tokens weighs
-less than one part in a thousand, so to that tolerance its final state is a
-function of the last 135 tokens only. The second head has $H \approx 69{,}000$.
-A token from the start of the prefix still carries 45% of its weight, so every
-term matters.
-
-That asymmetry is the whole method. A short-horizon head's state can be
-*rebuilt* by feeding its last $H$ tokens through the model from a zero state,
-because the terms the zero start omits are the ones that had already decayed
-away. A long-horizon head's state cannot be rebuilt without re-running the whole
-prefix, which is the cost the cache exists to avoid.
-
-![Ninety-six heads sorted by retention horizon, with a cutoff at 256 tokens
-separating 56 heads that are rebuilt from 40 that are stored](/assets/linear-attention/dasc-horizon-split.svg)
-
-### The method
-
-1. **Score each head once.** In GDN, $\alpha = \exp(-\exp(A_{\log}) \cdot
-   \mathrm{softplus}(g + \mathrm{dt\_bias}))$. Evaluate it at a nominal gate
-   input, take the log, and compute $H$ per head. This depends on weights, not
-   on any prompt, so it is done offline.
-2. **Save only long-horizon heads.** Choose a cutoff $W_{\max}$. At checkpoint
-   time, write to storage only heads with $H > W_{\max}$.
-3. **Rebuild the rest on load.** Run the model over the last $W_{\max}$ tokens
-   of the prefix from a zero state. Every skipped head has $H < W_{\max}$, so
-   this replay reproduces its state to within $10^{-3}$.
-4. **Merge and continue.** Saved heads are exact, rebuilt heads are
-   approximate, and ordinary decode proceeds on the assembled state.
-
-The paper calls the variant with replay DASC-WR, for *with recovery*. Dropping
-short heads without any replay also exists and saves more, but at a quality
-cost that did not pass my gates.
-
-### What it gives
-
-The paper reports $2.63\times$ compression of KDA recurrent-state checkpoints
-on Kimi Linear with a 42.6% reduction in time to first token on prefix hits,
-and results on Qwen-family GDN models. On the 340M GDN checkpoint I have been
-using throughout, with $W_{\max} = 256$:
-
-| quantity | value |
+| Decay $\alpha$ | Approximate horizon |
 |---|---:|
-| heads with $H > 256$, stored | 40 of 96 |
-| heads rebuilt by replay | 56 of 96 |
-| checkpoint size | 24.56 → 10.56 MiB |
-| bytes saved | 57.0% |
-| prefixes per fixed budget | $2.33\times$ |
-| worst-slice perplexity retention after load | 99.81% |
-| worst-slice top-1 agreement | 98.8% |
+| $0.95$ | 135 tokens |
+| $0.99$ | 687 tokens |
+| $0.9999$ | 69,074 tokens |
 
-The control that matters: keep the *same* 40-of-96 budget but pick the 40 heads
-at random instead of by horizon. Five random draws average 96.7% perplexity
-retention and 92.5% top-1 agreement, a broken model. The saving comes from
-choosing the heads whose decay has already done the forgetting, not from
-dropping state in general.
+The horizons can differ by orders of magnitude. Treating every head as
+equally dependent on distant history wastes that distinction.
 
-### What it costs
+But equation (11) is not a full-model quality guarantee. Real gates are
+input-dependent, the initial error has its own magnitude, and errors in
+earlier layers can change later layers' inputs. Attenuating a state
+difference by $10^{-3}$ does not by itself bound output error by
+$10^{-3}$.
 
-Loading is no longer a memory copy. It is a forward pass over $W_{\max}$
-tokens, which on the A6000 took 60 to 65 ms for a batch of four at 256 tokens.
-Against recomputing an 8,000-token prefix that is nothing. Against a plain load
-of a full checkpoint it is added latency, and the right $W_{\max}$ depends on
-where the pool is actually bottlenecked: capacity or load time. The paper's
-42.6% TTFT win says the trade favors compression at their scale; I have not
-measured it end to end on mine.
+### Store the long-memory units; approximate the others
 
-Two things to be honest about. The horizon formula evaluates $\alpha$ at a
-nominal gate input, but in GDN the gate is data-dependent, so $H$ is a static
-estimate of a quantity that varies per token. The quality gates, not the
-formula, are what qualify a cutoff. And for KDA the decay is per key channel
-rather than per head, so the unit of selection becomes a (head, channel) row;
-the paper's $2.63\times$ is on those finer units.
+[DASC](https://arxiv.org/abs/2608.30386) estimates static horizons from
+learned decay parameters evaluated at a nominal gate input. For a chosen
+suffix budget $W_{\max}$, it retains units whose estimated horizons exceed
+that budget.
 
-### The two methods are one idea
+The unit is a whole head for scalar-decay GDN. For KDA, it is a key channel:
+a **column** of our $d_v\times d_k$ state, or a row in the transposed layout.
 
-ReplaySSM keeps a stale anchor plus a short list of recent inputs and rebuilds
-the state when it must. DASC keeps the heads that remember and rebuilds the
-heads that do not from the recent inputs. Both replace a stored matrix with
-"the recent past plus something cheap", and both work because the recurrence
-is a decayed sum in which recent terms dominate exactly when $\alpha$ is
-small.
+The paper describes two restoration modes:
 
-They also compose without effort. A restored DASC checkpoint is a dense state,
-which is a ReplaySSM anchor with an empty list. And the horizon idea points at
-a decode-time optimization ReplaySSM does not have: when a head's $\gamma_t$
-inside a window has fallen below $10^{-3}$, its anchor contributes nothing to
-the output, and the kernel can skip loading it.
+- **No recovery (NR):** restore retained units and fill omitted units with zeros.
+- **Window recovery (WR):** replay a bounded prefix suffix from zero in scratch
+  state, then use the reconstructed omitted units alongside the retained ones.
 
-## What ReplaySSM does not touch
+WR remains approximate: information from before the suffix is absent.
+Its corrections must be recomputed during replay; corrections from a
+different incoming state cannot simply be reused. The method preserves
+the other hybrid-model cache components, including convolution state.
 
-The write is gone. The read is still there, and it is now the entire cost of
-the kernel. That points at the next set of ideas.
+The [paper's serving experiments](https://arxiv.org/abs/2608.30386) report
+up to $2.63\times$ recurrent-checkpoint capacity, 42.6% lower time to first
+token, and 68.4% higher input throughput under matched memory budgets.
+The strongest reported speed point uses NR; those latency numbers should
+not be presented as a measurement of suffix replay.
 
-- **Quantize the anchor.** It is read every token and written once per
-  window, so an int8 anchor with fp32 residuals cuts the dominant remaining
-  term by 4$\times$ and injects quantization error once per flush rather than
-  per token.
-- **Skip the anchor when $\gamma$ is tiny.** For a fast-forgetting head the
-  anchor's contribution is numerically zero after a few tokens. The kernel
-  already knows $\gamma$; it can skip the load.
-- **Admission without a flush.** The list rank is shared across a batch. A
-  sequence joining at rank 0 can be padded with zero pairs, which is exact.
-  Without this, continuous batching forces a flush on every admission.
-- **Low batch.** None of this helps at batch 2, where the state is small and
-  launch overhead dominates. That is a different problem with a different fix.
+### What the local checkpoint experiment showed
 
-The DASC section above is the prefix-cache half of the same story, and its
-horizon test is the natural trigger for the anchor-skipping item in this list.
+A separate A6000 experiment used
+[`linear-moe-hub/Gated-Deltanet-340M`](https://huggingface.co/linear-moe-hub/Gated-Deltanet-340M),
+with 96 heads across 24 layers. An offline calibration selected a
+256-token recovery window.
+
+| Per-prefix checkpoint | Dense | Compressed |
+|---|---:|---:|
+| Persisted recurrent heads | 96 | 40 |
+| Heads reconstructed from the suffix | 0 | 56 |
+| Bytes including unchanged convolution state | 24.56 MiB | 10.56 MiB |
+
+That saved about 57% of checkpoint bytes, or allowed about
+$2.33\times$ as many such checkpoints in the same space. It is not a
+$2.33\times$ reduction in total serving memory.
+
+Across 4,096 evaluated continuation tokens from WikiText-2 and
+CNN/DailyMail, the worst-slice top-1 agreement with dense restoration was
+98.828%. This is encouraging evidence for the selected model and test
+slices, not general qualification for every prompt or model.
+
+Recovery added roughly 60–65 ms for a batch of four in the Python
+prototype. That was measured recovery work, not end-to-end time to first
+token. Whether it pays off depends on how much extra prefix-cache capacity
+improves reuse, and how often recovery is needed.
+
+## Three methods, three different decisions
+
+The same recurrence connects the whole story, but each method changes
+a different part of serving:
+
+| Method | What changes | What is preserved in exact arithmetic | Main tradeoff |
+|---|---|---|---|
+| Chunked prefill | Evaluation order | The recurrent outputs and final state | Local preparation and intermediate storage in exchange for matrix operations |
+| ReplaySSM | Frequency of dense-state writes | The state represented by the anchor and buffered corrections | Fewer writes in exchange for replay work and buffer storage |
+| DASC | Contents of persisted prefix checkpoints | Only the explicitly retained state units | More cache capacity in exchange for approximation and possibly recovery work |
+
+ReplaySSM does not rely on fast forgetting: equation (9) is exact even
+when every $\alpha_i=1$. DASC uses forgetting to justify dropping
+information, so its quality must be evaluated.
+
+They can be combined conceptually: a DASC-restored state can initialize
+a ReplaySSM anchor. That preserves the approximation already introduced
+by DASC; it does not remove it. A serving implementation must also handle
+sequence admission, checkpoint restore, buffer reset, and rollback
+consistently.
+
+Likewise, a small anchor coefficient is a reason to investigate skipping
+an anchor read, not proof that the read is unnecessary. Quantizing or
+omitting the anchor requires measuring the resulting recurrent error
+and model quality as well as speed.
+
+The useful question is always concrete: are we changing **when the same
+state is computed**, **when it is written**, or **which information is
+kept**? Keeping those decisions separate makes both the algebra and the
+performance claims easier to follow.
 
 ## References
 
-- Katharopoulos et al., *Transformers are RNNs: Fast Autoregressive
-  Transformers with Linear Attention*, 2020. The factorization in the first
-  section.
-- Yang et al., *Gated Linear Attention Transformers with Hardware-Efficient
-  Training*, ICML 2024, [arXiv:2312.06635](https://arxiv.org/abs/2312.06635).
-  The chunkwise form for gated linear attention.
-- Yang et al., *Parallelizing Linear Transformers with the Delta Rule over
-  Sequence Length*, NeurIPS 2024,
-  [arXiv:2406.06484](https://arxiv.org/abs/2406.06484). The WY-based chunkwise
-  algorithm for the delta rule.
-- Yang et al., *Gated Delta Networks: Improving Mamba2 with Delta Rule*,
-  ICLR 2025, [arXiv:2412.06464](https://arxiv.org/abs/2412.06464).
-- Dao et al., *Mamba2 / State Space Duality*, 2024. The decay
-  parameterization GDN reuses.
-- Kimi Team, *Kimi Linear*,
-  [arXiv:2510.26692](https://arxiv.org/abs/2510.26692). Channel-wise decay.
-- Dao Lab, *ReplaySSM*, 2026,
-  [dao-lab.ai/blog/2026/replayssm](https://dao-lab.ai/blog/2026/replayssm/).
-- Yu et al., *DASC: Decay-Aware State Compression for Hybrid Linear-Attention
-  Serving*, 2026, [arXiv:2608.30386](https://arxiv.org/abs/2608.30386).
-- [flash-linear-attention](https://github.com/fla-org/flash-linear-attention),
-  the kernels referred to throughout.
+- Katharopoulos et al., [*Transformers are RNNs: Fast Autoregressive
+  Transformers with Linear Attention*](https://arxiv.org/abs/2006.16236).
+- Yang et al., [*Parallelizing Linear Transformers with the Delta Rule over
+  Sequence Length*](https://arxiv.org/abs/2406.06484).
+- Yang et al., [*Gated Delta Networks: Improving Mamba2 with Delta Rule*](https://arxiv.org/abs/2412.06464).
+- Kimi Team, [*Kimi Linear*](https://arxiv.org/abs/2510.26692).
+- Dao Lab, [*ReplaySSM*](https://dao-lab.ai/blog/2026/replayssm/).
+- Yu et al., [*DASC: Decay-Aware State Compression for Hybrid
+  Linear-Attention Serving*](https://arxiv.org/abs/2608.30386).
+- [*Flash Linear Attention*](https://github.com/fla-org/flash-linear-attention).

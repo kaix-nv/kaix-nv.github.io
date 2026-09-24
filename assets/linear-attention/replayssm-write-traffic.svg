@@ -11,7 +11,7 @@
   </defs>
 
   <text x="20" y="26" class="lbl" font-size="15">Recurrent-state memory traffic per layer, eight decode tokens</text>
-  <text x="20" y="44" class="sub">Each block is one full V×K fp32 matrix moved. Small green marks are short vector reads/writes.</text>
+  <text x="20" y="44" class="sub">Each block is one full FP32 state matrix moved. Small green marks are short vector reads/writes.</text>
 
   <!-- legend -->
   <rect x="600" y="16" width="12" height="12" class="rd"/><text x="618" y="27" class="sub">read state</text>
@@ -34,7 +34,7 @@
   </g>
 
   <!-- Replay row -->
-  <text x="20" y="220" class="lbl">ReplaySSM, W8</text>
+  <text x="20" y="220" class="lbl">ReplaySSM, P=8</text>
   <text x="20" y="238" class="sub">9 matrix moves</text>
   <line x1="160" y1="250" x2="860" y2="250" class="axis"/>
   <g>
@@ -54,5 +54,5 @@
     <text x="181" y="300">t=1</text><text x="265" y="300">t=2</text><text x="349" y="300">t=3</text><text x="433" y="300">t=4</text>
     <text x="517" y="300">t=5</text><text x="601" y="300">t=6</text><text x="685" y="300">t=7</text><text x="769" y="300">t=8</text>
   </g>
-  <text x="20" y="318" class="sub">Reads are unavoidable: the output needs the state. Writes can be deferred to the end of the window.</text>
+  <text x="20" y="318" class="sub">Full-state traffic: one read per token, one fused write per window. Buffer traffic and compute are additional.</text>
 </svg>
