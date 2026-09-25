@@ -11,6 +11,15 @@ excerpt: "One prefill GPU and one decode GPU against two colocated servers, on t
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `tinyperf/disagg.py`, `simulate(host_sync_forward=...)` in `serving.py`, `tools/pd_proxy.py`, `tools/pd_timeline.py` · Data: `data/validation/comparison_qwen3_8b_rtx_a6000_pd.txt`, `pd_timeline_qwen3_8b_rtx_a6000.json`.*
 
+> **Erratum (milestone 70).** The 1P1D TTFT agreement at 4–8 req/s leaned
+> on the prefill server's steps being priced about 8% high: the old chunk
+> graph ran the LM head on every prompt token. Milestone 70 prices a step
+> of chunks alone as one forward, which the engine's clock confirms on a
+> single server. With that price, the model's prefill server queues too
+> little above 3 req/s (TTFT p50 0.58–0.87), because a KV producer's
+> steps carry connector work that is not priced. The colocated pair is
+> within 0.99–1.05 at every rate ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
+
 Milestone 37 priced disaggregated serving: a prefill pool computes
 prompts, ships each request's KV cache to a decode pool, and decode never
 sees a prompt. It was never measured, and it could not have been priced

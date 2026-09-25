@@ -11,6 +11,13 @@ excerpt: "A step that carries a prefill chunk, priced as one forward from kernel
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `mixed_step_us` and `mixed_reread_us` in `serving.py`, `dense_gemm_row_factor` in `methodology.py`, `tools/measure_mixed_attention.py`, `tools/measure_prefill_step.py` · Data: `data/validation/comparison_qwen3_8b_rtx_a6000_mixed_step_engine.txt`, `engine_steps_m69_qwen3_8b_rtx_a6000.json`.*
 
+> **Erratum (milestone 70).** The saturated rates' miss below was not the
+> queue. The predictions were a mean over eight Poisson traces, while
+> `vllm bench serve` sends one particular trace, rebuilt from its seed.
+> Priced on that trace, this milestone's model read TTFT p50 1.05–1.48
+> and TPOT 1.05–1.07 at 2–2.5 req/s; milestone 70's reads 1.03–1.05 and
+> 1.02 ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
+
 Milestone 68 ended on a diagnosis. A step that carries a prefill chunk
 beside decoding sequences was priced up to 40% low. The reason was on
 the kernel: FlashAttention-2 packs a KV head's query heads into rows only
