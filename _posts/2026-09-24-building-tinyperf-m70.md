@@ -11,6 +11,10 @@ excerpt: "Milestone 69 left the steps right and the queue at saturation wrong. R
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `bench_requests`, the step `trace` of `simulate` and `decode_us(..., real=)` in `serving.py`, `tools/bench_trace.py` · Data: `data/validation/comparison_qwen3_8b_rtx_a6000_scheduler_saturation.txt`, `engine_steps_m70_qwen3_8b_rtx_a6000.json`, `bench_traces_m70.json`.*
 
+> **Note (milestone 71).** The 1P1D residual below is the KV producer's
+> per-layer save, measured on the engine's clock and priced there; M66's
+> sweep reads TTFT 0.95–1.05 through 5 req/s ([milestone 71]({% post_url 2026-09-24-building-tinyperf-m71 %})).
+
 Milestone 69 ended with the steps right and the queue wrong. On a
 long-prompt sweep at 2–2.5 req/s, every step was priced within 1–2% at the
 composition the engine recorded. TPOT, however, read 0.62–1.00 of

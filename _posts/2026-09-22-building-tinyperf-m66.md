@@ -20,6 +20,11 @@ scratch](/series/tinyperf/). Code:
 > steps carry connector work that is not priced. The colocated pair is
 > within 0.99–1.05 at every rate ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
 
+> **Note (milestone 71).** That connector work is now priced: 269 µs per
+> layer for a step's first prompt and 94 µs for each further one, measured
+> on the engine's clock. 1P1D TTFT reads 0.95–1.05 here through 5 req/s
+> ([milestone 71]({% post_url 2026-09-24-building-tinyperf-m71 %})).
+
 Milestone 37 priced disaggregated serving: a prefill pool computes
 prompts, ships each request's KV cache to a decode pool, and decode never
 sees a prompt. It was never measured, and it could not have been priced
