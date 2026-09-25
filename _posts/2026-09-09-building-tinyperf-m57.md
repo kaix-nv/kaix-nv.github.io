@@ -35,6 +35,12 @@ scratch](/series/tinyperf/). Code:
 > arrivals is open; the run logged no engine clock or GPU telemetry
 > ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
 
+> **Note (milestone 72).** Re-run on the same trace with the engine's step
+> clock, the knee does not tip at 3.5 or 3.75 req/s: TTFT grows with the
+> rate and lands on the model. This run's steps there had been 30–67% slow
+> (TPOT 133 and 121 ms against 80 and 93), a slowed GPU rather than a
+> bistable scheduler ([milestone 72]({% post_url 2026-09-25-building-tinyperf-m72 %})).
+
 Three milestones of serving-dynamics work left one residual: the knee.
 Below it the engine was within a few percent, past it within ten, and at
 the transition the real server tipped over while the model did not. This

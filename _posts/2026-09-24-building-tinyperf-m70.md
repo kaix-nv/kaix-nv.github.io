@@ -15,6 +15,10 @@ scratch](/series/tinyperf/). Code:
 > per-layer save, measured on the engine's clock and priced there; M66's
 > sweep reads TTFT 0.95–1.05 through 5 req/s ([milestone 71]({% post_url 2026-09-24-building-tinyperf-m71 %})).
 
+> **Note (milestone 72).** The M57 knee cells left open below were re-run
+> with the step clock. They land on the model; the original run's steps at
+> 3.5–3.75 req/s had run 30–67% slow ([milestone 72]({% post_url 2026-09-25-building-tinyperf-m72 %})).
+
 Milestone 69 ended with the steps right and the queue wrong. On a
 long-prompt sweep at 2–2.5 req/s, every step was priced within 1–2% at the
 composition the engine recorded. TPOT, however, read 0.62–1.00 of
