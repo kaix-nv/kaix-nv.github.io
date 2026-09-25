@@ -16,6 +16,11 @@ scratch](/series/tinyperf/). Code:
 > The mixed step this post found is priced there
 > ([milestone 69]({% post_url 2026-09-24-building-tinyperf-m69 %})).
 
+> **Note (milestone 70).** A decode step whose batch falls between two
+> CUDA-graph sizes was priced with attention for the padded slots, which
+> hold no KV. The steady-batch cells below sat at graph sizes and are
+> unaffected ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
+
 Milestone 67 left the model with a known wrong term. `simulate` priced
 a decode step at the running batch's *maximum* context, rounded *up* to a
 multiple of 256 tokens. Attention reads each sequence's own cache, so the

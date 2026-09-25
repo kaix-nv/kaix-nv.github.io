@@ -26,6 +26,15 @@ scratch](/series/tinyperf/). Code:
 > are priced since milestone 69 and the constants are 0
 > ([milestone 69]({% post_url 2026-09-24-building-tinyperf-m69 %})).
 
+> **Erratum (milestone 70).** This sweep sent the same arrival draws at
+> every rate, rescaled: `vllm bench serve` normalizes one seeded draw to
+> the target rate. So the 3.5 and 3.75 req/s runs were not two draws from
+> a distribution. On the run's own trace the model stays on the quiet
+> branch there even with every step 6% slower, and tips at 4.0 as the run
+> did. Why the real server queued worse at a lower rate of the same
+> arrivals is open; the run logged no engine clock or GPU telemetry
+> ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
+
 Three milestones of serving-dynamics work left one residual: the knee.
 Below it the engine was within a few percent, past it within ten, and at
 the transition the real server tipped over while the model did not. This
