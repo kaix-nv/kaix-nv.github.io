@@ -41,6 +41,13 @@ A linear form in those three terms, fitted on the 32/8 grid, prices the
 mixed kernel within 11% per layer, against 52% with no term. Held out on
 64/8 heads it lands within 12% (68% before).
 
+> **Note (milestone 75).** The re-read is FlashAttention-2's, not the
+> engine's. vLLM's FLASHINFER backend runs a step's decodes through a
+> kernel that packs GQA beside a chunk too, and its mixed steps pay
+> nothing extra. On this milestone's engine grid they took 0.47–0.70 of
+> FA2's at 63 decodes and a 2048-token context (exercise 3,
+> [milestone 75]({% post_url 2026-09-26-building-tinyperf-m75 %})).
+
 ## The step as one forward
 
 M54 had priced a mixed step as decode plus chunk minus one weight pass.
