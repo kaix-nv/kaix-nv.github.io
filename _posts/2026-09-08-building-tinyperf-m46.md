@@ -72,6 +72,12 @@ the comm share falls from 18% to 12%. On an NVLink node the layout choice
 is worth less than the model's own ~10% error bar for decode — and quite
 a lot for TTFT.
 
+> **Erratum (milestone 74).** The embedding and LM head are
+> vocabulary-parallel within a tensor-parallel group (they had been counted
+> whole), so the memory column separates the layouts: 30 / 31 / 32 / 34 GB
+> per GPU, each attention replica holding its own copy (max b 6680 / 6724 /
+> 6704 / 6608) ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 ## Erratum for milestone 44
 
 The Kimi-K3 layout table in milestone 44 used the old accounting, and two

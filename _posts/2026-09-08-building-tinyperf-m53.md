@@ -48,6 +48,10 @@ the traffic, and the sweep pricer takes the same keys.
   prefix cached             31        198                 1197
 ```
 
+> **Erratum (milestone 74).** With the embedding and LM head
+> vocabulary-parallel (1/8 per GPU; they had been counted whole), the last
+> column is 323 and 1284, still four times ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 Under Poisson load, 80 requests, median and p95 TTFT:
 
 ```

@@ -67,6 +67,11 @@ of it would let twelve sequences fit instead of nine:
         0.75          37      503.3     503.3   link
 ```
 
+> **Erratum (milestone 74).** With the embedding and LM head
+> vocabulary-parallel (1/tp per rank; they had been counted whole), the
+> max batch column is 10 / 13 / 20 / 40: a quarter offloaded fits thirteen
+> sequences instead of ten ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 Offloading a quarter of the *active* cache multiplies the step by 5.7,
 because every step reads all of it back: 10.7 GB per rank, 168 ms on the
 link, against a 30 ms step. No fraction of an active cache is cheap on
