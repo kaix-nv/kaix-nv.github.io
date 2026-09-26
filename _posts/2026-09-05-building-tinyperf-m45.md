@@ -11,6 +11,12 @@ excerpt: "Frozen predictions meet a real two-GPU vLLM run: tp=2 prefill is slowe
 scratch](/series/tinyperf/). Code:
 [`tinyperf`](https://github.com/kaix-nv/tinyperf) — `tools/measure_vllm.py`, `tools/measure_nccl.py`, `tinyperf/serving.py` · Data: `data/validation/` · Tests: `test_tensor_parallel_silicon_envelope`, `test_pipeline_silicon_envelope`.*
 
+> **Note (milestone 73).** A 2-GPU collective is now priced from this pair's
+> measured NCCL curve, not the ring model. The tp=2 decode cells below read
+> 0.96–1.01 and the prefill cells 1.00–1.07, where they had read 0.97–1.05.
+> vLLM's custom all-reduce, disabled here, does not complete on this PCIe
+> host-bridge pair ([milestone 73]({% post_url 2026-09-25-building-tinyperf-m73 %})).
+
 Every multi-GPU number this series has produced so far — the TP cliff of
 milestone 34, the pipeline layouts of milestone 44 — rested on a comm
 model that had never met a real link. This milestone puts both schedules
