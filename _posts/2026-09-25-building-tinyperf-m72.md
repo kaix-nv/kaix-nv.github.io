@@ -55,6 +55,12 @@ utilization. tinyperf's capacity model says 181,878, for two reasons:
 So `kv_budget_tokens` takes the engine's figure. That figure is a property
 of the configuration, readable from a server start before any run.
 
+> **Note (milestone 74).** The pool is now derived. `simulate` prices it
+> as vLLM sizes it: 189,072 tokens here against the engine's 188,944, and
+> 51,008 against 50,896. These sweeps, re-priced on it, read TTFT p50
+> 0.97–1.01 and TPOT 0.99–1.02. Exercise 1 is milestone 74. CUDA reports
+> 47.40 GiB on this GPU, not 47.53 ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 ## In-sample: a small pool
 
 The first sweep shrinks the pool to 50,896 tokens (50% memory

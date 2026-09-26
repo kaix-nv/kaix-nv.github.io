@@ -65,6 +65,12 @@ And a fourth answer in the last two columns: 7.5 GB per GPU back, which
 is 15% more concurrent 8k sequences. For a memory-bound deployment that
 may be the number that pays.
 
+> **Erratum (milestone 74).** The embedding and LM head are
+> vocabulary-parallel, 1/8 per GPU here (they had been counted whole):
+> GB/GPU 17.6 / 11.5 / 10.2 and max b@8k 161 / 180 / 184. 2:4 on
+> everything gives back 7.4 GB per GPU and 14% more concurrent 8k
+> sequences ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 ## What is not modeled
 
 The accuracy cost of pruning — a checkpoint's problem, not the runtime's,

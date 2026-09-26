@@ -53,6 +53,15 @@ Cross-reference milestone 5's throughput curve (still rising at batch 128
 for 2k context, which capacity confirms is reachable) and you have the
 complete speed-vs-fit picture from two closed-form models.
 
+> **Erratum (milestone 74).** The embedding and LM head were counted whole
+> on every tensor-parallel rank. They are vocabulary-parallel, 1/tp per
+> rank, as vLLM shards them. LLaMA3-70B's weights are 70.6 / 35.3 / 17.6 GB
+> per GPU at tp=2/4/8 (the memory column: 92.0 / 46.0 / 23.0), so at tp=2
+> the weights alone sit 1.4 GB under the 72 GB budget and `max_batch`
+> returns 2 at 4k context, not 0. TP-4 is still the floor in practice. The
+> 70B columns of the second table become 218 / 54 / 13 (tp4) and
+> 645 / 161 / 40 (tp8) ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 ## In production-scale models
 
 Production allocators don't estimate — they *walk the graph* and simulate

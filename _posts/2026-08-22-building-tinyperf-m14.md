@@ -45,6 +45,12 @@ LLaMA3-70B decode on H100: 72 configs (tp x batch x context), 31 feasible
    8    256    23.11       1384        42.9   <- max efficiency, SLO permitting
 ```
 
+> **Erratum (milestone 74).** With the embedding and LM head
+> vocabulary-parallel (1/tp per rank; they had been counted whole), 35 of
+> the 72 configurations are feasible and 37 fail capacity, and the memory
+> column is about 3.7 GB lower (17.7 GB at batch 1, 39.2 at batch 256). The
+> frontier is still all tp=8 ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 Two readings, both the kind of thing you only see from a frontier:
 
 - **tp=8 dominates everywhere** — not just at the low-latency end. Every

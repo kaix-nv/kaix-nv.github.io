@@ -64,6 +64,10 @@ Decode step time relative to `tp8 pp1`, KV 4096:
 the micro-batch. And the weights column halves each row: a stage is first
 and foremost a memory lever.
 
+> **Erratum (milestone 74).** The embedding and LM head are
+> vocabulary-parallel, 1/tp per rank (they had been counted whole): the
+> GB/GPU column is 17.6 / 8.8 / 4.5 / 2.4. It still halves each row ([milestone 74]({% post_url 2026-09-25-building-tinyperf-m74 %})).
+
 ## Same 64 GPUs, three layouts — Kimi-K3 NVFP4, B200
 
 At a fixed budget the pipeline axis trades against expert-parallel width.
