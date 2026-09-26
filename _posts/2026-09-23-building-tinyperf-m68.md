@@ -21,6 +21,11 @@ scratch](/series/tinyperf/). Code:
 > hold no KV. The steady-batch cells below sat at graph sizes and are
 > unaffected ([milestone 70]({% post_url 2026-09-24-building-tinyperf-m70 %})).
 
+> **Note (milestone 73).** The tp=2 residual named below, NCCL's all-reduce
+> at 64–256 KB and the logits all-gather's rate, is now priced from the
+> pair's measured collective curve. The three frozen tp=2 cells read
+> 0.94–0.99 ([milestone 73]({% post_url 2026-09-25-building-tinyperf-m73 %})).
+
 Milestone 67 left the model with a known wrong term. `simulate` priced
 a decode step at the running batch's *maximum* context, rounded *up* to a
 multiple of 256 tokens. Attention reads each sequence's own cache, so the
