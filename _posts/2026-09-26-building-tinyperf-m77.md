@@ -102,6 +102,11 @@ gpt-oss-20b's 2880-wide experts, at 0.70 of the DRAM rate. It is too slow
 for this model's 768-wide ones, which is why TTFT reads a few percent
 high.
 
+> **Erratum (milestone 78).** The attribution is wrong. The fused-MoE
+> constant holds on the engine. The residual was routing: a step carrying
+> a prefill chunk touches about 100 of the 128 experts, where the model
+> streamed all of them ([milestone 78]({% post_url 2026-09-27-building-tinyperf-m78 %})).
+
 The GPU process log shows only the runs' own workers in every window.
 
 ## Exercises
