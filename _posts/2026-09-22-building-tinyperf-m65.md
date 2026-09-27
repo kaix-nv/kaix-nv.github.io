@@ -190,6 +190,12 @@ table averages 24 layers. A tuned fused-MoE config, which moves or
 removes the 64-row switch. And, still, gpt-oss-120B, datacenter GPUs,
 NVLink, and expert parallelism beyond two ranks.
 
+> **Note (milestone 76).** These tables were read off batches whose
+> sequences decode in step. In a serving engine they don't: sequences at
+> different points of their replies share fewer experts. On Qwen3-30B-A3B
+> that adds 2–5%. Its padded CUDA-graph rows also route stale tokens and
+> add experts of their own ([milestone 76]({% post_url 2026-09-26-building-tinyperf-m76 %})).
+
 ## Errata
 
 Milestone 64's conclusion is reversed, and its post now opens with the
