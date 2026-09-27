@@ -119,6 +119,12 @@ The stale rows are consecutive prompt tokens, correlated somewhere in
 between. Pricing them needs their routing measured, and they stay
 unpriced here.
 
+> **Note (milestone 77).** They are priced now. vLLM's routed-experts
+> capturer reads each step's routing inside the CUDA graph, padded rows
+> included. Built from that table, the model reads a new seed's padded
+> decode steps at 0.991 and all four online cells within the criteria
+> ([milestone 77]({% post_url 2026-09-26-building-tinyperf-m77 %})).
+
 ## Out of step
 
 A second, smaller effect. The routing tables were read off batches whose
