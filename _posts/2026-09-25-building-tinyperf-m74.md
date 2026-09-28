@@ -61,6 +61,12 @@ it. For Qwen3-8B at 0.9, 2,048 tokens and 256 sequences:
 - **Tied embeddings.** Qwen3-0.6B and 4B use one matrix as both
   embedding and head, and the model had counted it twice.
 
+> **Note (milestone 80).** One more was missed here. The weights were
+> counted at the model dtype even for experts shipped as MXFP4, so
+> gpt-oss-20b's pool came out nine times too small. The weight accounting
+> now takes the latency model's `weight_only` widths
+> ([milestone 80]({% post_url 2026-09-28-building-tinyperf-m80 %})).
+
 ## The profiling peak
 
 The peak is the larger of the two passes.
