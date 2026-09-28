@@ -196,6 +196,11 @@ NVLink, and expert parallelism beyond two ranks.
 > that adds 2–5%. Its padded CUDA-graph rows also route stale tokens and
 > add experts of their own ([milestone 76]({% post_url 2026-09-26-building-tinyperf-m76 %})).
 
+> **Note (milestone 80).** On gpt-oss-20b served online, the real rows
+> touch 11–19% more experts than these tables have (29 at 64 decodes, not
+> 24), and padded steps more again. `gpt_oss_20b("online")` carries the
+> engine's own counts ([milestone 80]({% post_url 2026-09-28-building-tinyperf-m80 %})).
+
 ## Errata
 
 Milestone 64's conclusion is reversed, and its post now opens with the
