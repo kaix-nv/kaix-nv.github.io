@@ -67,6 +67,12 @@ holds this rate by tokens per launch: 42 TFLOP/s at 128 tokens, rising to
 the top-k sum, which the model prices as separate operations, so the
 table is the kernel's time less those.
 
+> **Erratum (milestone 82).** Those were priced at the eager launch cost,
+> 25 µs each, where a served step pays the CUDA-graph cost of 3.5 µs. So
+> the table was 43 µs per layer too cheap. Re-derived, the lone-prompt
+> steps read 0.978–1.034, and the long-prompt sweep below lands 10 of 18:
+> its 17 had leaned on this error ([milestone 82]({% post_url 2026-09-28-building-tinyperf-m82 %})).
+
 ## The attention the constant hid
 
 With the kernel measured, milestone 60's own validation cells fell. Its
