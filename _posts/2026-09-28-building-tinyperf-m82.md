@@ -80,6 +80,11 @@ correction took the cancellation away. Across all five gpt-oss sweeps,
 sweeps gained and the long-prompt one lost. Both were measured, and the
 loss points at the next thing to measure.
 
+> **Note (milestone 83).** It was not the long contexts. On the online
+> table those decode steps barely move with context. The sweep's replies
+> were short, and a decode early in its reply touches fewer experts
+> ([milestone 83]({% post_url 2026-09-29-building-tinyperf-m83 %})).
+
 Everything ran on GPU 1. Only this milestone's own processes used it.
 
 ## Errata
