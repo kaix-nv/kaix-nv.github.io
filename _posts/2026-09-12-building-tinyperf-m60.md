@@ -91,6 +91,14 @@ batch-1 cell stays at 0.80, the same tiny-prefill engine cost milestone
 > mainloop. The constant stays, as a property of that kernel on this
 > stack; the model now carries a second one for the bf16 kernel.
 
+> **Erratum (milestone 81).** The constant was also standing in for two
+> more things. The engine's router sends ~95% of a prompt's tokens to one
+> expert, which slows Marlin. And the engine's Triton attention runs its
+> prefill at a third of the price the model charged. Both are measured
+> alone now, and the constant no longer applies to launches of 128 tokens
+> or more. These cells read 0.91–1.02, the 512-token batch-1 cell 0.91
+> ([milestone 81]({% post_url 2026-09-28-building-tinyperf-m81 %})).
+
 ## After
 
 ```

@@ -107,6 +107,11 @@ on prefills of thousands of tokens. A 600-token step gives each expert
 about 75 rows, and the kernel runs slower there. This was stated in the
 second frozen file, and not fixed.
 
+> **Note (milestone 81).** The constant was the problem, but not only
+> through Marlin. The model's tile steps, the router sending ~95% of a
+> prompt's tokens to one expert, and Triton's prefill attention at a
+> third of the price each carried part ([milestone 81]({% post_url 2026-09-28-building-tinyperf-m81 %})).
+
 ## Frozen again
 
 Two new sweeps ran on seeds 13 and 14. B1 had short prompts (256–768
