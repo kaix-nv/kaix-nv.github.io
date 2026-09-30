@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 610" role="img"
+     aria-labelledby="title description">
+  <title id="title">The validation loop</title>
+  <desc id="description">
+    Six boxes in a loop. One, predict: run the model on the planned grid and write
+    down its numbers, the pass and fail criteria, the residuals expected, and the
+    old model or an alternative beside them. Two, freeze: commit the file before
+    the run and never edit it; a revision is a new file that says what it has seen.
+    Three, measure: the way the engine runs, on its own clock, and log the machine's
+    clocks, power and processes, with a control. Four, compare: predicted over
+    measured against the criteria, after checking the instrument, the machine and
+    the control. If the cells pass, go to six. If they miss, five, diagnose: an
+    error that tracks one term's share points at a constant, fitted on some cells
+    and held out on the rest; an error that changes with the shape points at a
+    mechanism, measured on its own kernel. Six, pin: the grid becomes a test with
+    bounds, and it is now in-sample; the next claim needs new data, back to one.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #334155; }
+      .mono { font: 600 12px ui-monospace, monospace; fill: #0f172a; }
+      .edge { font: 600 13px system-ui, sans-serif; fill: #475569; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="610" rx="18" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">The validation loop</text>
+  <text x="40" y="70" class="subtitle">Every change to the model is an experiment: its prediction is on record before the data that will judge it exists.</text>
+
+  <!-- top row: 1 predict, 2 freeze, 3 measure -->
+  <rect x="40" y="98" width="310" height="150" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="56" y="124" class="label">1  Predict</text>
+  <text x="56" y="148" class="small">run the model on the planned grid; write</text>
+  <text x="56" y="167" class="small">down its numbers, the pass/fail criteria,</text>
+  <text x="56" y="186" class="small">the residuals you expect to see, and the</text>
+  <text x="56" y="205" class="small">old model or an alternative beside them</text>
+  <text x="56" y="232" class="mono">every number labeled</text>
+
+  <rect x="395" y="98" width="310" height="150" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="411" y="124" class="label">2  Freeze</text>
+  <text x="411" y="148" class="small">commit and push the file before the run,</text>
+  <text x="411" y="167" class="small">and never edit it; a revision is a new</text>
+  <text x="411" y="186" class="small">file that says which data it has seen</text>
+  <text x="411" y="220" class="mono">predictions_*_before_</text>
+  <text x="411" y="236" class="mono">measurement.txt</text>
+
+  <rect x="750" y="98" width="310" height="150" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="766" y="124" class="label">3  Measure</text>
+  <text x="766" y="148" class="small">the way the engine runs: its own clock,</text>
+  <text x="766" y="167" class="small">its CUDA graphs, its routing; log the</text>
+  <text x="766" y="186" class="small">machine (clocks, power, other processes);</text>
+  <text x="766" y="205" class="small">run a control: the same cells again, or</text>
+  <text x="766" y="224" class="small">the old model on the same trace</text>
+
+  <!-- bottom row: 6 pin, 5 diagnose, 4 compare -->
+  <rect x="750" y="318" width="310" height="150" rx="10" fill="#fdba74" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="766" y="344" class="label">4  Compare</text>
+  <text x="766" y="370" class="mono">predicted ÷ measured</text>
+  <text x="766" y="394" class="small">against the frozen criteria; before</text>
+  <text x="766" y="413" class="small">blaming the model, check the instrument,</text>
+  <text x="766" y="432" class="small">the machine and the control</text>
+
+  <rect x="395" y="318" width="310" height="150" rx="10" fill="#fdba74" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="411" y="344" class="label">5  Diagnose the residual</text>
+  <text x="411" y="370" class="small">tracks one term's share of the time:</text>
+  <text x="427" y="389" class="small">a constant; fit it on some cells,</text>
+  <text x="427" y="408" class="small">hold out the rest</text>
+  <text x="411" y="434" class="small">changes with the shape: a mechanism;</text>
+  <text x="427" y="453" class="small">measure it on its own kernel</text>
+
+  <rect x="40" y="318" width="310" height="150" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text x="56" y="344" class="label">6  Pin</text>
+  <text x="56" y="368" class="small">the grid becomes a test with bounds, so</text>
+  <text x="56" y="387" class="small">no later change can quietly break it;</text>
+  <text x="56" y="406" class="small">misses and controls are pinned too</text>
+  <text x="56" y="432" class="small">the grid is now in-sample: the next</text>
+  <text x="56" y="451" class="small">claim needs data nobody has looked at</text>
+
+  <!-- arrows -->
+  <line x1="350" y1="173" x2="391" y2="173" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="705" y1="173" x2="746" y2="173" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="905" y1="248" x2="905" y2="314" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="750" y1="393" x2="709" y2="393" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="729" y="384" class="edge" text-anchor="middle">miss</text>
+  <line x1="395" y1="393" x2="354" y2="393" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="374" y="384" class="edge" text-anchor="middle">fixed</text>
+  <path d="M 905 468 L 905 512 L 195 512 L 195 472" fill="none" stroke="#15803d" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="550" y="505" class="edge" text-anchor="middle">passes: pin it as it stands</text>
+  <path d="M 195 318 L 195 252" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="205" y="290" class="edge">next question, new data</text>
+
+  <!-- footer: the labels -->
+  <rect x="40" y="532" width="1020" height="56" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="56" y="556" class="small"><tspan font-weight="700">held out</tspan>: nothing in the model has seen it · <tspan font-weight="700">fitted</tspan>: a constant came from it · <tspan font-weight="700">in-sample</tspan>: a mechanism was built with it in view ·</text>
+  <text x="56" y="576" class="small"><tspan font-weight="700">recorded</tspan>: stored when measured, not recomputed, and combines with the others. A grid turns in-sample once the model changes with it in view.</text>
+</svg>

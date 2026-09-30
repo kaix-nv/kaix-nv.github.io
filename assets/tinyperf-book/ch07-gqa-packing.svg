@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 480" role="img"
+     aria-labelledby="title description">
+  <title id="title">GQA packing: one read of a KV head for its four query heads</title>
+  <desc id="description">
+    One decode row of Qwen3-8B and one of its KV heads, whose four query heads each have one query
+    token. Left, a pure decode step: FlashAttention-2 packs the four query heads as four rows of one
+    CTA, which reads the KV head's cache once. Right, the same row beside a prompt chunk in one
+    call: the kernel runs each query head on its own, so the cache is read four times. The L2
+    cache catches some of the repeats; the rest cross DRAM, up to three extra reads.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 16px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .row { font: 600 12px system-ui, sans-serif; fill: #0f172a; }
+      .kv { font: 600 13px system-ui, sans-serif; fill: #0f172a; }
+      .arrow { stroke: #475569; stroke-width: 1.8; fill: none; }
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="480" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">GQA packing: one read of a KV head for its four query heads</text>
+  <text x="40" y="72" class="subtitle">One decode row of Qwen3-8B, one KV head. FlashAttention-2 packs only if every sequence in the call has one query token.</text>
+
+  <!-- ===================== left: packed ===================== -->
+  <text x="60" y="116" class="label">A pure decode step: packed</text>
+  <rect x="60" y="136" width="440" height="40" rx="6" fill="#fdba74" stroke="#ea580c"/>
+  <g stroke="#ea580c" stroke-width="0.6">
+    <line x1="100" y1="136" x2="100" y2="176"/><line x1="140" y1="136" x2="140" y2="176"/><line x1="180" y1="136" x2="180" y2="176"/>
+    <line x1="220" y1="136" x2="220" y2="176"/><line x1="260" y1="136" x2="260" y2="176"/><line x1="300" y1="136" x2="300" y2="176"/>
+    <line x1="340" y1="136" x2="340" y2="176"/><line x1="380" y1="136" x2="380" y2="176"/><line x1="420" y1="136" x2="420" y2="176"/>
+    <line x1="460" y1="136" x2="460" y2="176"/>
+  </g>
+  <text x="70" y="161" class="kv">K and V of one KV head, this sequence: context →</text>
+
+  <line x1="280" y1="178" x2="280" y2="262" class="arrow" marker-end="url(#head)"/>
+  <text x="292" y="226" class="small">read once</text>
+
+  <rect x="165" y="266" width="230" height="118" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="180" y="284" class="note">one CTA: the group as 4 rows</text>
+  <g fill="#dbeafe" stroke="#2563eb">
+    <rect x="200" y="294" width="160" height="18" rx="3"/><rect x="200" y="316" width="160" height="18" rx="3"/>
+    <rect x="200" y="338" width="160" height="18" rx="3"/><rect x="200" y="360" width="160" height="18" rx="3"/>
+  </g>
+  <g class="row" text-anchor="middle">
+    <text x="280" y="307">query head 1</text><text x="280" y="329">query head 2</text>
+    <text x="280" y="351">query head 3</text><text x="280" y="373">query head 4</text>
+  </g>
+  <text x="60" y="424" class="small">Each byte of the cache crosses the bus once for the</text>
+  <text x="60" y="446" class="small">whole group: the price of chapter 6 and Table 7.4.</text>
+
+  <!-- ===================== right: unpacked ===================== -->
+  <text x="590" y="116" class="label">Beside a prompt chunk: unpacked</text>
+  <rect x="590" y="136" width="460" height="40" rx="6" fill="#fdba74" stroke="#ea580c"/>
+  <g stroke="#ea580c" stroke-width="0.6">
+    <line x1="630" y1="136" x2="630" y2="176"/><line x1="670" y1="136" x2="670" y2="176"/><line x1="710" y1="136" x2="710" y2="176"/>
+    <line x1="750" y1="136" x2="750" y2="176"/><line x1="790" y1="136" x2="790" y2="176"/><line x1="830" y1="136" x2="830" y2="176"/>
+    <line x1="870" y1="136" x2="870" y2="176"/><line x1="910" y1="136" x2="910" y2="176"/><line x1="950" y1="136" x2="950" y2="176"/>
+    <line x1="990" y1="136" x2="990" y2="176"/><line x1="1030" y1="136" x2="1030" y2="176"/>
+  </g>
+  <text x="600" y="161" class="kv">the same K and V</text>
+
+  <g class="arrow" marker-end="url(#head)">
+    <line x1="645" y1="178" x2="645" y2="290"/>
+    <line x1="765" y1="178" x2="765" y2="290"/>
+    <line x1="885" y1="178" x2="885" y2="290"/>
+    <line x1="1005" y1="178" x2="1005" y2="290"/>
+  </g>
+  <rect x="590" y="208" width="460" height="34" rx="6" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="820" y="230" class="note" text-anchor="middle">L2 cache: catches some repeats; the rest come from DRAM</text>
+
+  <g fill="#f8fafc" stroke="#94a3b8">
+    <rect x="595" y="294" width="100" height="62" rx="8"/><rect x="715" y="294" width="100" height="62" rx="8"/>
+    <rect x="835" y="294" width="100" height="62" rx="8"/><rect x="955" y="294" width="100" height="62" rx="8"/>
+  </g>
+  <g fill="#dbeafe" stroke="#2563eb">
+    <rect x="605" y="326" width="80" height="18" rx="3"/><rect x="725" y="326" width="80" height="18" rx="3"/>
+    <rect x="845" y="326" width="80" height="18" rx="3"/><rect x="965" y="326" width="80" height="18" rx="3"/>
+  </g>
+  <g class="note" text-anchor="middle">
+    <text x="645" y="315">its own CTA</text><text x="765" y="315">its own CTA</text>
+    <text x="885" y="315">its own CTA</text><text x="1005" y="315">its own CTA</text>
+  </g>
+  <g class="row" text-anchor="middle">
+    <text x="645" y="339">head 1</text><text x="765" y="339">head 2</text>
+    <text x="885" y="339">head 3</text><text x="1005" y="339">head 4</text>
+  </g>
+  <text x="590" y="384" class="small">read 4 times</text>
+  <text x="590" y="424" class="small">Up to 3 extra reads of every decode row's cache (Table 7.5).</text>
+  <text x="590" y="446" class="small">FlashInfer and vLLM's Triton kernel still pack here.</text>
+</svg>

@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" role="img" aria-labelledby="title desc">
+<title id="title">Six ways to keep the past: what one attention layer stores for one sequence</title>
+<desc id="desc">Six rows, context running left to right with the newest token on the right. Full attention stores a key and value for every past token and reads them all. A sliding window stores and reads only the last W tokens. Linear attention stores no tokens: each one is folded into a fixed-size state. A latent cache stores every token, as one thin vector instead of per-head keys and values. Sparse attention stores every token plus a small index key; an indexer scores them all and attention reads only the top k. Compressed attention pools every r tokens into one entry and keeps the last few raw in a window.</desc>
+<defs><style>
+  .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+  .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+  .label { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+  .small { font: 500 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .rule { font: 600 14px system-ui, sans-serif; fill: #0f172a; }
+  .mono { font: 500 13px ui-monospace, monospace; fill: #334155; }
+</style></defs>
+<rect width="1100" height="700" rx="18" fill="#f8fafc"/>
+<text x="40" y="46" class="title">Six ways to keep the past</text>
+<text x="40" y="72" class="subtitle">What one layer stores for one sequence. Context runs left to right, newest token on the right.</text>
+<text x="290" y="104" class="note">oldest token</text>
+<text x="839" y="104" class="note" text-anchor="end">newest</text>
+<text x="875" y="104" class="note">what it stores</text>
+<text x="40" y="132" class="label">Full attention</text>
+<text x="40" y="152" class="small">K and V for every past token,</text>
+<text x="40" y="170" class="small">per KV head</text>
+<rect x="290" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="313" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="336" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="359" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="382" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="405" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="428" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="451" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="474" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="497" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="520" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="543" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="566" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="589" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="612" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="635" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="658" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="681" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="704" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="727" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="750" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="773" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="796" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="819" y="120" width="20" height="30" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<path d="M290 154 v6 H839 v-6" fill="none" stroke="#2563eb" stroke-width="1.6"/>
+<text x="564" y="174" class="note" text-anchor="middle">the query reads every token</text>
+<text x="875" y="132" class="rule">grows with context</text>
+<text x="875" y="152" class="small">2 x KV heads x head dim</text>
+<text x="40" y="228" class="label">Sliding window</text>
+<text x="40" y="248" class="small">only the last W tokens</text>
+<text x="40" y="266" class="small">(gpt-oss: W = 128)</text>
+<rect x="290" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="313" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="336" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="359" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="382" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="405" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="428" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="451" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="474" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="497" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="520" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="543" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="566" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="589" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="612" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="635" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="658" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="681" y="216" width="20" height="30" rx="3" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+<rect x="704" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="727" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="750" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="773" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="796" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="819" y="216" width="20" height="30" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<path d="M704 250 v6 H839 v-6" fill="none" stroke="#ea580c" stroke-width="1.6"/>
+<text x="772" y="270" class="note" text-anchor="middle">reads the window</text>
+<text x="290" y="264" class="note">older tokens dropped</text>
+<text x="875" y="228" class="rule">at most W tokens</text>
+<text x="875" y="248" class="small">flat beyond W</text>
+<text x="40" y="324" class="label">Linear attention</text>
+<text x="40" y="344" class="small">no per-token cache: each token</text>
+<text x="40" y="362" class="small">is folded into a fixed state</text>
+<rect x="290" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="313" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="336" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="359" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="382" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="405" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="428" y="312" width="20" height="30" rx="3" fill="none" stroke="#e2e8f0" stroke-dasharray="3 3"/>
+<rect x="451" y="308" width="388" height="38" rx="6" fill="#dcfce7" stroke="#15803d"/>
+<text x="645" y="324" class="small" text-anchor="middle">state: k dim x v dim per head, updated by each token</text>
+<text x="645" y="339" class="note" text-anchor="middle">a decode step reads and writes all of it</text>
+<text x="875" y="324" class="rule">fixed size</text>
+<text x="875" y="344" class="small">whatever the context</text>
+<text x="40" y="420" class="label">Latent cache (MLA)</text>
+<text x="40" y="440" class="small">one compressed vector per token,</text>
+<text x="40" y="458" class="small">shared by every head</text>
+<rect x="290" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="313" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="336" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="359" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="382" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="405" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="428" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="451" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="474" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="497" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="520" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="543" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="566" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="589" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="612" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="635" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="658" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="681" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="704" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="727" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="750" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="773" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="796" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="819" y="414" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<path d="M290 434 v6 H839 v-6" fill="none" stroke="#2563eb" stroke-width="1.6"/>
+<text x="564" y="454" class="note" text-anchor="middle">reads every token's latent; heads expand it</text>
+<text x="875" y="420" class="rule">grows with context</text>
+<text x="875" y="440" class="small">one latent, not per head</text>
+<text x="40" y="516" class="label">Sparse attention (DSA)</text>
+<text x="40" y="536" class="small">latents plus a small index key;</text>
+<text x="40" y="554" class="small">an indexer picks the top k</text>
+<rect x="290" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="313" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="359" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="382" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="405" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="428" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="474" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="497" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="520" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="566" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="589" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="612" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="658" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="681" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="704" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="727" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="773" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="796" y="504" width="20" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="336" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="451" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="543" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="635" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="750" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="819" y="504" width="20" height="12" rx="3" fill="#2563eb" stroke="#0f172a"/>
+<rect x="290" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="313" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="336" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="359" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="382" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="405" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="428" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="451" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="474" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="497" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="520" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="543" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="566" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="589" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="612" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="635" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="658" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="681" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="704" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="727" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="750" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="773" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="796" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<rect x="819" y="519" width="20" height="6" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<path d="M290 530 v6 H839 v-6" fill="none" stroke="#ea580c" stroke-width="1.6"/>
+<text x="564" y="550" class="note" text-anchor="middle">the indexer scores every index key; attention reads the k dark ones</text>
+<text x="875" y="516" class="rule">grows with context</text>
+<text x="875" y="536" class="small">attention reads only k</text>
+<text x="40" y="612" class="label">Compressed (CSA, HCA)</text>
+<text x="40" y="632" class="small">every r tokens pooled into one</text>
+<text x="40" y="650" class="small">entry, plus a raw window</text>
+<rect x="290" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="382" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="474" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="566" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="658" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="750" y="600" width="89" height="12" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<rect x="750" y="616" width="20" height="12" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="773" y="616" width="20" height="12" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="796" y="616" width="20" height="12" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<rect x="819" y="616" width="20" height="12" rx="3" fill="#fdba74" stroke="#ea580c"/>
+<path d="M290 632 v6 H839 v-6" fill="none" stroke="#2563eb" stroke-width="1.6"/>
+<text x="564" y="652" class="note" text-anchor="middle">reads the pooled entries (top k of them for CSA) and the window</text>
+<text x="875" y="612" class="rule">grows as context / r</text>
+<text x="875" y="632" class="small">r = 4 (CSA), 128 (HCA)</text>
+</svg>

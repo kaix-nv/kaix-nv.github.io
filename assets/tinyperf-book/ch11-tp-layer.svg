@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 670" role="img"
+     aria-labelledby="title description">
+  <title id="title">One decoder layer split over two GPUs by tensor parallelism</title>
+  <desc id="description">
+    A Qwen3-8B decoder layer at tp=2, drawn as two lanes, one per GPU. In the attention block each
+    GPU normalizes the whole hidden state, runs its half of the QKV projection (4096 to 3072
+    columns), attention for its 16 query heads and 4 KV heads, and its half of the output
+    projection (2048 rows to 4096 columns), which gives a partial sum of the whole output. An
+    all-reduce adds the two partial sums, and both GPUs add the residual. The feed-forward block
+    has the same shape: the whole norm, half the gate-up projection (4096 to 2 x 6144), SwiGLU on
+    6144 columns, half the down projection (6144 to 4096), and a second all-reduce. Once per step
+    the LM head runs on each GPU for half the vocabulary, 75,968 rows, and an all-gather gives
+    every GPU all 151,936 logits of each row.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .section { font: 700 16px system-ui, sans-serif; fill: #334155; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .white { font: 600 15px system-ui, sans-serif; fill: #ffffff; }
+      .whitesmall { font: 500 13px ui-monospace, monospace; fill: #dbeafe; }
+      .mono { font: 500 13px ui-monospace, monospace; fill: #334155; }
+      .greenlabel { font: 700 15px system-ui, sans-serif; fill: #15803d; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .flow { stroke: #64748b; stroke-width: 1.8; fill: none; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#15803d"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="670" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">One layer split over two GPUs</text>
+  <text x="40" y="72" class="subtitle">Qwen3-8B at tp=2. Each GPU holds half of every weight matrix; two all-reduces per layer add the halves.</text>
+
+  <!-- ===================== attention block ===================== -->
+  <text x="40" y="110" class="section">attention block</text>
+  <text x="40" y="154" class="label">GPU 0</text>
+  <text x="40" y="222" class="label">GPU 1</text>
+  <g>
+    <!-- lane GPU 0 -->
+    <rect x="100" y="124" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="152" y="146" class="label" text-anchor="middle">RMSNorm</text>
+    <text x="152" y="165" class="mono" text-anchor="middle">T×4096</text>
+    <rect x="222" y="124" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="305" y="146" class="white" text-anchor="middle">QKV projection</text>
+    <text x="305" y="165" class="whitesmall" text-anchor="middle">4096 → 3072</text>
+    <rect x="405" y="124" width="140" height="52" rx="8" fill="#ea580c"/>
+    <text x="475" y="146" class="white" text-anchor="middle">attention</text>
+    <text x="475" y="165" class="whitesmall" text-anchor="middle" fill="#ffedd5">16 q, 4 KV heads</text>
+    <rect x="562" y="124" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="645" y="146" class="white" text-anchor="middle">output projection</text>
+    <text x="645" y="165" class="whitesmall" text-anchor="middle">2048 → 4096</text>
+    <!-- lane GPU 1 -->
+    <rect x="100" y="192" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="152" y="214" class="label" text-anchor="middle">RMSNorm</text>
+    <text x="152" y="233" class="mono" text-anchor="middle">T×4096</text>
+    <rect x="222" y="192" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="305" y="214" class="white" text-anchor="middle">QKV projection</text>
+    <text x="305" y="233" class="whitesmall" text-anchor="middle">4096 → 3072</text>
+    <rect x="405" y="192" width="140" height="52" rx="8" fill="#ea580c"/>
+    <text x="475" y="214" class="white" text-anchor="middle">attention</text>
+    <text x="475" y="233" class="whitesmall" text-anchor="middle" fill="#ffedd5">16 q, 4 KV heads</text>
+    <rect x="562" y="192" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="645" y="214" class="white" text-anchor="middle">output projection</text>
+    <text x="645" y="233" class="whitesmall" text-anchor="middle">2048 → 4096</text>
+  </g>
+  <g class="flow">
+    <line x1="205" y1="150" x2="220" y2="150" marker-end="url(#arrow)"/>
+    <line x1="388" y1="150" x2="403" y2="150" marker-end="url(#arrow)"/>
+    <line x1="545" y1="150" x2="560" y2="150" marker-end="url(#arrow)"/>
+    <line x1="205" y1="218" x2="220" y2="218" marker-end="url(#arrow)"/>
+    <line x1="388" y1="218" x2="403" y2="218" marker-end="url(#arrow)"/>
+    <line x1="545" y1="218" x2="560" y2="218" marker-end="url(#arrow)"/>
+    <line x1="728" y1="150" x2="788" y2="150" marker-end="url(#arrow)"/>
+    <line x1="728" y1="218" x2="788" y2="218" marker-end="url(#arrow)"/>
+  </g>
+  <text x="758" y="142" class="note" text-anchor="middle">partial</text>
+  <text x="758" y="210" class="note" text-anchor="middle">partial</text>
+  <rect x="790" y="124" width="120" height="120" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+  <text x="850" y="170" class="greenlabel" text-anchor="middle">all-reduce</text>
+  <text x="850" y="192" class="note" text-anchor="middle">sum of the two</text>
+  <text x="850" y="212" class="mono" text-anchor="middle">T×4096</text>
+  <g class="flow">
+    <line x1="910" y1="150" x2="942" y2="150" marker-end="url(#arrow)"/>
+    <line x1="910" y1="218" x2="942" y2="218" marker-end="url(#arrow)"/>
+  </g>
+  <circle cx="960" cy="150" r="16" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="960" y="156" class="label" text-anchor="middle">+</text>
+  <circle cx="960" cy="218" r="16" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="960" y="224" class="label" text-anchor="middle">+</text>
+  <text x="988" y="180" class="note">residual,</text>
+  <text x="988" y="198" class="note">whole</text>
+
+  <!-- ===================== feed-forward block ===================== -->
+  <text x="40" y="290" class="section">feed-forward block</text>
+  <text x="40" y="334" class="label">GPU 0</text>
+  <text x="40" y="402" class="label">GPU 1</text>
+  <g>
+    <rect x="100" y="304" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="152" y="326" class="label" text-anchor="middle">RMSNorm</text>
+    <text x="152" y="345" class="mono" text-anchor="middle">T×4096</text>
+    <rect x="222" y="304" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="305" y="326" class="white" text-anchor="middle">gate-up projection</text>
+    <text x="305" y="345" class="whitesmall" text-anchor="middle">4096 → 2×6144</text>
+    <rect x="405" y="304" width="140" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="475" y="326" class="label" text-anchor="middle">SwiGLU</text>
+    <text x="475" y="345" class="mono" text-anchor="middle">6144 columns</text>
+    <rect x="562" y="304" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="645" y="326" class="white" text-anchor="middle">down projection</text>
+    <text x="645" y="345" class="whitesmall" text-anchor="middle">6144 → 4096</text>
+
+    <rect x="100" y="372" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="152" y="394" class="label" text-anchor="middle">RMSNorm</text>
+    <text x="152" y="413" class="mono" text-anchor="middle">T×4096</text>
+    <rect x="222" y="372" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="305" y="394" class="white" text-anchor="middle">gate-up projection</text>
+    <text x="305" y="413" class="whitesmall" text-anchor="middle">4096 → 2×6144</text>
+    <rect x="405" y="372" width="140" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="475" y="394" class="label" text-anchor="middle">SwiGLU</text>
+    <text x="475" y="413" class="mono" text-anchor="middle">6144 columns</text>
+    <rect x="562" y="372" width="166" height="52" rx="8" fill="#2563eb"/>
+    <text x="645" y="394" class="white" text-anchor="middle">down projection</text>
+    <text x="645" y="413" class="whitesmall" text-anchor="middle">6144 → 4096</text>
+  </g>
+  <g class="flow">
+    <line x1="205" y1="330" x2="220" y2="330" marker-end="url(#arrow)"/>
+    <line x1="388" y1="330" x2="403" y2="330" marker-end="url(#arrow)"/>
+    <line x1="545" y1="330" x2="560" y2="330" marker-end="url(#arrow)"/>
+    <line x1="205" y1="398" x2="220" y2="398" marker-end="url(#arrow)"/>
+    <line x1="388" y1="398" x2="403" y2="398" marker-end="url(#arrow)"/>
+    <line x1="545" y1="398" x2="560" y2="398" marker-end="url(#arrow)"/>
+    <line x1="728" y1="330" x2="788" y2="330" marker-end="url(#arrow)"/>
+    <line x1="728" y1="398" x2="788" y2="398" marker-end="url(#arrow)"/>
+  </g>
+  <text x="758" y="322" class="note" text-anchor="middle">partial</text>
+  <text x="758" y="390" class="note" text-anchor="middle">partial</text>
+  <rect x="790" y="304" width="120" height="120" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+  <text x="850" y="350" class="greenlabel" text-anchor="middle">all-reduce</text>
+  <text x="850" y="372" class="note" text-anchor="middle">sum of the two</text>
+  <text x="850" y="392" class="mono" text-anchor="middle">T×4096</text>
+  <g class="flow">
+    <line x1="910" y1="330" x2="942" y2="330" marker-end="url(#arrow)"/>
+    <line x1="910" y1="398" x2="942" y2="398" marker-end="url(#arrow)"/>
+  </g>
+  <circle cx="960" cy="330" r="16" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="960" y="336" class="label" text-anchor="middle">+</text>
+  <circle cx="960" cy="398" r="16" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="960" y="404" class="label" text-anchor="middle">+</text>
+  <text x="988" y="360" class="note">to the next</text>
+  <text x="988" y="378" class="note">layer</text>
+
+  <!-- ===================== head ===================== -->
+  <text x="40" y="470" class="section">LM head, once per step</text>
+  <text x="40" y="514" class="label">GPU 0</text>
+  <text x="40" y="582" class="label">GPU 1</text>
+  <rect x="100" y="484" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="152" y="506" class="label" text-anchor="middle">RMSNorm</text>
+  <text x="152" y="525" class="mono" text-anchor="middle">T×4096</text>
+  <rect x="222" y="484" width="323" height="52" rx="8" fill="#2563eb"/>
+  <text x="384" y="506" class="white" text-anchor="middle">LM head: rows 0-75,967</text>
+  <text x="384" y="525" class="whitesmall" text-anchor="middle">4096 → 75,968</text>
+  <rect x="100" y="552" width="105" height="52" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="152" y="574" class="label" text-anchor="middle">RMSNorm</text>
+  <text x="152" y="593" class="mono" text-anchor="middle">T×4096</text>
+  <rect x="222" y="552" width="323" height="52" rx="8" fill="#2563eb"/>
+  <text x="384" y="574" class="white" text-anchor="middle">LM head: rows 75,968-151,935</text>
+  <text x="384" y="593" class="whitesmall" text-anchor="middle">4096 → 75,968</text>
+  <g class="flow">
+    <line x1="205" y1="510" x2="220" y2="510" marker-end="url(#arrow)"/>
+    <line x1="205" y1="578" x2="220" y2="578" marker-end="url(#arrow)"/>
+    <line x1="545" y1="510" x2="588" y2="510" marker-end="url(#arrow)"/>
+    <line x1="545" y1="578" x2="588" y2="578" marker-end="url(#arrow)"/>
+  </g>
+  <rect x="590" y="484" width="130" height="120" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+  <text x="655" y="530" class="greenlabel" text-anchor="middle">all-gather</text>
+  <text x="655" y="552" class="note" text-anchor="middle">concatenate</text>
+  <text x="655" y="572" class="mono" text-anchor="middle">T×151,936</text>
+  <g class="flow">
+    <line x1="720" y1="510" x2="752" y2="510" marker-end="url(#arrow)"/>
+    <line x1="720" y1="578" x2="752" y2="578" marker-end="url(#arrow)"/>
+  </g>
+  <text x="760" y="515" class="note">151,936 logits per row</text>
+  <text x="760" y="583" class="note">151,936 logits per row</text>
+
+  <text x="40" y="646" class="note">Blue: GEMMs, each GPU holding half the weights. Orange: attention, split by head. Grey: run whole on each GPU. Green: the collectives.</text>
+</svg>

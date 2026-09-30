@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 560" role="img"
+     aria-labelledby="title description">
+  <title id="title">An MoE layer: each token picks its top experts; the step reads only the experts it touches</title>
+  <desc id="description">
+    Six tokens pass through a router that picks two of eight experts for each.
+    The twelve picks land on five distinct experts, which receive 3, 1, 4, 3
+    and 1 rows. The step runs one grouped GEMM over those five experts and
+    reads all of their weights; the other three experts' weights are never read.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .white { font: 600 14px system-ui, sans-serif; fill: #ffffff; }
+      .pick { stroke: #64748b; stroke-width: 1.6; fill: none; }
+    </style>
+    <pattern id="unread" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#f1f5f9"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#cbd5e1" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="1100" height="560" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">An MoE layer: pay for the experts the step touches</text>
+  <text x="40" y="72" class="subtitle">Six tokens, a router picking the top 2 of 8 experts for each: 12 picks land on 5 experts.</text>
+
+  <!-- tokens -->
+  <g fill="#e2e8f0" stroke="#94a3b8">
+    <rect x="50" y="112" width="110" height="40" rx="6"/><rect x="50" y="172" width="110" height="40" rx="6"/>
+    <rect x="50" y="232" width="110" height="40" rx="6"/><rect x="50" y="292" width="110" height="40" rx="6"/>
+    <rect x="50" y="352" width="110" height="40" rx="6"/><rect x="50" y="412" width="110" height="40" rx="6"/>
+  </g>
+  <g class="label" text-anchor="middle">
+    <text x="105" y="137">token 1</text><text x="105" y="197">token 2</text><text x="105" y="257">token 3</text>
+    <text x="105" y="317">token 4</text><text x="105" y="377">token 5</text><text x="105" y="437">token 6</text>
+  </g>
+
+  <!-- router -->
+  <rect x="220" y="112" width="110" height="340" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="275" y="276" class="label" text-anchor="middle">router</text>
+  <text x="275" y="298" class="small" text-anchor="middle">top-2 of 8</text>
+  <g stroke="#94a3b8" stroke-width="1.6">
+    <line x1="160" y1="132" x2="220" y2="132"/><line x1="160" y1="192" x2="220" y2="192"/>
+    <line x1="160" y1="252" x2="220" y2="252"/><line x1="160" y1="312" x2="220" y2="312"/>
+    <line x1="160" y1="372" x2="220" y2="372"/><line x1="160" y1="432" x2="220" y2="432"/>
+  </g>
+
+  <!-- picks: t1 -> E0,E3; t2 -> E3,E5; t3 -> E0,E5; t4 -> E2,E3; t5 -> E0,E6; t6 -> E3,E5 -->
+  <g class="pick">
+    <line x1="330" y1="132" x2="620" y2="130"/><line x1="330" y1="132" x2="620" y2="286"/>
+    <line x1="330" y1="192" x2="620" y2="286"/><line x1="330" y1="192" x2="620" y2="390"/>
+    <line x1="330" y1="252" x2="620" y2="130"/><line x1="330" y1="252" x2="620" y2="390"/>
+    <line x1="330" y1="312" x2="620" y2="234"/><line x1="330" y1="312" x2="620" y2="286"/>
+    <line x1="330" y1="372" x2="620" y2="130"/><line x1="330" y1="372" x2="620" y2="442"/>
+    <line x1="330" y1="432" x2="620" y2="286"/><line x1="330" y1="432" x2="620" y2="390"/>
+  </g>
+
+  <!-- experts: y = 110 + 52 i, height 40 -->
+  <rect x="620" y="110" width="170" height="40" rx="6" fill="#2563eb"/>
+  <rect x="620" y="162" width="170" height="40" rx="6" fill="url(#unread)" stroke="#cbd5e1"/>
+  <rect x="620" y="214" width="170" height="40" rx="6" fill="#2563eb"/>
+  <rect x="620" y="266" width="170" height="40" rx="6" fill="#2563eb"/>
+  <rect x="620" y="318" width="170" height="40" rx="6" fill="url(#unread)" stroke="#cbd5e1"/>
+  <rect x="620" y="370" width="170" height="40" rx="6" fill="#2563eb"/>
+  <rect x="620" y="422" width="170" height="40" rx="6" fill="#2563eb"/>
+  <rect x="620" y="474" width="170" height="40" rx="6" fill="url(#unread)" stroke="#cbd5e1"/>
+  <g class="white">
+    <text x="636" y="135">expert 0 · 3 rows</text>
+    <text x="636" y="239">expert 2 · 1 row</text>
+    <text x="636" y="291">expert 3 · 4 rows</text>
+    <text x="636" y="395">expert 5 · 3 rows</text>
+    <text x="636" y="447">expert 6 · 1 row</text>
+  </g>
+  <g class="small">
+    <text x="636" y="187">expert 1</text>
+    <text x="636" y="343">expert 4</text>
+    <text x="636" y="499">expert 7</text>
+  </g>
+
+  <!-- explanation -->
+  <g class="small">
+    <text x="820" y="150">One grouped GEMM over the</text>
+    <text x="820" y="170">5 touched experts:</text>
+    <text x="820" y="210">math: 12 rows through one</text>
+    <text x="820" y="230">expert each (tokens × k)</text>
+    <text x="820" y="270">bytes: all of 5 experts'</text>
+    <text x="820" y="290">weights, however few rows</text>
+    <text x="820" y="330">the hatched experts' weights</text>
+    <text x="820" y="350">are never read this step</text>
+  </g>
+  <rect x="820" y="400" width="20" height="20" fill="#2563eb"/>
+  <text x="850" y="415" class="small">touched: weights read</text>
+  <rect x="820" y="432" width="20" height="20" fill="url(#unread)" stroke="#cbd5e1"/>
+  <text x="850" y="447" class="small">not touched</text>
+</svg>

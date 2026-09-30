@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" role="img"
+     aria-labelledby="title description">
+  <title id="title">Reuse through L2 happens among the tiles of one wave</title>
+  <desc id="description">
+    C is an eight by twelve grid of tiles. One wave of twelve tiles, arranged
+    as a three by four block, needs three row panels of A and four column
+    panels of B: seven panels, where twelve tiles in a single row would need
+    thirteen. At each K step the L2 must hold one BK-wide slice of those seven
+    panels. If it fits, each byte of A and B is read from DRAM once per wave.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 700 17px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .dim { font: 500 13px ui-monospace, monospace; fill: #64748b; }
+      .grid { stroke: #e2e8f0; stroke-width: 1; }
+    </style>
+  </defs>
+  <rect width="1100" height="640" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">L2 reuse happens among the tiles of one wave</text>
+  <text x="40" y="72" class="subtitle">Libraries launch tiles in compact blocks, so tiles running together share their inputs.</text>
+
+  <!-- B: above C -->
+  <rect x="300" y="100" width="480" height="130" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="420" y="100" width="160" height="130" fill="#dbeafe"/>
+  <rect x="420" y="150" width="160" height="22" fill="#fdba74"/>
+  <rect x="300" y="100" width="480" height="130" fill="none" stroke="#64748b" stroke-width="1.5"/>
+  <text x="800" y="160" class="label">B</text>
+
+  <!-- A: left of C -->
+  <rect x="120" y="260" width="130" height="320" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="120" y="340" width="130" height="120" fill="#dbeafe"/>
+  <rect x="170" y="340" width="22" height="120" fill="#fdba74"/>
+  <rect x="120" y="260" width="130" height="320" fill="none" stroke="#64748b" stroke-width="1.5"/>
+  <text x="85" y="420" class="label">A</text>
+
+  <!-- C: 8 x 12 tiles of 40 px -->
+  <rect x="300" y="260" width="480" height="320" fill="#ffffff"/>
+  <rect x="420" y="340" width="160" height="120" fill="#2563eb"/>
+  <g class="grid">
+    <line x1="340" y1="260" x2="340" y2="580"/><line x1="380" y1="260" x2="380" y2="580"/>
+    <line x1="420" y1="260" x2="420" y2="580"/><line x1="460" y1="260" x2="460" y2="580"/>
+    <line x1="500" y1="260" x2="500" y2="580"/><line x1="540" y1="260" x2="540" y2="580"/>
+    <line x1="580" y1="260" x2="580" y2="580"/><line x1="620" y1="260" x2="620" y2="580"/>
+    <line x1="660" y1="260" x2="660" y2="580"/><line x1="700" y1="260" x2="700" y2="580"/>
+    <line x1="740" y1="260" x2="740" y2="580"/>
+    <line x1="300" y1="300" x2="780" y2="300"/><line x1="300" y1="340" x2="780" y2="340"/>
+    <line x1="300" y1="380" x2="780" y2="380"/><line x1="300" y1="420" x2="780" y2="420"/>
+    <line x1="300" y1="460" x2="780" y2="460"/><line x1="300" y1="500" x2="780" y2="500"/>
+    <line x1="300" y1="540" x2="780" y2="540"/>
+  </g>
+  <rect x="300" y="260" width="480" height="320" fill="none" stroke="#64748b" stroke-width="1.5"/>
+  <text x="800" y="430" class="label">C</text>
+  <text x="500" y="405" class="small" text-anchor="middle" style="fill:#ffffff">12 tiles in flight</text>
+
+  <!-- explanation -->
+  <g class="small">
+    <text x="840" y="290">One wave: 12 SMs,</text>
+    <text x="840" y="310">a 3 × 4 block of tiles.</text>
+    <text x="840" y="350">It needs 3 panels of A</text>
+    <text x="840" y="370">and 4 panels of B: 7.</text>
+    <text x="840" y="390">In one row of 12 it</text>
+    <text x="840" y="410">would need 1 + 12 = 13.</text>
+    <text x="840" y="450">Per K step, L2 holds a</text>
+    <text x="840" y="470">BK slice of the 7 panels.</text>
+    <text x="840" y="510">Fits: DRAM sends each</text>
+    <text x="840" y="530">byte once per wave.</text>
+  </g>
+
+  <!-- legend -->
+  <rect x="40" y="600" width="20" height="20" fill="#2563eb"/>
+  <text x="70" y="615" class="small">tiles of the current wave</text>
+  <rect x="300" y="600" width="20" height="20" fill="#dbeafe" stroke="#94a3b8"/>
+  <text x="330" y="615" class="small">panels they share</text>
+  <rect x="520" y="600" width="20" height="20" fill="#fdba74"/>
+  <text x="550" y="615" class="small">the slice L2 must hold at one K step</text>
+</svg>

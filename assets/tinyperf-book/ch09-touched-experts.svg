@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">Experts a gpt-oss-20b decode step touches, by workload</title>
+<desc id="desc">Distinct experts of 32 touched per layer by a decode step of 1 to 128 sequences. Uniform routing reaches all 32 by 32 sequences. The measured router touches fewer at every batch: chat replies the fewest (24 at 128 sequences), a batch mixing prose, code and chat the most (31 at 128).</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Experts a gpt-oss-20b decode step touches, by workload</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0</text>
+<line x1="80" y1="401.2" x2="870" y2="401.2" stroke="#e2e8f0"/>
+<text x="72" y="405.2" class="tick" text-anchor="end">4</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">8</text>
+<line x1="80" y1="303.8" x2="870" y2="303.8" stroke="#e2e8f0"/>
+<text x="72" y="307.8" class="tick" text-anchor="end">12</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">16</text>
+<line x1="80" y1="206.2" x2="870" y2="206.2" stroke="#e2e8f0"/>
+<text x="72" y="210.2" class="tick" text-anchor="end">20</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">24</text>
+<line x1="80" y1="108.8" x2="870" y2="108.8" stroke="#e2e8f0"/>
+<text x="72" y="112.8" class="tick" text-anchor="end">28</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">32</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">1</text>
+<text x="192.9" y="470" class="tick" text-anchor="middle">2</text>
+<text x="305.7" y="470" class="tick" text-anchor="middle">4</text>
+<text x="418.6" y="470" class="tick" text-anchor="middle">8</text>
+<text x="531.4" y="470" class="tick" text-anchor="middle">16</text>
+<text x="644.3" y="470" class="tick" text-anchor="middle">32</text>
+<text x="757.1" y="470" class="tick" text-anchor="middle">64</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">128</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">sequences in the decode step (B)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">distinct experts touched (of 32)</text>
+<polyline points="80.0,401.2 192.9,358.6 305.7,288.6 418.6,194.0 531.4,106.0 644.3,65.4 757.1,60.1 870.0,60.0" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="599.1" y1="291.6" x2="629.1" y2="291.6" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="637.1" y="295.6" class="legend">uniform routing</text>
+<polyline points="80.0,401.2 192.9,362.4 305.7,300.1 418.6,226.6 531.4,157.1 644.3,108.5 757.1,81.8 870.0,71.5" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<circle cx="80.0" cy="401.2" r="3.2" fill="#0f172a"/>
+<circle cx="192.9" cy="362.4" r="3.2" fill="#0f172a"/>
+<circle cx="305.7" cy="300.1" r="3.2" fill="#0f172a"/>
+<circle cx="418.6" cy="226.6" r="3.2" fill="#0f172a"/>
+<circle cx="531.4" cy="157.1" r="3.2" fill="#0f172a"/>
+<circle cx="644.3" cy="108.5" r="3.2" fill="#0f172a"/>
+<circle cx="757.1" cy="81.8" r="3.2" fill="#0f172a"/>
+<circle cx="870.0" cy="71.5" r="3.2" fill="#0f172a"/>
+<line x1="599.1" y1="313.6" x2="629.1" y2="313.6" stroke="#0f172a" stroke-width="2.2"/>
+<text x="637.1" y="317.6" class="legend">measured: mixed</text>
+<polyline points="80.0,401.2 192.9,363.7 305.7,312.4 418.6,246.7 531.4,184.1 644.3,134.2 757.1,96.7 870.0,80.6" fill="none" stroke="#7c3aed" stroke-width="2.2"/>
+<circle cx="80.0" cy="401.2" r="3.2" fill="#7c3aed"/>
+<circle cx="192.9" cy="363.7" r="3.2" fill="#7c3aed"/>
+<circle cx="305.7" cy="312.4" r="3.2" fill="#7c3aed"/>
+<circle cx="418.6" cy="246.7" r="3.2" fill="#7c3aed"/>
+<circle cx="531.4" cy="184.1" r="3.2" fill="#7c3aed"/>
+<circle cx="644.3" cy="134.2" r="3.2" fill="#7c3aed"/>
+<circle cx="757.1" cy="96.7" r="3.2" fill="#7c3aed"/>
+<circle cx="870.0" cy="80.6" r="3.2" fill="#7c3aed"/>
+<line x1="599.1" y1="335.6" x2="629.1" y2="335.6" stroke="#7c3aed" stroke-width="2.2"/>
+<text x="637.1" y="339.6" class="legend">measured: code</text>
+<polyline points="80.0,401.2 192.9,364.0 305.7,317.5 418.6,272.4 531.4,197.7 644.3,174.9 757.1,126.5 870.0,101.8" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="401.2" r="3.2" fill="#2563eb"/>
+<circle cx="192.9" cy="364.0" r="3.2" fill="#2563eb"/>
+<circle cx="305.7" cy="317.5" r="3.2" fill="#2563eb"/>
+<circle cx="418.6" cy="272.4" r="3.2" fill="#2563eb"/>
+<circle cx="531.4" cy="197.7" r="3.2" fill="#2563eb"/>
+<circle cx="644.3" cy="174.9" r="3.2" fill="#2563eb"/>
+<circle cx="757.1" cy="126.5" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="101.8" r="3.2" fill="#2563eb"/>
+<line x1="599.1" y1="357.6" x2="629.1" y2="357.6" stroke="#2563eb" stroke-width="2.2"/>
+<text x="637.1" y="361.6" class="legend">measured: prose</text>
+<polyline points="80.0,401.2 192.9,375.7 305.7,334.9 418.6,290.3 531.4,237.6 644.3,190.3 757.1,152.9 870.0,127.4" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="401.2" r="3.2" fill="#15803d"/>
+<circle cx="192.9" cy="375.7" r="3.2" fill="#15803d"/>
+<circle cx="305.7" cy="334.9" r="3.2" fill="#15803d"/>
+<circle cx="418.6" cy="290.3" r="3.2" fill="#15803d"/>
+<circle cx="531.4" cy="237.6" r="3.2" fill="#15803d"/>
+<circle cx="644.3" cy="190.3" r="3.2" fill="#15803d"/>
+<circle cx="757.1" cy="152.9" r="3.2" fill="#15803d"/>
+<circle cx="870.0" cy="127.4" r="3.2" fill="#15803d"/>
+<line x1="599.1" y1="379.6" x2="629.1" y2="379.6" stroke="#15803d" stroke-width="2.2"/>
+<text x="637.1" y="383.6" class="legend">measured: random</text>
+<polyline points="80.0,401.2 192.9,372.4 305.7,336.2 418.6,289.4 531.4,248.8 644.3,214.4 757.1,186.3 870.0,160.5" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="401.2" r="3.2" fill="#ea580c"/>
+<circle cx="192.9" cy="372.4" r="3.2" fill="#ea580c"/>
+<circle cx="305.7" cy="336.2" r="3.2" fill="#ea580c"/>
+<circle cx="418.6" cy="289.4" r="3.2" fill="#ea580c"/>
+<circle cx="531.4" cy="248.8" r="3.2" fill="#ea580c"/>
+<circle cx="644.3" cy="214.4" r="3.2" fill="#ea580c"/>
+<circle cx="757.1" cy="186.3" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="160.5" r="3.2" fill="#ea580c"/>
+<line x1="599.1" y1="401.6" x2="629.1" y2="401.6" stroke="#ea580c" stroke-width="2.2"/>
+<text x="637.1" y="405.6" class="legend">measured: chat</text>
+</svg>

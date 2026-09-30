@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 650" role="img"
+     aria-labelledby="title description">
+  <title id="title">tinyperf, layer by layer, and the chapter that builds each layer</title>
+  <desc id="description">
+    Seven layers stacked from bottom to top, each using the ones below it.
+    Device (device.py and the JSON device files, chapter 2); kernel cost models
+    (gemm_model.py and comm_model.py, chapters 3, 7 and 11); the graph of
+    operators (graph.py, operators.py and passes.py, chapters 5, 7, 10 and 13);
+    the scheduler and report (scheduler.py, chapter 5); the model builders
+    (nets/transformer.py, nets/routing.py, capacity.py and training.py,
+    chapters 6 to 9 and 11 to 13). These five price one step. Above them, the
+    serving simulator (serving.py, spec_decode.py, mtp.py, disagg.py, chapters
+    14 to 20) and sweeps and planning (sweep.py, energy.py, appendix A) use
+    many step prices. Beside the stack, calibration (methodology.py and
+    data/calibration, chapter 4) attaches to the lower four layers, and
+    validation (data/validation, tools, tests, chapter 21) checks every layer.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .name { font: 650 17px system-ui, sans-serif; fill: #0f172a; }
+      .what { font: 400 14.5px system-ui, sans-serif; fill: #334155; }
+      .mod { font: 500 13px ui-monospace, monospace; fill: #475569; }
+      .pill { font: 600 13px system-ui, sans-serif; fill: #0f172a; }
+      .side { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .sidetext { font: 400 13.5px system-ui, sans-serif; fill: #334155; }
+      .sidemod { font: 500 12px ui-monospace, monospace; fill: #475569; }
+    </style>
+  </defs>
+  <rect width="1100" height="650" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">tinyperf, layer by layer</text>
+  <text x="40" y="74" class="subtitle">Each layer uses the ones below it.  Blue: pricing one step.  Orange: using many step prices.</text>
+
+  <!-- the stack: bar i at y = 100 + 76 i, height 64 -->
+  <g fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5">
+    <rect x="40" y="100" width="740" height="64" rx="8"/>
+    <rect x="40" y="176" width="740" height="64" rx="8"/>
+    <rect x="40" y="252" width="740" height="64" rx="8"/>
+    <rect x="40" y="328" width="740" height="64" rx="8"/>
+    <rect x="40" y="404" width="740" height="64" rx="8"/>
+    <rect x="40" y="480" width="740" height="64" rx="8"/>
+    <rect x="40" y="556" width="740" height="64" rx="8"/>
+  </g>
+  <g fill="#ea580c">
+    <rect x="40" y="100" width="8" height="64" rx="4"/>
+    <rect x="40" y="176" width="8" height="64" rx="4"/>
+  </g>
+  <g fill="#2563eb">
+    <rect x="40" y="252" width="8" height="64" rx="4"/>
+    <rect x="40" y="328" width="8" height="64" rx="4"/>
+    <rect x="40" y="404" width="8" height="64" rx="4"/>
+    <rect x="40" y="480" width="8" height="64" rx="4"/>
+    <rect x="40" y="556" width="8" height="64" rx="4"/>
+  </g>
+
+  <!-- arrows between layers: each points up to the layer that uses it -->
+  <g fill="#94a3b8">
+    <polygon points="410,165 403,175 417,175"/>
+    <polygon points="410,241 403,251 417,251"/>
+    <polygon points="410,317 403,327 417,327"/>
+    <polygon points="410,393 403,403 417,403"/>
+    <polygon points="410,469 403,479 417,479"/>
+    <polygon points="410,545 403,555 417,555"/>
+  </g>
+
+  <!-- names -->
+  <g class="name">
+    <text x="64" y="127">Sweeps and planning</text>
+    <text x="64" y="203">Serving simulator</text>
+    <text x="64" y="279">Model builders</text>
+    <text x="64" y="355">Scheduler and report</text>
+    <text x="64" y="431">Graph of operators</text>
+    <text x="64" y="507">Kernel cost models</text>
+    <text x="64" y="583">Device</text>
+  </g>
+  <!-- what each does -->
+  <g class="what">
+    <text x="290" y="127">thousands of configurations, Pareto fronts, cost</text>
+    <text x="290" y="203">requests arrive, batches form: TTFT and TPOT</text>
+    <text x="290" y="279">a model's config becomes one step's graph</text>
+    <text x="290" y="355">price every op, add up, say what limits it</text>
+    <text x="290" y="431">shapes, FLOPs and bytes; passes rewrite it</text>
+    <text x="290" y="507">a GEMM, fused attention, a collective</text>
+    <text x="290" y="583">a GPU as a dozen rates and sizes</text>
+  </g>
+  <!-- modules -->
+  <g class="mod">
+    <text x="64" y="151">sweep.py · energy.py</text>
+    <text x="64" y="227">serving.py · spec_decode.py · mtp.py · disagg.py</text>
+    <text x="64" y="303">nets/transformer.py · nets/routing.py · capacity.py · training.py</text>
+    <text x="64" y="379">scheduler.py</text>
+    <text x="64" y="455">graph.py · operators.py · passes.py</text>
+    <text x="64" y="531">gemm_model.py · comm_model.py</text>
+    <text x="64" y="607">device.py · data/devices/*.json</text>
+  </g>
+  <!-- chapters -->
+  <g fill="#e2e8f0">
+    <rect x="646" y="118" width="126" height="28" rx="14"/>
+    <rect x="646" y="194" width="126" height="28" rx="14"/>
+    <rect x="646" y="270" width="126" height="28" rx="14"/>
+    <rect x="646" y="346" width="126" height="28" rx="14"/>
+    <rect x="646" y="422" width="126" height="28" rx="14"/>
+    <rect x="646" y="498" width="126" height="28" rx="14"/>
+    <rect x="646" y="574" width="126" height="28" rx="14"/>
+  </g>
+  <g class="pill" text-anchor="middle">
+    <text x="709" y="137">appendix A</text>
+    <text x="709" y="213">ch. 14–20</text>
+    <text x="709" y="289">ch. 6–9, 11–13</text>
+    <text x="709" y="365">ch. 5</text>
+    <text x="709" y="441">ch. 5, 7, 10, 13</text>
+    <text x="709" y="517">ch. 3, 7, 11</text>
+    <text x="709" y="593">ch. 2</text>
+  </g>
+
+  <!-- calibration: attaches to the lower four layers -->
+  <rect x="800" y="328" width="130" height="292" rx="10" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+  <g text-anchor="middle">
+    <text x="865" y="358" class="side">Calibration</text>
+    <text x="865" y="382" class="sidetext">constants fitted</text>
+    <text x="865" y="400" class="sidetext">to kernels timed</text>
+    <text x="865" y="418" class="sidetext">on a real GPU</text>
+    <text x="865" y="452" class="sidemod">methodology.py</text>
+    <text x="865" y="472" class="sidemod">data/</text>
+    <text x="865" y="490" class="sidemod">calibration/</text>
+  </g>
+  <rect x="826" y="518" width="78" height="28" rx="14" fill="#ffffff"/>
+  <text x="865" y="537" class="pill" text-anchor="middle">ch. 4</text>
+
+  <!-- validation: checks every layer -->
+  <rect x="945" y="100" width="135" height="520" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <g text-anchor="middle">
+    <text x="1012" y="274" class="side">Validation</text>
+    <text x="1012" y="298" class="sidetext">every layer</text>
+    <text x="1012" y="316" class="sidetext">checked against</text>
+    <text x="1012" y="334" class="sidetext">measurements</text>
+    <text x="1012" y="368" class="sidemod">data/</text>
+    <text x="1012" y="386" class="sidemod">validation/</text>
+    <text x="1012" y="410" class="sidemod">tools/</text>
+    <text x="1012" y="434" class="sidemod">tests/</text>
+  </g>
+  <rect x="973" y="460" width="78" height="28" rx="14" fill="#ffffff"/>
+  <text x="1012" y="479" class="pill" text-anchor="middle">ch. 21</text>
+</svg>

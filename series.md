@@ -15,12 +15,12 @@ proves that outputs remain correct, and measures the result.
 
 ## Building tinyperf
 
-Build an analytical GPU performance model from scratch — predict LLM
-latency, find the binding bottleneck, and explore what-if hardware in
-milliseconds of arithmetic instead of hours of simulation. One modeling
-mechanism per milestone, validated against public datasheet anchors.
+A book in 22 chapters: build an analytical GPU performance model from
+scratch, from pricing one GEMM off a datasheet to simulating a serving
+engine under load, every mechanism checked against a real GPU and every
+number labelled by what the model had seen.
 
-[Read the series](/series/tinyperf/) ·
+[Read the book](/series/tinyperf/) ·
 [Source code](https://github.com/kaix-nv/tinyperf)
 
 More technical series will be added here as they begin.

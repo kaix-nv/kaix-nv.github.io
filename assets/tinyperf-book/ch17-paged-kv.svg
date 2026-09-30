@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" role="img" aria-labelledby="title desc">
+  <title id="title">Paged KV: blocks on demand, a preemption, and what reservation holds back</title>
+  <desc id="desc">A pool of 24 KV blocks of 16 tokens each shared by three requests, A (oldest), B and C (newest). Top row, paged admission as vLLM does it: 1, the pool is full, with A holding 9 blocks, B 8 and C 7, scattered through the pool, and A needs a tenth; 2, the newest request, C, is preempted: its 7 blocks are freed, A takes one, and C goes to the front of the queue; 3, once A finishes, C is admitted again and recomputes its prompt and the tokens it had generated, while B, which kept growing, holds 10 blocks. Bottom row, a reserving scheduler: A and B each hold 12 blocks from admission, what prompt plus maximum output could need; 7 of the 24 blocks hold nothing yet, and C waits in the queue.</desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .sub { font: 400 15px system-ui, sans-serif; fill: #475569; }
+      .head { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .blk { font: 700 12px ui-monospace, monospace; }
+    </style>
+  </defs>
+  <rect width="1100" height="640" rx="16" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">Paged KV: blocks on demand, and a preemption</text>
+  <text x="40" y="70" class="sub">A pool of 24 blocks of 16 tokens. A request takes a new block when it fills its last one; its blocks need not be adjacent.</text>
+  <text x="40" y="112" class="label">Paged, as vLLM admits: blocks for the tokens a request holds now</text>
+  <text x="40" y="144" class="head">1. The pool is full</text>
+  <text x="400" y="144" class="head">2. Preempt the newest</text>
+  <text x="760" y="144" class="head">3. Later, C resumes</text>
+  <rect x="40" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="152.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="178" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="198.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="224" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="244.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="270" y="160" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="290.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="40" y="194" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="194" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="152.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="178" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="198.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="224" y="194" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="244.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="270" y="194" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="290.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="40" y="228" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="228" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="152.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="178" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="198.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="224" y="228" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="244.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="270" y="228" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="290.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="40" y="262" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="262" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="152.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="178" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="198.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="224" y="262" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="244.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="270" y="262" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="290.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="400" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="420.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="446" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="466.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="492" y="160" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="512.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="538" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="558.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="584" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="604.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="630" y="160" width="40" height="28" rx="4" fill="#2563eb" stroke="#0f172a" stroke-width="3"/>
+  <text x="650.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="400" y="194" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="420.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="446" y="194" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="466.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="492" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="512.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="538" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="558.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="584" y="194" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="630" y="194" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="400" y="228" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="420.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="446" y="228" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="466.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="492" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="512.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="538" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="558.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="584" y="228" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="630" y="228" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="400" y="262" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="420.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="446" y="262" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="466.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="492" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="512.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="538" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="558.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="584" y="262" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="630" y="262" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="760" y="160" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="780.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="806" y="160" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="826.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="852" y="160" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="872.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="898" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="918.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="944" y="160" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="964.0" y="178" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="990" y="160" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="760" y="194" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="780.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="806" y="194" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="826.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="852" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="872.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="898" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="918.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="944" y="194" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="964.0" y="212" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="990" y="194" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="760" y="228" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="780.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="806" y="228" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="826.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="852" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="872.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="898" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="918.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="944" y="228" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="964.0" y="246" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="990" y="228" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="760" y="262" width="40" height="28" rx="4" fill="#ea580c"/>
+  <text x="780.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">C</text>
+  <rect x="806" y="262" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="852" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="872.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="898" y="262" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="918.0" y="280" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="944" y="262" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <rect x="990" y="262" width="40" height="28" rx="4" fill="#e2e8f0" stroke="#cbd5e1"/>
+  <path d="M 330 225 L 374 225" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <path d="M 374 218 L 384 225 L 374 232 Z" fill="#94a3b8"/>
+  <path d="M 690 225 L 734 225" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <path d="M 734 218 L 744 225 L 734 232 Z" fill="#94a3b8"/>
+  <text x="40" y="316" class="small">A (oldest) holds 9 blocks, B 8,</text>
+  <text x="40" y="336" class="small">C (newest) 7. A has filled its</text>
+  <text x="40" y="356" class="small">last block and needs a tenth:</text>
+  <text x="40" y="376" class="small">none is free.</text>
+  <text x="400" y="316" class="small">C's 7 blocks are freed; A takes</text>
+  <text x="400" y="336" class="small">one (outlined). C goes back to</text>
+  <text x="400" y="356" class="small">the front of the queue, and no one</text>
+  <text x="400" y="376" class="small">new is admitted this step.</text>
+  <text x="760" y="316" class="small">A has finished; B has grown to 10.</text>
+  <text x="760" y="336" class="small">C is admitted again and recomputes</text>
+  <text x="760" y="356" class="small">its prompt and every token it had</text>
+  <text x="760" y="376" class="small">generated. Its first token stands.</text>
+  <line x1="40" y1="388" x2="1060" y2="388" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="40" y="420" class="label">Reserving: blocks for prompt + maximum output, held from admission</text>
+  <rect x="40" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="152.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="178" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="198.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="224" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="244.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="270" y="442" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="290.0" y="460" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="40" y="476" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="60.0" y="494" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="86" y="476" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="106.0" y="494" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="132" y="476" width="40" height="28" rx="4" fill="#2563eb"/>
+  <text x="152.0" y="494" class="blk" text-anchor="middle" fill="#ffffff">A</text>
+  <rect x="178" y="476" width="40" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="198.0" y="494" class="blk" text-anchor="middle" fill="#2563eb">A</text>
+  <rect x="224" y="476" width="40" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="244.0" y="494" class="blk" text-anchor="middle" fill="#2563eb">A</text>
+  <rect x="270" y="476" width="40" height="28" rx="4" fill="#dbeafe" stroke="#2563eb" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="290.0" y="494" class="blk" text-anchor="middle" fill="#2563eb">A</text>
+  <rect x="40" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="60.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="86" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="106.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="132" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="152.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="178" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="198.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="224" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="244.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="270" y="510" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="290.0" y="528" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="40" y="544" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="60.0" y="562" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="86" y="544" width="40" height="28" rx="4" fill="#15803d"/>
+  <text x="106.0" y="562" class="blk" text-anchor="middle" fill="#ffffff">B</text>
+  <rect x="132" y="544" width="40" height="28" rx="4" fill="#dcfce7" stroke="#15803d" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="152.0" y="562" class="blk" text-anchor="middle" fill="#15803d">B</text>
+  <rect x="178" y="544" width="40" height="28" rx="4" fill="#dcfce7" stroke="#15803d" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="198.0" y="562" class="blk" text-anchor="middle" fill="#15803d">B</text>
+  <rect x="224" y="544" width="40" height="28" rx="4" fill="#dcfce7" stroke="#15803d" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="244.0" y="562" class="blk" text-anchor="middle" fill="#15803d">B</text>
+  <rect x="270" y="544" width="40" height="28" rx="4" fill="#dcfce7" stroke="#15803d" stroke-dasharray="4 3" stroke-width="1.5"/>
+  <text x="290.0" y="562" class="blk" text-anchor="middle" fill="#15803d">B</text>
+  <text x="360" y="460" class="small">A and B each hold 12 blocks, what prompt + maximum output could need. They have</text>
+  <text x="360" y="480" class="small">filled 9 and 8; the other 7 (dashed) hold nothing yet: phantom blocks, reserved</text>
+  <text x="360" y="500" class="small">for output not yet generated, or never to be generated if the reply stops early.</text>
+  <text x="360" y="520" class="small">C waits in the queue, though the paged pool above runs it. Reservation never</text>
+  <text x="360" y="540" class="small">preempts, and never runs more requests than it can finish.</text>
+</svg>

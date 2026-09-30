@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">Speed-up over bf16 as the KV cache grows</title>
+<desc id="desc">Speed-up of a Qwen3-8B decode step of 64 sequences over bf16, at datasheet rates, against context from 1024 to 32768 tokens. With the weight GEMMs in fp4 and a 16-bit cache the speed-up falls from 1.3x toward 1 as the cache dominates. The deployable FP4 recipe, with an fp8 cache, rises toward 2x; so does the H100&#x27;s FP8 recipe. The naive estimate, every tensor in fp4, rises toward 4x.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Speed-up over bf16 as the KV cache grows</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">2</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">3</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">4</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">1024</text>
+<text x="238.0" y="470" class="tick" text-anchor="middle">2048</text>
+<text x="396.0" y="470" class="tick" text-anchor="middle">4096</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">8192</text>
+<text x="712.0" y="470" class="tick" text-anchor="middle">16384</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">32768</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">context (tokens), log scale</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">speed-up over bf16</text>
+<polyline points="80.0,235.1 238.0,212.1 396.0,180.5 554.0,145.1 712.0,113.6 870.0,90.8" fill="none" stroke="#94a3b8" stroke-width="2.2"/>
+<circle cx="80.0" cy="235.1" r="3.2" fill="#94a3b8"/>
+<circle cx="238.0" cy="212.1" r="3.2" fill="#94a3b8"/>
+<circle cx="396.0" cy="180.5" r="3.2" fill="#94a3b8"/>
+<circle cx="554.0" cy="145.1" r="3.2" fill="#94a3b8"/>
+<circle cx="712.0" cy="113.6" r="3.2" fill="#94a3b8"/>
+<circle cx="870.0" cy="90.8" r="3.2" fill="#94a3b8"/>
+<line x1="87.9" y1="64.9" x2="117.9" y2="64.9" stroke="#94a3b8" stroke-width="2.2"/>
+<text x="125.9" y="68.9" class="legend">B200, FP4, naive (every tensor fp4)</text>
+<polyline points="80.0,277.3 238.0,273.0 396.0,267.9 554.0,263.3 712.0,259.8 870.0,257.6" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="277.3" r="3.2" fill="#2563eb"/>
+<circle cx="238.0" cy="273.0" r="3.2" fill="#2563eb"/>
+<circle cx="396.0" cy="267.9" r="3.2" fill="#2563eb"/>
+<circle cx="554.0" cy="263.3" r="3.2" fill="#2563eb"/>
+<circle cx="712.0" cy="259.8" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="257.6" r="3.2" fill="#2563eb"/>
+<line x1="87.9" y1="86.9" x2="117.9" y2="86.9" stroke="#2563eb" stroke-width="2.2"/>
+<text x="125.9" y="90.9" class="legend">B200, FP4 recipe (fp8 cache)</text>
+<polyline points="80.0,311.1 238.0,322.8 396.0,333.4 554.0,341.4 712.0,346.5 870.0,349.3" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="311.1" r="3.2" fill="#ea580c"/>
+<circle cx="238.0" cy="322.8" r="3.2" fill="#ea580c"/>
+<circle cx="396.0" cy="333.4" r="3.2" fill="#ea580c"/>
+<circle cx="554.0" cy="341.4" r="3.2" fill="#ea580c"/>
+<circle cx="712.0" cy="346.5" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="349.3" r="3.2" fill="#ea580c"/>
+<line x1="87.9" y1="108.9" x2="117.9" y2="108.9" stroke="#ea580c" stroke-width="2.2"/>
+<text x="125.9" y="112.9" class="legend">B200, FP4 GEMMs, 16-bit cache</text>
+<polyline points="80.0,287.5 238.0,280.5 396.0,272.9 554.0,266.2 712.0,261.4 870.0,258.4" fill="none" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="87.9" y1="130.9" x2="117.9" y2="130.9" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="125.9" y="134.9" class="legend">H100, FP8 recipe (fp8 cache)</text>
+</svg>

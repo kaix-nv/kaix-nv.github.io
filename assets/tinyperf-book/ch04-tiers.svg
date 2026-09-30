@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 500" role="img"
+     aria-labelledby="title description">
+  <title id="title">Three tiers: one question, three sets of inputs</title>
+  <desc id="description">
+    A table of three tiers. Speed of light prices each operation with a roofline on
+    datasheet rates, with ideal traffic and no launch cost; it is a bound. Projected
+    runs the full kernel model of chapter 3, with tiles, waves, L2 reuse, pipeline fill
+    and a 3 microsecond launch, on datasheet rates; it predicts a GPU nobody has
+    measured. Calibrated runs the same model on constants fitted to measured kernels,
+    for example on the RTX A6000 math times 0.75, DRAM times 0.90, L2 at 4000 GB/s and
+    a launch of 25 microseconds from eager PyTorch or 3.5 inside a CUDA graph (measured
+    on a B200), plus
+    measured per-kernel tables; it predicts this GPU with this software.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .head { font: 700 14px system-ui, sans-serif; fill: #475569; letter-spacing: 0.04em; }
+      .tier { font: 700 17px system-ui, sans-serif; }
+      .code { font: 600 14px ui-monospace, monospace; }
+      .body { font: 500 15px system-ui, sans-serif; fill: #334155; }
+      .num { font: 600 14px ui-monospace, monospace; fill: #1e3a8a; }
+    </style>
+  </defs>
+  <rect width="1100" height="500" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Three tiers: one question, three sets of inputs</text>
+  <text x="40" y="72" class="subtitle">Every tier prices every operation of the same model. They differ in the mechanism and in the rates it runs on.</text>
+
+  <g class="head">
+    <text x="40" y="112">TIER</text>
+    <text x="215" y="112">MODEL</text>
+    <text x="535" y="112">RATES</text>
+    <text x="855" y="112">WHAT IT TELLS YOU</text>
+  </g>
+
+  <!-- SOL -->
+  <rect x="30" y="124" width="1040" height="96" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="30" y="124" width="160" height="96" rx="10" fill="#e2e8f0"/>
+  <text x="44" y="164" class="tier" fill="#334155">Speed of light</text>
+  <text x="44" y="188" class="code" fill="#475569">SOL</text>
+  <g class="body">
+    <text x="215" y="156">A roofline per operation: each operand</text>
+    <text x="215" y="178">read once, the full peak rate, no tiles,</text>
+    <text x="215" y="200">no waves, no launch cost</text>
+    <text x="535" y="156">Datasheet: peak tensor-core</text>
+    <text x="535" y="178">rate and DRAM bandwidth</text>
+    <text x="855" y="156">A bound. Nothing real</text>
+    <text x="855" y="178">is faster.</text>
+  </g>
+
+  <!-- PROJ -->
+  <rect x="30" y="236" width="1040" height="96" rx="10" fill="#ffffff" stroke="#fdba74"/>
+  <rect x="30" y="236" width="160" height="96" rx="10" fill="#fdba74"/>
+  <text x="44" y="276" class="tier" fill="#7c2d12">Projected</text>
+  <text x="44" y="300" class="code" fill="#9a3412">PROJ</text>
+  <g class="body">
+    <text x="215" y="268">Chapter 3's kernel model: tiles, waves,</text>
+    <text x="215" y="290">L2 reuse, pipeline fill, launch cost</text>
+    <text x="535" y="268">Datasheet rates,</text>
+    <text x="535" y="290">3 µs per kernel launch</text>
+    <text x="855" y="268">A prediction for a GPU</text>
+    <text x="855" y="290">nobody has measured.</text>
+  </g>
+
+  <!-- CAL -->
+  <rect x="30" y="348" width="1040" height="128" rx="10" fill="#ffffff" stroke="#2563eb"/>
+  <rect x="30" y="348" width="160" height="128" rx="10" fill="#dbeafe"/>
+  <text x="44" y="400" class="tier" fill="#1e3a8a">Calibrated</text>
+  <text x="44" y="424" class="code" fill="#1d4ed8">CAL</text>
+  <g class="body">
+    <text x="215" y="380">The same model, plus measured</text>
+    <text x="215" y="402">per-kernel tables where a kernel</text>
+    <text x="215" y="424">does what the model can't derive</text>
+    <text x="535" y="380">Fitted to measured kernels.</text>
+    <text x="535" y="402">RTX A6000:</text>
+    <text x="855" y="380">A prediction for this GPU</text>
+    <text x="855" y="402">running this software.</text>
+  </g>
+  <g class="num">
+    <text x="535" y="424">math × 0.75, DRAM × 0.90,</text>
+    <text x="535" y="446">L2 4,000 GB/s, launch 25 µs eager,</text>
+    <text x="535" y="468">3.5 µs in a CUDA graph (measured on a B200)</text>
+  </g>
+</svg>

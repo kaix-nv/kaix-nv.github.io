@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">Pure decode steps against the model, per 30-second window</title>
+<desc id="desc">Two runs of the same long-prompt sweep of Qwen3-8B on one RTX A6000. Each point is the model/measured ratio of the pure decode steps in a 30-second window, from the engine&#x27;s step log. In the re-run, and in the first run&#x27;s other windows, every window lies between 0.99 and 1.05. In the first run 3 windows after 720 seconds fall to 0.47-0.52: steps took about twice their price while another job ran on the neighbouring GPU.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Pure decode steps against the model, per 30-second window</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0.4</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">0.6</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">0.8</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">1.2</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">0</text>
+<text x="198.5" y="470" class="tick" text-anchor="middle">150</text>
+<text x="317.0" y="470" class="tick" text-anchor="middle">300</text>
+<text x="435.5" y="470" class="tick" text-anchor="middle">450</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">600</text>
+<text x="672.5" y="470" class="tick" text-anchor="middle">750</text>
+<text x="791.0" y="470" class="tick" text-anchor="middle">900</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">1000</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">time into the run, s (30-second windows)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">model / measured</text>
+<polyline points="80.0,150.1 103.7,151.6 127.4,150.6 151.1,154.1 174.8,152.1 198.5,150.1 222.2,152.1 245.9,152.6 269.6,149.1 293.3,151.6 317.0,150.1 340.7,151.1 364.4,143.5 388.1,141.9 411.8,131.3 435.5,140.9 459.2,148.6 482.9,151.1 506.6,145.5 530.3,159.0 554.0,157.5 577.7,142.9 601.4,152.1 648.8,161.4 672.5,415.3 696.2,139.3 719.9,390.7 743.6,160.4 767.3,415.0 791.0,140.9" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="150.1" r="3.2" fill="#ea580c"/>
+<circle cx="103.7" cy="151.6" r="3.2" fill="#ea580c"/>
+<circle cx="127.4" cy="150.6" r="3.2" fill="#ea580c"/>
+<circle cx="151.1" cy="154.1" r="3.2" fill="#ea580c"/>
+<circle cx="174.8" cy="152.1" r="3.2" fill="#ea580c"/>
+<circle cx="198.5" cy="150.1" r="3.2" fill="#ea580c"/>
+<circle cx="222.2" cy="152.1" r="3.2" fill="#ea580c"/>
+<circle cx="245.9" cy="152.6" r="3.2" fill="#ea580c"/>
+<circle cx="269.6" cy="149.1" r="3.2" fill="#ea580c"/>
+<circle cx="293.3" cy="151.6" r="3.2" fill="#ea580c"/>
+<circle cx="317.0" cy="150.1" r="3.2" fill="#ea580c"/>
+<circle cx="340.7" cy="151.1" r="3.2" fill="#ea580c"/>
+<circle cx="364.4" cy="143.5" r="3.2" fill="#ea580c"/>
+<circle cx="388.1" cy="141.9" r="3.2" fill="#ea580c"/>
+<circle cx="411.8" cy="131.3" r="3.2" fill="#ea580c"/>
+<circle cx="435.5" cy="140.9" r="3.2" fill="#ea580c"/>
+<circle cx="459.2" cy="148.6" r="3.2" fill="#ea580c"/>
+<circle cx="482.9" cy="151.1" r="3.2" fill="#ea580c"/>
+<circle cx="506.6" cy="145.5" r="3.2" fill="#ea580c"/>
+<circle cx="530.3" cy="159.0" r="3.2" fill="#ea580c"/>
+<circle cx="554.0" cy="157.5" r="3.2" fill="#ea580c"/>
+<circle cx="577.7" cy="142.9" r="3.2" fill="#ea580c"/>
+<circle cx="601.4" cy="152.1" r="3.2" fill="#ea580c"/>
+<circle cx="648.8" cy="161.4" r="3.2" fill="#ea580c"/>
+<circle cx="672.5" cy="415.3" r="3.2" fill="#ea580c"/>
+<circle cx="696.2" cy="139.3" r="3.2" fill="#ea580c"/>
+<circle cx="719.9" cy="390.7" r="3.2" fill="#ea580c"/>
+<circle cx="743.6" cy="160.4" r="3.2" fill="#ea580c"/>
+<circle cx="767.3" cy="415.0" r="3.2" fill="#ea580c"/>
+<circle cx="791.0" cy="140.9" r="3.2" fill="#ea580c"/>
+<line x1="103.7" y1="294.0" x2="133.7" y2="294.0" stroke="#ea580c" stroke-width="2.2"/>
+<text x="141.7" y="298.0" class="legend">first run: another job on the neighbouring GPU</text>
+<polyline points="80.0,149.6 103.7,150.6 127.4,149.1 151.1,153.6 174.8,151.6 198.5,150.6 222.2,152.1 245.9,153.1 269.6,149.1 293.3,151.6 317.0,150.1 340.7,150.6 364.4,142.4 388.1,141.4 411.8,132.9 435.5,140.3 459.2,149.6 482.9,151.1 506.6,135.6 530.3,147.0 554.0,141.4 577.7,148.6 601.4,146.5 625.1,161.8 648.8,152.1 672.5,151.6 696.2,144.0 719.9,156.5 743.6,139.8" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="149.6" r="3.2" fill="#2563eb"/>
+<circle cx="103.7" cy="150.6" r="3.2" fill="#2563eb"/>
+<circle cx="127.4" cy="149.1" r="3.2" fill="#2563eb"/>
+<circle cx="151.1" cy="153.6" r="3.2" fill="#2563eb"/>
+<circle cx="174.8" cy="151.6" r="3.2" fill="#2563eb"/>
+<circle cx="198.5" cy="150.6" r="3.2" fill="#2563eb"/>
+<circle cx="222.2" cy="152.1" r="3.2" fill="#2563eb"/>
+<circle cx="245.9" cy="153.1" r="3.2" fill="#2563eb"/>
+<circle cx="269.6" cy="149.1" r="3.2" fill="#2563eb"/>
+<circle cx="293.3" cy="151.6" r="3.2" fill="#2563eb"/>
+<circle cx="317.0" cy="150.1" r="3.2" fill="#2563eb"/>
+<circle cx="340.7" cy="150.6" r="3.2" fill="#2563eb"/>
+<circle cx="364.4" cy="142.4" r="3.2" fill="#2563eb"/>
+<circle cx="388.1" cy="141.4" r="3.2" fill="#2563eb"/>
+<circle cx="411.8" cy="132.9" r="3.2" fill="#2563eb"/>
+<circle cx="435.5" cy="140.3" r="3.2" fill="#2563eb"/>
+<circle cx="459.2" cy="149.6" r="3.2" fill="#2563eb"/>
+<circle cx="482.9" cy="151.1" r="3.2" fill="#2563eb"/>
+<circle cx="506.6" cy="135.6" r="3.2" fill="#2563eb"/>
+<circle cx="530.3" cy="147.0" r="3.2" fill="#2563eb"/>
+<circle cx="554.0" cy="141.4" r="3.2" fill="#2563eb"/>
+<circle cx="577.7" cy="148.6" r="3.2" fill="#2563eb"/>
+<circle cx="601.4" cy="146.5" r="3.2" fill="#2563eb"/>
+<circle cx="625.1" cy="161.8" r="3.2" fill="#2563eb"/>
+<circle cx="648.8" cy="152.1" r="3.2" fill="#2563eb"/>
+<circle cx="672.5" cy="151.6" r="3.2" fill="#2563eb"/>
+<circle cx="696.2" cy="144.0" r="3.2" fill="#2563eb"/>
+<circle cx="719.9" cy="156.5" r="3.2" fill="#2563eb"/>
+<circle cx="743.6" cy="139.8" r="3.2" fill="#2563eb"/>
+<line x1="103.7" y1="316.0" x2="133.7" y2="316.0" stroke="#2563eb" stroke-width="2.2"/>
+<text x="141.7" y="320.0" class="legend">re-run, GPU clocks logged</text>
+</svg>

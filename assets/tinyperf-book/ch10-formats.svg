@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">One weight GEMM in four formats, H100 roofline</title>
+<desc id="desc">Log-log roofline time of a GEMM with a 4096 by 4096 weight on an H100 at datasheet rates, from 1 to 4096 rows. Each curve is flat while the weights&#x27; bytes set the time, then rises with the rows once math does. fp8 lowers both parts by half, and turns at the same 345 rows as bf16. 4-bit weights with bf16 math lower only the flat part, to about a quarter, turn up at 92 rows and join the bf16 line at 345. 2:4 sparsity lowers the flat part to 0.56 and the rising part to half, and turns at 467 rows; above that it runs on the fp8 line, since both double the rate.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">One weight GEMM in four formats, H100 roofline</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="374.9" x2="870" y2="374.9" stroke="#e2e8f0"/>
+<text x="72" y="378.9" class="tick" text-anchor="end">3</text>
+<line x1="80" y1="292.6" x2="870" y2="292.6" stroke="#e2e8f0"/>
+<text x="72" y="296.6" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="217.4" x2="870" y2="217.4" stroke="#e2e8f0"/>
+<text x="72" y="221.4" class="tick" text-anchor="end">30</text>
+<line x1="80" y1="135.1" x2="870" y2="135.1" stroke="#e2e8f0"/>
+<text x="72" y="139.1" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">300</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">1</text>
+<text x="211.7" y="470" class="tick" text-anchor="middle">4</text>
+<text x="343.3" y="470" class="tick" text-anchor="middle">16</text>
+<text x="475.0" y="470" class="tick" text-anchor="middle">64</text>
+<text x="606.7" y="470" class="tick" text-anchor="middle">256</text>
+<text x="738.3" y="470" class="tick" text-anchor="middle">1024</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">4096</text>
+<line x1="509.5" y1="60" x2="509.5" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="513.5" y="442" class="note">92</text>
+<line x1="635.0" y1="60" x2="635.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="639.0" y="442" class="note">345</text>
+<line x1="663.8" y1="60" x2="663.8" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="667.8" y="442" class="note">467</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">rows (M), log scale</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">microseconds, log scale</text>
+<polyline points="80.0,292.5 96.5,292.4 112.9,292.4 129.4,292.4 145.8,292.4 162.3,292.4 178.8,292.4 195.2,292.4 211.7,292.4 228.1,292.3 244.6,292.3 261.0,292.3 277.5,292.2 294.0,292.2 310.4,292.1 326.9,292.0 343.3,292.0 359.8,291.9 376.2,291.7 392.7,291.6 409.2,291.4 425.6,291.2 442.1,291.0 458.5,290.7 475.0,290.4 491.5,290.0 507.9,289.5 524.4,289.0 540.8,288.3 557.3,287.6 573.8,286.7 590.2,285.7 606.7,284.4 623.1,283.0 639.6,278.5 656.0,266.7 672.5,254.8 689.0,243.0 705.4,231.1 721.9,219.3 738.3,207.4 754.8,195.6 771.2,183.7 787.7,171.9 804.2,160.0 820.6,148.2 837.1,136.3 853.5,124.5 870.0,112.6" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<line x1="99.8" y1="72.5" x2="129.8" y2="72.5" stroke="#0f172a" stroke-width="2.2"/>
+<text x="137.8" y="76.5" class="legend">bf16</text>
+<polyline points="80.0,339.9 96.5,339.8 112.9,339.8 129.4,339.8 145.8,339.8 162.3,339.8 178.8,339.8 195.2,339.8 211.7,339.7 228.1,339.7 244.6,339.7 261.0,339.7 277.5,339.6 294.0,339.6 310.4,339.5 326.9,339.4 343.3,339.4 359.8,339.3 376.2,339.1 392.7,339.0 409.2,338.8 425.6,338.6 442.1,338.4 458.5,338.1 475.0,337.8 491.5,337.4 507.9,336.9 524.4,336.4 540.8,335.7 557.3,335.0 573.8,334.1 590.2,333.0 606.7,331.8 623.1,330.4 639.6,325.9 656.0,314.1 672.5,302.2 689.0,290.4 705.4,278.5 721.9,266.7 738.3,254.8 754.8,243.0 771.2,231.1 787.7,219.3 804.2,207.4 820.6,195.6 837.1,183.7 853.5,171.9 870.0,160.0" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<line x1="99.8" y1="94.5" x2="129.8" y2="94.5" stroke="#2563eb" stroke-width="2.2"/>
+<text x="137.8" y="98.5" class="legend">fp8</text>
+<polyline points="80.0,383.0 96.5,383.0 112.9,383.0 129.4,382.9 145.8,382.9 162.3,382.8 178.8,382.8 195.2,382.7 211.7,382.6 228.1,382.5 244.6,382.4 261.0,382.3 277.5,382.1 294.0,381.9 310.4,381.7 326.9,381.5 343.3,381.2 359.8,380.8 376.2,380.3 392.7,379.8 409.2,379.2 425.6,378.5 442.1,377.7 458.5,376.7 475.0,375.5 491.5,374.2 507.9,372.6 524.4,361.5 540.8,349.6 557.3,337.8 573.8,325.9 590.2,314.1 606.7,302.2 623.1,290.4 639.6,278.5 656.0,266.7 672.5,254.8 689.0,243.0 705.4,231.1 721.9,219.3 738.3,207.4 754.8,195.6 771.2,183.7 787.7,171.9 804.2,160.0 820.6,148.2 837.1,136.3 853.5,124.5 870.0,112.6" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<line x1="99.8" y1="116.5" x2="129.8" y2="116.5" stroke="#ea580c" stroke-width="2.2"/>
+<text x="137.8" y="120.5" class="legend">4-bit weights, bf16 math</text>
+<polyline points="80.0,331.8 96.5,331.8 112.9,331.7 129.4,331.7 145.8,331.7 162.3,331.7 178.8,331.7 195.2,331.6 211.7,331.6 228.1,331.5 244.6,331.5 261.0,331.4 277.5,331.4 294.0,331.3 310.4,331.2 326.9,331.0 343.3,330.9 359.8,330.7 376.2,330.5 392.7,330.3 409.2,330.0 425.6,329.6 442.1,329.2 458.5,328.7 475.0,328.1 491.5,327.5 507.9,326.7 524.4,325.7 540.8,324.6 557.3,323.3 573.8,321.9 590.2,320.1 606.7,318.1 623.1,315.8 639.6,313.1 656.0,310.1 672.5,302.2 689.0,290.4 705.4,278.5 721.9,266.7 738.3,254.8 754.8,243.0 771.2,231.1 787.7,219.3 804.2,207.4 820.6,195.6 837.1,183.7 853.5,171.9 870.0,160.0" fill="none" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="99.8" y1="138.5" x2="129.8" y2="138.5" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="137.8" y="142.5" class="legend">2:4 sparse, bf16</text>
+</svg>

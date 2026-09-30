@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 480" role="img"
+     aria-labelledby="title description">
+  <title id="title">Grouped-query attention: four query heads share one KV head</title>
+  <desc id="description">
+    One Qwen3-8B layer has 32 query heads in 8 groups of four; each group shares one key head
+    and one value head. The KV cache stores only the 8 KV heads for every past token: 2 x 8 x 128
+    values of 2 bytes, 4,096 bytes per token per layer, where 32 KV heads would need 16,384.
+    Over 36 layers that is 147,456 bytes per token, 302 MB for a 2,048-token sequence. A decode
+    step reads every sequence's cache once.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .mono { font: 500 14px ui-monospace, monospace; fill: #334155; }
+      .monob { font: 700 14px ui-monospace, monospace; fill: #0f172a; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .kv { font: 600 12px system-ui, sans-serif; fill: #7c2d12; }
+      .link { stroke: #94a3b8; stroke-width: 1.4; }
+    </style>
+  </defs>
+  <rect width="1100" height="480" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Grouped-query attention: four query heads share one KV head</text>
+  <text x="40" y="72" class="subtitle">One Qwen3-8B layer. The cache holds only the KV heads: a quarter of what 32 heads would need.</text>
+
+  <text x="50" y="112" class="label">32 query heads, in 8 groups of 4</text>
+
+  <!-- query heads: group i at x0 = 50 + 72 i; squares 14 wide, gap 2 -->
+  <g fill="#2563eb">
+    <rect x="50" y="126" width="14" height="22" rx="2"/><rect x="66" y="126" width="14" height="22" rx="2"/><rect x="82" y="126" width="14" height="22" rx="2"/><rect x="98" y="126" width="14" height="22" rx="2"/>
+    <rect x="122" y="126" width="14" height="22" rx="2"/><rect x="138" y="126" width="14" height="22" rx="2"/><rect x="154" y="126" width="14" height="22" rx="2"/><rect x="170" y="126" width="14" height="22" rx="2"/>
+    <rect x="194" y="126" width="14" height="22" rx="2"/><rect x="210" y="126" width="14" height="22" rx="2"/><rect x="226" y="126" width="14" height="22" rx="2"/><rect x="242" y="126" width="14" height="22" rx="2"/>
+    <rect x="266" y="126" width="14" height="22" rx="2"/><rect x="282" y="126" width="14" height="22" rx="2"/><rect x="298" y="126" width="14" height="22" rx="2"/><rect x="314" y="126" width="14" height="22" rx="2"/>
+    <rect x="338" y="126" width="14" height="22" rx="2"/><rect x="354" y="126" width="14" height="22" rx="2"/><rect x="370" y="126" width="14" height="22" rx="2"/><rect x="386" y="126" width="14" height="22" rx="2"/>
+    <rect x="410" y="126" width="14" height="22" rx="2"/><rect x="426" y="126" width="14" height="22" rx="2"/><rect x="442" y="126" width="14" height="22" rx="2"/><rect x="458" y="126" width="14" height="22" rx="2"/>
+    <rect x="482" y="126" width="14" height="22" rx="2"/><rect x="498" y="126" width="14" height="22" rx="2"/><rect x="514" y="126" width="14" height="22" rx="2"/><rect x="530" y="126" width="14" height="22" rx="2"/>
+    <rect x="554" y="126" width="14" height="22" rx="2"/><rect x="570" y="126" width="14" height="22" rx="2"/><rect x="586" y="126" width="14" height="22" rx="2"/><rect x="602" y="126" width="14" height="22" rx="2"/>
+  </g>
+
+  <!-- each query head links to its group's KV head (centre x0 + 31, top y 196) -->
+  <g class="link">
+    <line x1="57" y1="148" x2="81" y2="196"/><line x1="73" y1="148" x2="81" y2="196"/><line x1="89" y1="148" x2="81" y2="196"/><line x1="105" y1="148" x2="81" y2="196"/>
+    <line x1="129" y1="148" x2="153" y2="196"/><line x1="145" y1="148" x2="153" y2="196"/><line x1="161" y1="148" x2="153" y2="196"/><line x1="177" y1="148" x2="153" y2="196"/>
+    <line x1="201" y1="148" x2="225" y2="196"/><line x1="217" y1="148" x2="225" y2="196"/><line x1="233" y1="148" x2="225" y2="196"/><line x1="249" y1="148" x2="225" y2="196"/>
+    <line x1="273" y1="148" x2="297" y2="196"/><line x1="289" y1="148" x2="297" y2="196"/><line x1="305" y1="148" x2="297" y2="196"/><line x1="321" y1="148" x2="297" y2="196"/>
+    <line x1="345" y1="148" x2="369" y2="196"/><line x1="361" y1="148" x2="369" y2="196"/><line x1="377" y1="148" x2="369" y2="196"/><line x1="393" y1="148" x2="369" y2="196"/>
+    <line x1="417" y1="148" x2="441" y2="196"/><line x1="433" y1="148" x2="441" y2="196"/><line x1="449" y1="148" x2="441" y2="196"/><line x1="465" y1="148" x2="441" y2="196"/>
+    <line x1="489" y1="148" x2="513" y2="196"/><line x1="505" y1="148" x2="513" y2="196"/><line x1="521" y1="148" x2="513" y2="196"/><line x1="537" y1="148" x2="513" y2="196"/>
+    <line x1="561" y1="148" x2="585" y2="196"/><line x1="577" y1="148" x2="585" y2="196"/><line x1="593" y1="148" x2="585" y2="196"/><line x1="609" y1="148" x2="585" y2="196"/>
+  </g>
+
+  <!-- KV heads -->
+  <g fill="#fdba74" stroke="#ea580c">
+    <rect x="57" y="196" width="48" height="30" rx="4"/><rect x="129" y="196" width="48" height="30" rx="4"/>
+    <rect x="201" y="196" width="48" height="30" rx="4"/><rect x="273" y="196" width="48" height="30" rx="4"/>
+    <rect x="345" y="196" width="48" height="30" rx="4"/><rect x="417" y="196" width="48" height="30" rx="4"/>
+    <rect x="489" y="196" width="48" height="30" rx="4"/><rect x="561" y="196" width="48" height="30" rx="4"/>
+  </g>
+  <g class="kv" text-anchor="middle">
+    <text x="81" y="216">K V</text><text x="153" y="216">K V</text><text x="225" y="216">K V</text><text x="297" y="216">K V</text>
+    <text x="369" y="216">K V</text><text x="441" y="216">K V</text><text x="513" y="216">K V</text><text x="585" y="216">K V</text>
+  </g>
+  <text x="50" y="250" class="label">8 KV heads, 128 values each for K and for V</text>
+
+  <!-- the cache: one sequence, tokens along x -->
+  <rect x="50" y="272" width="566" height="40" rx="6" fill="#ffedd5" stroke="#ea580c"/>
+  <g stroke="#fdba74" stroke-width="1">
+    <line x1="85" y1="272" x2="85" y2="312"/><line x1="120" y1="272" x2="120" y2="312"/><line x1="155" y1="272" x2="155" y2="312"/>
+    <line x1="190" y1="272" x2="190" y2="312"/><line x1="225" y1="272" x2="225" y2="312"/><line x1="260" y1="272" x2="260" y2="312"/>
+    <line x1="295" y1="272" x2="295" y2="312"/><line x1="330" y1="272" x2="330" y2="312"/><line x1="365" y1="272" x2="365" y2="312"/>
+    <line x1="400" y1="272" x2="400" y2="312"/><line x1="435" y1="272" x2="435" y2="312"/><line x1="470" y1="272" x2="470" y2="312"/>
+    <line x1="505" y1="272" x2="505" y2="312"/><line x1="540" y1="272" x2="540" y2="312"/><line x1="575" y1="272" x2="575" y2="312"/>
+  </g>
+  <text x="616" y="332" class="note" text-anchor="end">context →</text>
+  <text x="50" y="336" class="label">This layer's KV cache for one sequence</text>
+  <text x="50" y="358" class="small">one slice per past token, holding the 8 KV heads' K and V</text>
+
+  <text x="50" y="404" class="small">A decode step's query for this sequence, 32 heads, reads the whole strip once:</text>
+  <text x="50" y="426" class="small">the model batches attention per KV head (sequences × 8), with the group's 4 query</text>
+  <text x="50" y="448" class="small">heads as the rows, so each KV head is read once for all four.</text>
+
+  <!-- arithmetic -->
+  <rect x="660" y="96" width="400" height="352" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="680" y="126" class="label">Bytes per token, per layer, 16-bit</text>
+  <text x="680" y="160" class="small">32 KV heads, one per query head:</text>
+  <text x="680" y="184" class="mono">2 × 32 × 128 × 2 = 16,384</text>
+  <text x="680" y="222" class="small">8 KV heads, as Qwen3-8B has:</text>
+  <text x="680" y="246" class="monob">2 × 8 × 128 × 2 = 4,096</text>
+  <text x="680" y="284" class="small">× 36 layers:</text>
+  <text x="680" y="308" class="mono">147,456 bytes = 0.147 MB per token</text>
+  <text x="680" y="346" class="small">one sequence of 2,048 tokens:</text>
+  <text x="680" y="370" class="mono">302 MB</text>
+  <text x="680" y="408" class="small">A decode step of B sequences reads</text>
+  <text x="680" y="430" class="mono">B × context × 0.147 MB</text>
+</svg>

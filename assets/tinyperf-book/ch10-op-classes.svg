@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 583" role="img" aria-labelledby="title desc">
+<title id="title">What a precision recipe buys, class by class: Qwen3-8B, datasheet rates</title>
+<desc id="desc">Speed-up of each class of operations under the FP8 recipe on an H100 and the FP4 recipe on a B200, for a decode step of 8 sequences at 4096 tokens of context and a prefill of 8 prompts of 2048 tokens. Weight GEMMs gain most, and most in prefill: 3.8x for FP4 on the B200. Attention gains up to 2x from its fp8 tag. The LM head and the other operations gain nothing. Whole steps gain 1.6x to 2.9x.</desc>
+<defs><style>.title { font: 700 22px system-ui, sans-serif; fill: #0f172a; } .label { font: 600 14px system-ui, sans-serif; fill: #0f172a; } .num { font: 500 12px ui-monospace, monospace; fill: #334155; } .legend { font: 600 13px system-ui, sans-serif; fill: #334155; } .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }</style></defs>
+<rect width="1000" height="583" rx="16" fill="#f8fafc"/>
+<text x="40" y="40" class="title">What a precision recipe buys, class by class: Qwen3-8B, datasheet rates</text>
+<rect x="40" y="62" width="14" height="14" rx="2" fill="#dbeafe" stroke="#2563eb"/>
+<text x="60" y="74" class="legend">H100, FP8, decode 8 x 4096</text>
+<rect x="275" y="62" width="14" height="14" rx="2" fill="#2563eb" stroke="#2563eb"/>
+<text x="295" y="74" class="legend">H100, FP8, prefill 8 x 2048</text>
+<rect x="510" y="62" width="14" height="14" rx="2" fill="#fdba74" stroke="#ea580c"/>
+<text x="530" y="74" class="legend">B200, FP4, decode 8 x 4096</text>
+<rect x="745" y="62" width="14" height="14" rx="2" fill="#ea580c" stroke="#ea580c"/>
+<text x="765" y="74" class="legend">B200, FP4, prefill 8 x 2048</text>
+<line x1="150.0" y1="100" x2="150.0" y2="533" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="150.0" y="551" class="tick" text-anchor="middle">0x</text>
+<line x1="347.5" y1="100" x2="347.5" y2="533" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="347.5" y="551" class="tick" text-anchor="middle">1x</text>
+<line x1="545.0" y1="100" x2="545.0" y2="533" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="545.0" y="551" class="tick" text-anchor="middle">2x</text>
+<line x1="742.5" y1="100" x2="742.5" y2="533" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="742.5" y="551" class="tick" text-anchor="middle">3x</text>
+<line x1="940.0" y1="100" x2="940.0" y2="533" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="940.0" y="551" class="tick" text-anchor="middle">4x</text>
+<text x="545.0" y="573" class="tick" text-anchor="middle">speed-up over bf16 (bf16 time / recipe time)</text>
+<text x="138" y="147.5" class="label" text-anchor="end">weight GEMMs</text>
+<rect x="150" y="110" width="360.6" height="14" fill="#dbeafe" stroke="#2563eb"/>
+<text x="516.6" y="122" class="num">1.83x</text>
+<rect x="150" y="127" width="387.8" height="14" fill="#2563eb" stroke="#2563eb"/>
+<text x="543.8" y="139" class="num">1.96x</text>
+<rect x="150" y="144" width="493.8" height="14" fill="#fdba74" stroke="#ea580c"/>
+<text x="649.8" y="156" class="num">2.50x</text>
+<rect x="150" y="161" width="745.9" height="14" fill="#ea580c" stroke="#ea580c"/>
+<text x="901.9" y="173" class="num">3.78x</text>
+<text x="138" y="234.5" class="label" text-anchor="end">attention</text>
+<rect x="150" y="197" width="369.3" height="14" fill="#dbeafe" stroke="#2563eb"/>
+<text x="525.3" y="209" class="num">1.87x</text>
+<rect x="150" y="214" width="392.3" height="14" fill="#2563eb" stroke="#2563eb"/>
+<text x="548.3" y="226" class="num">1.99x</text>
+<rect x="150" y="231" width="343.0" height="14" fill="#fdba74" stroke="#ea580c"/>
+<text x="499.0" y="243" class="num">1.74x</text>
+<rect x="150" y="248" width="389.0" height="14" fill="#ea580c" stroke="#ea580c"/>
+<text x="545.0" y="260" class="num">1.97x</text>
+<text x="138" y="321.5" class="label" text-anchor="end">LM head</text>
+<rect x="150" y="284" width="197.5" height="14" fill="#dbeafe" stroke="#2563eb"/>
+<text x="353.5" y="296" class="num">1.00x</text>
+<rect x="150" y="301" width="197.5" height="14" fill="#2563eb" stroke="#2563eb"/>
+<text x="353.5" y="313" class="num">1.00x</text>
+<rect x="150" y="318" width="197.5" height="14" fill="#fdba74" stroke="#ea580c"/>
+<text x="353.5" y="330" class="num">1.00x</text>
+<rect x="150" y="335" width="197.5" height="14" fill="#ea580c" stroke="#ea580c"/>
+<text x="353.5" y="347" class="num">1.00x</text>
+<text x="138" y="408.5" class="label" text-anchor="end">other ops</text>
+<rect x="150" y="371" width="197.5" height="14" fill="#dbeafe" stroke="#2563eb"/>
+<text x="353.5" y="383" class="num">1.00x</text>
+<rect x="150" y="388" width="197.5" height="14" fill="#2563eb" stroke="#2563eb"/>
+<text x="353.5" y="400" class="num">1.00x</text>
+<rect x="150" y="405" width="197.5" height="14" fill="#fdba74" stroke="#ea580c"/>
+<text x="353.5" y="417" class="num">1.00x</text>
+<rect x="150" y="422" width="197.5" height="14" fill="#ea580c" stroke="#ea580c"/>
+<text x="353.5" y="434" class="num">1.00x</text>
+<text x="138" y="495.5" class="label" text-anchor="end">whole step</text>
+<rect x="150" y="458" width="323.3" height="14" fill="#dbeafe" stroke="#2563eb"/>
+<text x="479.3" y="470" class="num">1.64x</text>
+<rect x="150" y="475" width="347.9" height="14" fill="#2563eb" stroke="#2563eb"/>
+<text x="503.9" y="487" class="num">1.76x</text>
+<rect x="150" y="492" width="348.0" height="14" fill="#fdba74" stroke="#ea580c"/>
+<text x="504.0" y="504" class="num">1.76x</text>
+<rect x="150" y="509" width="581.5" height="14" fill="#ea580c" stroke="#ea580c"/>
+<text x="737.5" y="521" class="num">2.94x</text>
+</svg>

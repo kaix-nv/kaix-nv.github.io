@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" role="img" aria-labelledby="title desc">
+<title id="title">Plain decoding against draft and verify</title>
+<desc id="desc">A timeline to scale for Qwen3-8B on an RTX A6000, batch 1, context 1024. Plain decoding runs four target decode steps of 24.2 ms and emits four tokens by 96.9 ms. Speculative decoding runs four Qwen3-0.6B draft steps of 3.41 ms, then one target verify step of 24.3 ms over five positions. In the first cycle the target accepts two drafted tokens, rejects the third and replaces it with its own sample, and the fourth is discarded: three tokens. In the second cycle it accepts all four and adds its own fifth token. Eight tokens by 75.9 ms.</desc>
+<defs><style>.title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }.sub { font: 500 14px system-ui, sans-serif; fill: #475569; }.row { font: 700 15px system-ui, sans-serif; fill: #334155; }.small { font: 500 13px system-ui, sans-serif; fill: #475569; }.box { font: 600 13px system-ui, sans-serif; fill: #0f172a; }.num { font: 600 12px ui-monospace, monospace; fill: #334155; }.tok { font: 700 11px ui-monospace, monospace; }</style></defs>
+<rect width="1000" height="430" rx="16" fill="#f8fafc"/>
+<text x="40" y="38" class="title">Plain decoding against draft and verify</text>
+<text x="40" y="62" class="sub">Qwen3-8B with a Qwen3-0.6B draft, RTX A6000, batch 1, context 1,024, k = 4: the model's prices, to scale</text>
+<text x="40" y="118" class="row">plain decoding</text>
+<text x="40" y="136" class="small">Qwen3-8B</text>
+<rect x="230.0" y="100" width="169.5" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="314.7" y="123.0" class="box" text-anchor="middle">decode</text>
+<rect x="377.0" y="142" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="385.5" y="154.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<rect x="399.5" y="100" width="169.5" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="484.2" y="123.0" class="box" text-anchor="middle">decode</text>
+<rect x="546.5" y="142" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="555.0" y="154.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<rect x="569.0" y="100" width="169.5" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="653.7" y="123.0" class="box" text-anchor="middle">decode</text>
+<rect x="716.0" y="142" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="724.5" y="154.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<rect x="738.5" y="100" width="169.5" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="823.2" y="123.0" class="box" text-anchor="middle">decode</text>
+<rect x="885.5" y="142" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="894.0" y="154.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<text x="908.0" y="178" class="num" text-anchor="end">4 tokens by 96.9 ms</text>
+<text x="40" y="214" class="row">draft</text>
+<text x="40" y="232" class="small">Qwen3-0.6B, k = 4</text>
+<text x="40" y="274" class="row">verify</text>
+<text x="40" y="292" class="small">Qwen3-8B, 5 positions</text>
+<rect x="230.0" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="253.9" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="277.7" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="301.6" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="325.5" y="256" width="170.3" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="410.6" y="279.0" class="box" text-anchor="middle">verify</text>
+<rect x="362.1" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="370.6" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="382.1" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="390.6" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="402.1" y="300" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="410.6" y="312.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<rect x="422.1" y="300" width="17" height="17" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="430.6" y="312.5" class="tok" text-anchor="middle" fill="#94a3b8">x</text>
+<rect x="442.1" y="300" width="17" height="17" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="450.6" y="312.5" class="tok" text-anchor="middle" fill="#94a3b8">x</text>
+<rect x="495.7" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="519.6" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="543.5" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="567.4" y="200" width="23.9" height="30" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<rect x="591.2" y="256" width="170.3" height="36" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="676.4" y="279.0" class="box" text-anchor="middle">verify</text>
+<rect x="627.9" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="636.4" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="647.9" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="656.4" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="667.9" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="676.4" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="687.9" y="300" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="696.4" y="312.5" class="tok" text-anchor="middle" fill="#15803d">d</text>
+<rect x="707.9" y="300" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="716.4" y="312.5" class="tok" text-anchor="middle" fill="#2563eb">t</text>
+<text x="277.7" y="192" class="num" text-anchor="middle">4 x 3.41 ms</text>
+<text x="771.5" y="279" class="num">8 tokens by 75.9 ms</text>
+<text x="410.6" y="336" class="small" text-anchor="middle">3 tokens: 2 drafts kept, 1 of its own</text>
+<text x="676.4" y="336" class="small" text-anchor="middle">5 tokens: 4 drafts kept, 1 of its own</text>
+<line x1="230.0" y1="360" x2="930.0" y2="360" stroke="#64748b"/>
+<line x1="230.0" y1="360" x2="230.0" y2="365" stroke="#64748b"/>
+<text x="230.0" y="380" class="num" text-anchor="middle">0 ms</text>
+<line x1="370.0" y1="360" x2="370.0" y2="365" stroke="#64748b"/>
+<text x="370.0" y="380" class="num" text-anchor="middle">20 ms</text>
+<line x1="510.0" y1="360" x2="510.0" y2="365" stroke="#64748b"/>
+<text x="510.0" y="380" class="num" text-anchor="middle">40 ms</text>
+<line x1="650.0" y1="360" x2="650.0" y2="365" stroke="#64748b"/>
+<text x="650.0" y="380" class="num" text-anchor="middle">60 ms</text>
+<line x1="790.0" y1="360" x2="790.0" y2="365" stroke="#64748b"/>
+<text x="790.0" y="380" class="num" text-anchor="middle">80 ms</text>
+<line x1="930.0" y1="360" x2="930.0" y2="365" stroke="#64748b"/>
+<text x="930.0" y="380" class="num" text-anchor="middle">100 ms</text>
+<rect x="230" y="395" width="17" height="17" rx="3" fill="#dcfce7" stroke="#15803d"/>
+<text x="255" y="408" class="small">a drafted token the target accepts</text>
+<rect x="505" y="395" width="17" height="17" rx="3" fill="#dbeafe" stroke="#2563eb"/>
+<text x="530" y="408" class="small">a token the target samples itself</text>
+<rect x="780" y="395" width="17" height="17" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="805" y="408" class="small">rejected or discarded</text>
+</svg>

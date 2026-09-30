@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">The roofline: attainable fp16 TFLOPS by arithmetic intensity</title>
+<desc id="desc">Log-log roofline of four GPUs at fp16. Each roof rises at the DRAM bandwidth and flattens at the peak tensor-core rate; the kink is the ridge point: RTX A6000 202, A100 153, H100 295, B200 277 FLOPs per byte. Vertical markers show one Qwen3-8B layer&#x27;s operations: decode of one sequence at about 1 FLOP per byte and decode attention at 4, far left of every ridge; decode of 64 sequences at 62 and of 256 at 228, near the ridges; prefill of 4096 tokens at 1365, math-bound everywhere.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">The roofline: attainable fp16 TFLOPS by arithmetic intensity</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0.1</text>
+<line x1="80" y1="372.0" x2="870" y2="372.0" stroke="#e2e8f0"/>
+<text x="72" y="376.0" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="294.0" x2="870" y2="294.0" stroke="#e2e8f0"/>
+<text x="72" y="298.0" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="216.0" x2="870" y2="216.0" stroke="#e2e8f0"/>
+<text x="72" y="220.0" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="138.0" x2="870" y2="138.0" stroke="#e2e8f0"/>
+<text x="72" y="142.0" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">10,000</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">0.5</text>
+<text x="140.8" y="470" class="tick" text-anchor="middle">1</text>
+<text x="201.5" y="470" class="tick" text-anchor="middle">2</text>
+<text x="262.3" y="470" class="tick" text-anchor="middle">4</text>
+<text x="323.1" y="470" class="tick" text-anchor="middle">8</text>
+<text x="383.8" y="470" class="tick" text-anchor="middle">16</text>
+<text x="444.6" y="470" class="tick" text-anchor="middle">32</text>
+<text x="505.4" y="470" class="tick" text-anchor="middle">64</text>
+<text x="566.2" y="470" class="tick" text-anchor="middle">128</text>
+<text x="626.9" y="470" class="tick" text-anchor="middle">256</text>
+<text x="687.7" y="470" class="tick" text-anchor="middle">512</text>
+<text x="748.5" y="470" class="tick" text-anchor="middle">1K</text>
+<text x="809.2" y="470" class="tick" text-anchor="middle">2K</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">4K</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">arithmetic intensity (FLOPs per byte of DRAM traffic, log scale)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">attainable TFLOPS (log scale)</text>
+<polyline points="80.0,325.0 633.9,111.0 870.0,111.0" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<line x1="92.2" y1="71.7" x2="122.2" y2="71.7" stroke="#ea580c" stroke-width="2.2"/>
+<text x="130.2" y="75.7" class="legend">B200 SXM: 2,218 TFLOPS, 8,000 GB/s, ridge 277</text>
+<polyline points="80.0,354.5 639.4,138.4 870.0,138.4" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<line x1="92.2" y1="93.7" x2="122.2" y2="93.7" stroke="#2563eb" stroke-width="2.2"/>
+<text x="130.2" y="97.7" class="legend">H100 SXM: 989 TFLOPS, 3,352 GB/s, ridge 295</text>
+<polyline points="80.0,371.3 581.8,177.5 870.0,177.5" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<line x1="92.2" y1="115.7" x2="122.2" y2="115.7" stroke="#15803d" stroke-width="2.2"/>
+<text x="130.2" y="119.7" class="legend">A100 SXM: 312 TFLOPS, 2,039 GB/s, ridge 153</text>
+<polyline points="80.0,404.4 606.0,201.2 870.0,201.2" fill="none" stroke="#94a3b8" stroke-width="2.2"/>
+<line x1="92.2" y1="137.7" x2="122.2" y2="137.7" stroke="#94a3b8" stroke-width="2.2"/>
+<text x="130.2" y="141.7" class="legend">RTX A6000: 155 TFLOPS, 768 GB/s, ridge 202</text>
+<g class="marks">
+<line x1="140.7" y1="450.0" x2="140.7" y2="301.6" stroke="#475569" stroke-dasharray="3 4"/>
+<circle cx="140.7" cy="381.0" r="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="140.7" cy="347.9" r="4" fill="#15803d" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="140.7" cy="331.0" r="4" fill="#2563eb" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="140.7" cy="301.6" r="4" fill="#ea580c" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="147.7" y="405.0" class="legend" text-anchor="start">decode, 1 seq</text>
+<text x="147.7" y="421.0" class="note" text-anchor="start">1.0 FLOP/byte</text>
+<line x1="502.7" y1="450.0" x2="502.7" y2="161.7" stroke="#475569" stroke-dasharray="3 4"/>
+<circle cx="502.7" cy="241.1" r="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="502.7" cy="208.0" r="4" fill="#15803d" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="502.7" cy="191.2" r="4" fill="#2563eb" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="502.7" cy="161.7" r="4" fill="#ea580c" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="509.7" y="265.1" class="legend" text-anchor="start">decode, 64 seqs</text>
+<text x="509.7" y="281.1" class="note" text-anchor="start">62 FLOP/byte</text>
+<line x1="616.6" y1="450.0" x2="616.6" y2="117.7" stroke="#475569" stroke-dasharray="3 4"/>
+<circle cx="616.6" cy="201.2" r="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="616.6" cy="177.5" r="4" fill="#15803d" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="616.6" cy="147.2" r="4" fill="#2563eb" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="616.6" cy="117.7" r="4" fill="#ea580c" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="609.6" y="95.7" class="legend" text-anchor="end">decode, 256 seqs</text>
+<text x="609.6" y="111.7" class="note" text-anchor="end">228 FLOP/byte</text>
+<line x1="262.2" y1="450.0" x2="262.2" y2="254.6" stroke="#475569" stroke-dasharray="3 4"/>
+<circle cx="262.2" cy="334.0" r="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="262.2" cy="300.9" r="4" fill="#15803d" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="262.2" cy="284.1" r="4" fill="#2563eb" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="262.2" cy="254.6" r="4" fill="#ea580c" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="269.2" y="358.0" class="legend" text-anchor="start">decode attention</text>
+<text x="269.2" y="374.0" class="note" text-anchor="start">4 FLOP/byte</text>
+<line x1="773.7" y1="450.0" x2="773.7" y2="111.0" stroke="#475569" stroke-dasharray="3 4"/>
+<circle cx="773.7" cy="201.2" r="4" fill="#94a3b8" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="773.7" cy="177.5" r="4" fill="#15803d" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="773.7" cy="138.4" r="4" fill="#2563eb" stroke="#f8fafc" stroke-width="1.2"/>
+<circle cx="773.7" cy="111.0" r="4" fill="#ea580c" stroke="#f8fafc" stroke-width="1.2"/>
+<text x="766.7" y="225.2" class="legend" text-anchor="end">prefill, 4096 tokens</text>
+<text x="766.7" y="241.2" class="note" text-anchor="end">1,365 FLOP/byte</text>
+</g>
+</svg>

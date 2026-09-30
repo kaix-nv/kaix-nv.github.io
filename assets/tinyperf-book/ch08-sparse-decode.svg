@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">The cap and what pays for it: sparse attention in decode</title>
+<desc id="desc">Microseconds per layer for a GLM-5.3-Flash decode step of 8 sequences on a B200, against context, 1k to 1M tokens, both axes logarithmic. Full-context attention grows in proportion to the context. The sparse layer&#x27;s attention stops growing at its top-2048 cap; its indexer, absent up to 2,048 tokens, then grows with the context. The sparse layer costs more than full-context attention up to about 9,000 tokens and less beyond; at 1M tokens it costs a seventh.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">The cap and what pays for it: sparse attention in decode</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">10,000</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">1k</text>
+<text x="159.0" y="470" class="tick" text-anchor="middle">2k</text>
+<text x="238.0" y="470" class="tick" text-anchor="middle">4k</text>
+<text x="317.0" y="470" class="tick" text-anchor="middle">8k</text>
+<text x="396.0" y="470" class="tick" text-anchor="middle">16k</text>
+<text x="475.0" y="470" class="tick" text-anchor="middle">32k</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">64k</text>
+<text x="633.0" y="470" class="tick" text-anchor="middle">128k</text>
+<text x="712.0" y="470" class="tick" text-anchor="middle">256k</text>
+<text x="791.0" y="470" class="tick" text-anchor="middle">512k</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">1M</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">context (tokens)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">us per layer</text>
+<polyline points="80.0,372.2 159.0,357.4 238.0,337.8 317.0,314.3 396.0,288.2 475.0,260.6 554.0,232.2 633.0,203.3 712.0,174.2 791.0,144.9 870.0,115.6" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="81.6" x2="125.8" y2="81.6" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="85.6" class="legend">full-context attention (twin)</text>
+<polyline points="80.0,372.2 159.0,357.4 238.0,312.0 317.0,309.8 396.0,305.8 475.0,298.8 554.0,287.4 633.0,271.2 712.0,250.3 791.0,225.9 870.0,199.2" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="372.2" r="3.2" fill="#2563eb"/>
+<circle cx="159.0" cy="357.4" r="3.2" fill="#2563eb"/>
+<circle cx="238.0" cy="312.0" r="3.2" fill="#2563eb"/>
+<circle cx="317.0" cy="309.8" r="3.2" fill="#2563eb"/>
+<circle cx="396.0" cy="305.8" r="3.2" fill="#2563eb"/>
+<circle cx="475.0" cy="298.8" r="3.2" fill="#2563eb"/>
+<circle cx="554.0" cy="287.4" r="3.2" fill="#2563eb"/>
+<circle cx="633.0" cy="271.2" r="3.2" fill="#2563eb"/>
+<circle cx="712.0" cy="250.3" r="3.2" fill="#2563eb"/>
+<circle cx="791.0" cy="225.9" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="199.2" r="3.2" fill="#2563eb"/>
+<line x1="95.8" y1="103.6" x2="125.8" y2="103.6" stroke="#2563eb" stroke-width="2.2"/>
+<text x="133.8" y="107.6" class="legend">sparse layer: attention + indexer</text>
+<polyline points="238.0,329.7 317.0,326.4 396.0,320.6 475.0,310.9 554.0,296.4 633.0,277.1 712.0,253.8 791.0,227.8 870.0,200.2" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<line x1="95.8" y1="125.6" x2="125.8" y2="125.6" stroke="#ea580c" stroke-width="2.2"/>
+<text x="133.8" y="129.6" class="legend">indexer alone</text>
+<polyline points="80.0,372.2 159.0,357.4 238.0,357.4 317.0,357.4 396.0,357.4 475.0,357.4 554.0,357.4 633.0,357.4 712.0,357.4 791.0,357.4 870.0,357.4" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<line x1="95.8" y1="147.6" x2="125.8" y2="147.6" stroke="#15803d" stroke-width="2.2"/>
+<text x="133.8" y="151.6" class="legend">top-2048 attention alone</text>
+</svg>

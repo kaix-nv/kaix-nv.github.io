@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" role="img" aria-labelledby="title desc">
+<title id="title">Where speculation wins: speedup by batch and context</title>
+<desc id="desc">Two heat maps of the speedup of speculative decoding over plain decoding on an RTX A6000, k = 4, acceptance 0.8, by batch (1 to 128) and context (256 to 16384 tokens). Left, Qwen3-8B with a Qwen3-0.6B draft: 2.17 at batch 1 and 256 tokens, falling with batch and context, because the draft&#x27;s own cache is 78 percent the size of the target&#x27;s; the only loss that fits in memory is 0.85 at batch 128 and 256 tokens, and the losses at 4096 tokens and more are in cells that need more than 48 GB. Right, Llama-2-7B with a TinyLlama-1.1B draft, whose cache is 4 percent of the target&#x27;s: in cells that fit, 1.92 to 2.07 at 1024 tokens and 1.99 to 2.25 at 4096; its largest gains, up to 2.85, are in cells that do not fit. Cells that do not fit are faded with a dashed outline.</desc>
+<defs><style>.title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }.sub { font: 500 14px system-ui, sans-serif; fill: #475569; }.axis { font: 500 14px system-ui, sans-serif; fill: #334155; }.tick { font: 500 12px system-ui, sans-serif; fill: #475569; }.panel { font: 700 15px system-ui, sans-serif; fill: #334155; }.num { font: 600 14px ui-monospace, monospace; }.legend { font: 500 13px system-ui, sans-serif; fill: #334155; }</style></defs>
+<rect width="1000" height="470" rx="16" fill="#f8fafc"/>
+<text x="40" y="38" class="title">Where speculation wins: speedup by batch and context</text>
+<text x="40" y="62" class="sub">RTX A6000, k = 4 drafted tokens, acceptance 0.8; the number is plain decoding's time per token over speculation's</text>
+<text x="335" y="100" class="panel" text-anchor="middle">Qwen3-8B, Qwen3-0.6B draft</text>
+<text x="187" y="122" class="tick" text-anchor="middle">1</text>
+<text x="261" y="122" class="tick" text-anchor="middle">8</text>
+<text x="335" y="122" class="tick" text-anchor="middle">32</text>
+<text x="409" y="122" class="tick" text-anchor="middle">64</text>
+<text x="483" y="122" class="tick" text-anchor="middle">128</text>
+<text x="140" y="161" class="tick" text-anchor="end">256</text>
+<rect x="152" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="187" y="162" class="num" text-anchor="middle" fill="#f8fafc">2.17</text>
+<rect x="226" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="261" y="162" class="num" text-anchor="middle" fill="#f8fafc">2.00</text>
+<rect x="300" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="335" y="162" class="num" text-anchor="middle" fill="#f8fafc">1.60</text>
+<rect x="374" y="132" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="1"/>
+<text x="409" y="162" class="num" text-anchor="middle" fill="#0f172a">1.10</text>
+<rect x="448" y="132" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="1"/>
+<text x="483" y="162" class="num" text-anchor="middle" fill="#0f172a">0.85</text>
+<text x="140" y="215" class="tick" text-anchor="end">1,024</text>
+<rect x="152" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="187" y="216" class="num" text-anchor="middle" fill="#f8fafc">2.14</text>
+<rect x="226" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="261" y="216" class="num" text-anchor="middle" fill="#f8fafc">1.86</text>
+<rect x="300" y="186" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="1"/>
+<text x="335" y="216" class="num" text-anchor="middle" fill="#0f172a">1.38</text>
+<rect x="374" y="186" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="1"/>
+<text x="409" y="216" class="num" text-anchor="middle" fill="#0f172a">1.01</text>
+<rect x="448" y="186" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="483" y="216" class="num" text-anchor="middle" fill="#475569">0.84</text>
+<text x="140" y="269" class="tick" text-anchor="end">4,096</text>
+<rect x="152" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="187" y="270" class="num" text-anchor="middle" fill="#f8fafc">2.05</text>
+<rect x="226" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="261" y="270" class="num" text-anchor="middle" fill="#f8fafc">1.53</text>
+<rect x="300" y="240" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="335" y="270" class="num" text-anchor="middle" fill="#475569">1.09</text>
+<rect x="374" y="240" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="409" y="270" class="num" text-anchor="middle" fill="#475569">0.91</text>
+<rect x="448" y="240" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="483" y="270" class="num" text-anchor="middle" fill="#475569">0.83</text>
+<text x="140" y="323" class="tick" text-anchor="end">16,384</text>
+<rect x="152" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="187" y="324" class="num" text-anchor="middle" fill="#f8fafc">1.79</text>
+<rect x="226" y="294" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="261" y="324" class="num" text-anchor="middle" fill="#475569">1.13</text>
+<rect x="300" y="294" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="335" y="324" class="num" text-anchor="middle" fill="#475569">0.91</text>
+<rect x="374" y="294" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="409" y="324" class="num" text-anchor="middle" fill="#475569">0.85</text>
+<rect x="448" y="294" width="70" height="50" rx="4" fill="#fdba74" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="483" y="324" class="num" text-anchor="middle" fill="#475569">0.83</text>
+<text x="335" y="372" class="axis" text-anchor="middle">sequences in the step (batch)</text>
+<text x="775" y="100" class="panel" text-anchor="middle">Llama-2-7B, TinyLlama-1.1B draft</text>
+<text x="627" y="122" class="tick" text-anchor="middle">1</text>
+<text x="701" y="122" class="tick" text-anchor="middle">8</text>
+<text x="775" y="122" class="tick" text-anchor="middle">32</text>
+<text x="849" y="122" class="tick" text-anchor="middle">64</text>
+<text x="923" y="122" class="tick" text-anchor="middle">128</text>
+<text x="580" y="161" class="tick" text-anchor="end">256</text>
+<rect x="592" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="627" y="162" class="num" text-anchor="middle" fill="#f8fafc">1.90</text>
+<rect x="666" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="701" y="162" class="num" text-anchor="middle" fill="#f8fafc">1.80</text>
+<rect x="740" y="132" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="775" y="162" class="num" text-anchor="middle" fill="#f8fafc">1.71</text>
+<rect x="814" y="132" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="1"/>
+<text x="849" y="162" class="num" text-anchor="middle" fill="#0f172a">1.36</text>
+<rect x="888" y="132" width="70" height="50" rx="4" fill="#dcfce7" fill-opacity="1"/>
+<text x="923" y="162" class="num" text-anchor="middle" fill="#0f172a">1.28</text>
+<text x="580" y="215" class="tick" text-anchor="end">1,024</text>
+<rect x="592" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="627" y="216" class="num" text-anchor="middle" fill="#f8fafc">1.92</text>
+<rect x="666" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="701" y="216" class="num" text-anchor="middle" fill="#f8fafc">1.93</text>
+<rect x="740" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="775" y="216" class="num" text-anchor="middle" fill="#f8fafc">2.07</text>
+<rect x="814" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="849" y="216" class="num" text-anchor="middle" fill="#475569">1.89</text>
+<rect x="888" y="186" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="923" y="216" class="num" text-anchor="middle" fill="#475569">1.94</text>
+<text x="580" y="269" class="tick" text-anchor="end">4,096</text>
+<rect x="592" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="627" y="270" class="num" text-anchor="middle" fill="#f8fafc">1.99</text>
+<rect x="666" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="701" y="270" class="num" text-anchor="middle" fill="#f8fafc">2.25</text>
+<rect x="740" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="775" y="270" class="num" text-anchor="middle" fill="#475569">2.55</text>
+<rect x="814" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="849" y="270" class="num" text-anchor="middle" fill="#475569">2.50</text>
+<rect x="888" y="240" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="923" y="270" class="num" text-anchor="middle" fill="#475569">2.57</text>
+<text x="580" y="323" class="tick" text-anchor="end">16,384</text>
+<rect x="592" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="1"/>
+<text x="627" y="324" class="num" text-anchor="middle" fill="#f8fafc">2.20</text>
+<rect x="666" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="701" y="324" class="num" text-anchor="middle" fill="#475569">2.65</text>
+<rect x="740" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="775" y="324" class="num" text-anchor="middle" fill="#475569">2.83</text>
+<rect x="814" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="849" y="324" class="num" text-anchor="middle" fill="#475569">2.83</text>
+<rect x="888" y="294" width="70" height="50" rx="4" fill="#15803d" fill-opacity="0.3" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="923" y="324" class="num" text-anchor="middle" fill="#475569">2.85</text>
+<text x="775" y="372" class="axis" text-anchor="middle">sequences in the step (batch)</text>
+<text x="30" y="238" class="axis" text-anchor="middle" transform="rotate(-90 30 238)">context, tokens</text>
+<rect x="150" y="416" width="22" height="16" rx="3" fill="#15803d"/>
+<text x="180" y="429" class="legend">1.5 or more</text>
+<rect x="273.2" y="416" width="22" height="16" rx="3" fill="#dcfce7"/>
+<text x="303.2" y="429" class="legend">1.0 to 1.5</text>
+<rect x="389.2" y="416" width="22" height="16" rx="3" fill="#fdba74"/>
+<text x="419.2" y="429" class="legend">below 1: speculation loses</text>
+<rect x="620.4" y="416" width="22" height="16" rx="3" fill="#f8fafc" stroke="#475569" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="650.4" y="429" class="legend">dashed, faded: needs more than 48 GB</text>
+</svg>

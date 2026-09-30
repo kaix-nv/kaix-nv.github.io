@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 510" role="img" aria-labelledby="title desc">
+<title id="title">Prediction intervals against two held-out sweeps</title>
+<desc id="desc">Two panels, TTFT on a log scale against the request rate for two held-out sweeps of Qwen3-8B on one RTX A6000. Left, 512 tokens in and 384 out at 2 to 4.5 requests per second; right, 1536 in and 192 out at 1.5 to 3.5. Each shows the median and 95th-percentile TTFT as shaded bands (the prediction intervals frozen before the runs), the point predictions as dashed lines, and the measured values as dots. The bands are narrow at low rates, open widest where TTFT turns sharply upward (the median&#x27;s band at 3.5 requests per second on the left spans a factor of 2.5), and narrow again past it. Every measured value lies in its band except the left sweep&#x27;s median at 3.25 requests per second, drawn as an open circle just above its band.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .sub { font: 500 14px system-ui, sans-serif; fill: #475569; }
+  .head { font: 700 15px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 13px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px ui-monospace, monospace; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .num { font: 600 12px ui-monospace, monospace; fill: #0f172a; }
+</style>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/></marker></defs>
+<rect width="1100" height="510" rx="16" fill="#f8fafc"/>
+<text x="40" y="40" class="title">Intervals committed before the runs, and what the runs measured</text>
+<text x="40" y="64" class="sub">Qwen3-8B on one RTX A6000 under vLLM; bands: the intervals written before the runs; dashed: the point prediction; dots: measured.</text>
+<line x1="110" y1="430.0" x2="530" y2="430.0" stroke="#e2e8f0"/>
+<text x="102" y="434.0" class="tick" text-anchor="end">100</text>
+<line x1="110" y1="368.4" x2="530" y2="368.4" stroke="#e2e8f0"/>
+<text x="102" y="372.4" class="tick" text-anchor="end">300</text>
+<line x1="110" y1="300.8" x2="530" y2="300.8" stroke="#e2e8f0"/>
+<text x="102" y="304.8" class="tick" text-anchor="end">1,000</text>
+<line x1="110" y1="239.2" x2="530" y2="239.2" stroke="#e2e8f0"/>
+<text x="102" y="243.2" class="tick" text-anchor="end">3,000</text>
+<line x1="110" y1="171.6" x2="530" y2="171.6" stroke="#e2e8f0"/>
+<text x="102" y="175.6" class="tick" text-anchor="end">10,000</text>
+<line x1="110" y1="110.0" x2="530" y2="110.0" stroke="#e2e8f0"/>
+<text x="102" y="114.0" class="tick" text-anchor="end">30,000</text>
+<text x="145.0" y="448" class="tick" text-anchor="middle">2</text>
+<text x="215.0" y="448" class="tick" text-anchor="middle">2.5</text>
+<text x="285.0" y="448" class="tick" text-anchor="middle">3</text>
+<text x="355.0" y="448" class="tick" text-anchor="middle">3.5</text>
+<text x="425.0" y="448" class="tick" text-anchor="middle">4</text>
+<text x="495.0" y="448" class="tick" text-anchor="middle">4.5</text>
+<line x1="110" y1="430" x2="530" y2="430" stroke="#64748b"/>
+<line x1="110" y1="110" x2="110" y2="430" stroke="#64748b"/>
+<text x="320.0" y="470" class="axis" text-anchor="middle">requests per second</text>
+<text x="58" y="270.0" class="axis" text-anchor="middle" transform="rotate(-90 58 270.0)">TTFT, ms (log scale)</text>
+<text x="110" y="96" class="head">512 in, 384 out (decode-heavy)</text>
+<polygon points="145.0,379.2 250.0,364.1 285.0,273.3 320.0,221.1 355.0,194.8 495.0,146.9 495.0,133.3 355.0,173.7 320.0,199.1 285.0,233.0 250.0,331.5 145.0,367.6" fill="#fdba74" fill-opacity="0.45" stroke="none"/>
+<polyline points="145.0,374.1 250.0,355.6 285.0,251.3 320.0,211.5 355.0,182.9 495.0,139.8" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="7 5"/>
+<circle cx="145.0" cy="371.5" r="4.2" fill="#ea580c"/>
+<circle cx="250.0" cy="337.2" r="4.2" fill="#ea580c"/>
+<circle cx="285.0" cy="236.2" r="4.2" fill="#ea580c"/>
+<circle cx="320.0" cy="204.1" r="4.2" fill="#ea580c"/>
+<circle cx="355.0" cy="178.2" r="4.2" fill="#ea580c"/>
+<circle cx="495.0" cy="137.1" r="4.2" fill="#ea580c"/>
+<polygon points="145.0,400.1 250.0,391.6 285.0,381.6 320.0,374.9 355.0,320.5 495.0,203.1 495.0,189.8 355.0,269.2 320.0,363.6 285.0,369.0 250.0,383.3 145.0,391.3" fill="#dbeafe" fill-opacity="0.9" stroke="none"/>
+<polyline points="145.0,395.8 250.0,387.2 285.0,375.4 320.0,368.1 355.0,289.7 495.0,197.1" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="7 5"/>
+<circle cx="145.0" cy="395.5" r="4.2" fill="#2563eb"/>
+<circle cx="250.0" cy="384.9" r="4.2" fill="#2563eb"/>
+<circle cx="285.0" cy="369.9" r="4.2" fill="#2563eb"/>
+<circle cx="320.0" cy="363.1" r="4.2" fill="#f8fafc" stroke="#2563eb" stroke-width="2"/>
+<text x="328.0" y="381.1" class="note">outside</text>
+<circle cx="355.0" cy="276.7" r="4.2" fill="#2563eb"/>
+<circle cx="495.0" cy="193.5" r="4.2" fill="#2563eb"/>
+<line x1="630" y1="430.0" x2="1050" y2="430.0" stroke="#e2e8f0"/>
+<text x="622" y="434.0" class="tick" text-anchor="end">100</text>
+<line x1="630" y1="368.4" x2="1050" y2="368.4" stroke="#e2e8f0"/>
+<text x="622" y="372.4" class="tick" text-anchor="end">300</text>
+<line x1="630" y1="300.8" x2="1050" y2="300.8" stroke="#e2e8f0"/>
+<text x="622" y="304.8" class="tick" text-anchor="end">1,000</text>
+<line x1="630" y1="239.2" x2="1050" y2="239.2" stroke="#e2e8f0"/>
+<text x="622" y="243.2" class="tick" text-anchor="end">3,000</text>
+<line x1="630" y1="171.6" x2="1050" y2="171.6" stroke="#e2e8f0"/>
+<text x="622" y="175.6" class="tick" text-anchor="end">10,000</text>
+<line x1="630" y1="110.0" x2="1050" y2="110.0" stroke="#e2e8f0"/>
+<text x="622" y="114.0" class="tick" text-anchor="end">30,000</text>
+<text x="672.0" y="448" class="tick" text-anchor="middle">1.5</text>
+<text x="756.0" y="448" class="tick" text-anchor="middle">2</text>
+<text x="840.0" y="448" class="tick" text-anchor="middle">2.5</text>
+<text x="924.0" y="448" class="tick" text-anchor="middle">3</text>
+<text x="1008.0" y="448" class="tick" text-anchor="middle">3.5</text>
+<line x1="630" y1="430" x2="1050" y2="430" stroke="#64748b"/>
+<line x1="630" y1="110" x2="630" y2="430" stroke="#64748b"/>
+<text x="840.0" y="470" class="axis" text-anchor="middle">requests per second</text>
+<text x="578" y="270.0" class="axis" text-anchor="middle" transform="rotate(-90 578 270.0)">TTFT, ms (log scale)</text>
+<text x="630" y="96" class="head">1536 in, 192 out (prefill-heavy)</text>
+<polygon points="672.0,310.0 756.0,301.8 798.0,287.9 840.0,241.0 882.0,202.9 1008.0,155.4 1008.0,141.3 882.0,184.1 840.0,214.1 798.0,275.5 756.0,291.0 672.0,297.5" fill="#fdba74" fill-opacity="0.45" stroke="none"/>
+<polyline points="672.0,303.4 756.0,297.0 798.0,283.1 840.0,226.8 882.0,193.3 1008.0,148.5" fill="none" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="7 5"/>
+<circle cx="672.0" cy="303.5" r="4.2" fill="#ea580c"/>
+<circle cx="756.0" cy="295.2" r="4.2" fill="#ea580c"/>
+<circle cx="798.0" cy="282.3" r="4.2" fill="#ea580c"/>
+<circle cx="840.0" cy="231.4" r="4.2" fill="#ea580c"/>
+<circle cx="882.0" cy="195.4" r="4.2" fill="#ea580c"/>
+<circle cx="1008.0" cy="150.9" r="4.2" fill="#ea580c"/>
+<polygon points="672.0,364.3 756.0,354.3 798.0,340.2 840.0,305.4 882.0,241.2 1008.0,188.9 1008.0,178.3 882.0,213.6 840.0,277.9 798.0,327.9 756.0,344.1 672.0,356.1" fill="#dbeafe" fill-opacity="0.9" stroke="none"/>
+<polyline points="672.0,359.0 756.0,349.3 798.0,335.0 840.0,294.1 882.0,223.8 1008.0,182.9" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-dasharray="7 5"/>
+<circle cx="672.0" cy="360.1" r="4.2" fill="#2563eb"/>
+<circle cx="756.0" cy="345.5" r="4.2" fill="#2563eb"/>
+<circle cx="798.0" cy="331.5" r="4.2" fill="#2563eb"/>
+<circle cx="840.0" cy="294.6" r="4.2" fill="#2563eb"/>
+<circle cx="882.0" cy="227.8" r="4.2" fill="#2563eb"/>
+<circle cx="1008.0" cy="185.6" r="4.2" fill="#2563eb"/>
+<rect x="130" y="128" width="26" height="12" fill="#dbeafe" stroke="#2563eb"/>
+<text x="164" y="139" class="legend">median TTFT</text>
+<rect x="320" y="128" width="26" height="12" fill="#fdba74" stroke="#ea580c"/>
+<text x="354" y="139" class="legend">95th percentile</text>
+</svg>

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">One layer&#x27;s attention in a prefill: Qwen3.8-27B on a B200</title>
+<desc id="desc">Milliseconds per layer against prompt length, 512 to 131,072 tokens, both axes logarithmic. Full attention grows with the square of the prompt. The linear core grows in proportion to it: at the asserted efficiency it is far below full attention everywhere; with the constants fitted to vLLM&#x27;s prefill times it sits on a 0.55 ms floor up to about 2,000 tokens and costs more than full attention below about 23,000 tokens.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">One layer&#x27;s attention in a prefill: Qwen3.8-27B on a B200</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0.001</text>
+<line x1="80" y1="385.0" x2="870" y2="385.0" stroke="#e2e8f0"/>
+<text x="72" y="389.0" class="tick" text-anchor="end">0.01</text>
+<line x1="80" y1="320.0" x2="870" y2="320.0" stroke="#e2e8f0"/>
+<text x="72" y="324.0" class="tick" text-anchor="end">0.1</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="190.0" x2="870" y2="190.0" stroke="#e2e8f0"/>
+<text x="72" y="194.0" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="125.0" x2="870" y2="125.0" stroke="#e2e8f0"/>
+<text x="72" y="129.0" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">1,000</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">512</text>
+<text x="178.8" y="470" class="tick" text-anchor="middle">1k</text>
+<text x="277.5" y="470" class="tick" text-anchor="middle">2k</text>
+<text x="376.2" y="470" class="tick" text-anchor="middle">4k</text>
+<text x="475.0" y="470" class="tick" text-anchor="middle">8k</text>
+<text x="573.8" y="470" class="tick" text-anchor="middle">16k</text>
+<text x="672.5" y="470" class="tick" text-anchor="middle">32k</text>
+<text x="771.2" y="470" class="tick" text-anchor="middle">64k</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">128k</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">prompt tokens</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">ms per layer</text>
+<polyline points="80.0,397.2 178.8,372.7 277.5,338.9 376.2,301.3 475.0,262.5 573.8,223.5 672.5,184.4 771.2,145.2 870.0,106.1" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<circle cx="80.0" cy="397.2" r="3.2" fill="#0f172a"/>
+<circle cx="178.8" cy="372.7" r="3.2" fill="#0f172a"/>
+<circle cx="277.5" cy="338.9" r="3.2" fill="#0f172a"/>
+<circle cx="376.2" cy="301.3" r="3.2" fill="#0f172a"/>
+<circle cx="475.0" cy="262.5" r="3.2" fill="#0f172a"/>
+<circle cx="573.8" cy="223.5" r="3.2" fill="#0f172a"/>
+<circle cx="672.5" cy="184.4" r="3.2" fill="#0f172a"/>
+<circle cx="771.2" cy="145.2" r="3.2" fill="#0f172a"/>
+<circle cx="870.0" cy="106.1" r="3.2" fill="#0f172a"/>
+<line x1="99.7" y1="79.6" x2="129.7" y2="79.6" stroke="#0f172a" stroke-width="2.2"/>
+<text x="137.7" y="83.6" class="legend">full attention (fused, fitted rate)</text>
+<polyline points="80.0,271.7 178.8,271.7 277.5,271.7 376.2,252.9 475.0,233.3 573.8,213.8 672.5,194.2 771.2,174.7 870.0,155.1" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="271.7" r="3.2" fill="#15803d"/>
+<circle cx="178.8" cy="271.7" r="3.2" fill="#15803d"/>
+<circle cx="277.5" cy="271.7" r="3.2" fill="#15803d"/>
+<circle cx="376.2" cy="252.9" r="3.2" fill="#15803d"/>
+<circle cx="475.0" cy="233.3" r="3.2" fill="#15803d"/>
+<circle cx="573.8" cy="213.8" r="3.2" fill="#15803d"/>
+<circle cx="672.5" cy="194.2" r="3.2" fill="#15803d"/>
+<circle cx="771.2" cy="174.7" r="3.2" fill="#15803d"/>
+<circle cx="870.0" cy="155.1" r="3.2" fill="#15803d"/>
+<line x1="99.7" y1="101.6" x2="129.7" y2="101.6" stroke="#15803d" stroke-width="2.2"/>
+<text x="137.7" y="105.6" class="legend">linear core, fitted constants</text>
+<polyline points="80.0,396.7 178.8,387.2 277.5,374.6 376.2,359.2 475.0,342.0 573.8,323.6 672.5,304.6 771.2,285.3 870.0,265.9" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="99.7" y1="123.6" x2="129.7" y2="123.6" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="137.7" y="127.6" class="legend">linear core, asserted 0.55</text>
+</svg>

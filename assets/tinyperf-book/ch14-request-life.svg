@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 540" role="img"
+     aria-labelledby="title description">
+  <title id="title">One request's life in a continuously batched engine</title>
+  <desc id="description">
+    A timeline. The top row shows the engine's steps as boxes whose widths are
+    their prices: short decode-only steps, and longer steps that also carry
+    prompt chunks. The second row follows one request. It arrives during a
+    step that carries another prompt's chunk, waits in the queue until the
+    step after next, then its prompt is processed in two chunks that ride in
+    two steps beside the running decodes. The step that finishes the prompt
+    emits the first token: TTFT runs from the arrival to that moment. After
+    that the request gains one token at the end of every step. The gaps
+    between its tokens are inter-token latencies; one gap is longer because
+    that step carried another prompt's chunk. TPOT is the time from the first
+    to the last token divided by the number of tokens after the first.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .inbox { font: 600 12px system-ui, sans-serif; fill: #0f172a; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="540" rx="18" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">One request's life, step by step</text>
+  <text x="40" y="70" class="subtitle">Time runs to the right. Each box is one engine step, as wide as its price. The engine re-forms the batch at every step.</text>
+
+  <!-- legend -->
+  <rect x="640" y="88" width="16" height="12" fill="#2563eb"/><text x="662" y="99" class="note">decodes: one token per running request</text>
+  <rect x="640" y="106" width="16" height="12" fill="#fdba74"/><text x="662" y="117" class="note">another prompt's chunk</text>
+  <rect x="860" y="106" width="16" height="12" fill="#ea580c"/><text x="882" y="117" class="note">this request's prompt</text>
+
+  <!-- the engine's steps: y 140-180 -->
+  <text x="40" y="165" class="label">engine steps</text>
+  <g stroke="#f8fafc" stroke-width="2">
+    <rect x="170" y="140" width="44" height="40" fill="#2563eb"/>
+    <rect x="214" y="140" width="44" height="40" fill="#2563eb"/>
+    <rect x="258" y="140" width="96" height="16" fill="#2563eb"/><rect x="258" y="156" width="96" height="24" fill="#fdba74"/>
+    <rect x="354" y="140" width="46" height="40" fill="#2563eb"/>
+    <rect x="400" y="140" width="120" height="16" fill="#2563eb"/><rect x="400" y="156" width="120" height="24" fill="#ea580c"/>
+    <rect x="520" y="140" width="80" height="16" fill="#2563eb"/><rect x="520" y="156" width="80" height="24" fill="#ea580c"/>
+    <rect x="600" y="140" width="48" height="40" fill="#2563eb"/>
+    <rect x="648" y="140" width="48" height="40" fill="#2563eb"/>
+    <rect x="696" y="140" width="96" height="16" fill="#2563eb"/><rect x="696" y="156" width="96" height="24" fill="#fdba74"/>
+    <rect x="792" y="140" width="50" height="40" fill="#2563eb"/>
+    <rect x="842" y="140" width="50" height="40" fill="#2563eb"/>
+    <rect x="950" y="140" width="50" height="40" fill="#2563eb"/>
+  </g>
+  <text x="921" y="166" class="label" text-anchor="middle">...</text>
+  <text x="460" y="197" class="inbox" text-anchor="middle">chunk 1</text>
+  <text x="560" y="197" class="inbox" text-anchor="middle">chunk 2</text>
+
+  <!-- the request: y 240 -->
+  <text x="40" y="245" class="label">one request</text>
+  <line x1="300" y1="240" x2="400" y2="240" stroke="#94a3b8" stroke-width="4" stroke-dasharray="6 5"/>
+  <line x1="400" y1="240" x2="600" y2="240" stroke="#ea580c" stroke-width="5"/>
+  <line x1="600" y1="240" x2="892" y2="240" stroke="#2563eb" stroke-width="5"/>
+  <line x1="892" y1="240" x2="950" y2="240" stroke="#2563eb" stroke-width="5" stroke-dasharray="3 6"/>
+  <line x1="950" y1="240" x2="1000" y2="240" stroke="#2563eb" stroke-width="5"/>
+  <circle cx="300" cy="240" r="7" fill="#f8fafc" stroke="#0f172a" stroke-width="2.5"/>
+  <g fill="#0f172a">
+    <circle cx="600" cy="240" r="6"/><circle cx="648" cy="240" r="6"/><circle cx="696" cy="240" r="6"/>
+    <circle cx="792" cy="240" r="6"/><circle cx="842" cy="240" r="6"/><circle cx="892" cy="240" r="6"/>
+    <circle cx="1000" cy="240" r="6"/>
+  </g>
+  <text x="300" y="222" class="small" text-anchor="middle">arrives</text>
+  <text x="350" y="262" class="note" text-anchor="middle">queued</text>
+  <text x="500" y="262" class="note" text-anchor="middle">prefill</text>
+  <text x="600" y="222" class="small" text-anchor="middle">first token</text>
+  <text x="1000" y="222" class="small" text-anchor="middle">last token</text>
+  <!-- guides from steps to tokens -->
+  <g stroke="#cbd5e1" stroke-dasharray="3 4">
+    <line x1="300" y1="182" x2="300" y2="232"/><line x1="400" y1="182" x2="400" y2="232"/>
+    <line x1="648" y1="182" x2="648" y2="232"/><line x1="696" y1="182" x2="696" y2="232"/>
+    <line x1="792" y1="182" x2="792" y2="232"/>
+  </g>
+
+  <!-- inter-token latencies -->
+  <path d="M 648 282 L 648 290 L 696 290 L 696 282" fill="none" stroke="#2563eb" stroke-width="2"/>
+  <text x="640" y="308" class="note" text-anchor="end">one inter-token</text>
+  <text x="640" y="324" class="note" text-anchor="end">latency (ITL)</text>
+  <path d="M 696 282 L 696 290 L 792 290 L 792 282" fill="none" stroke="#ea580c" stroke-width="2"/>
+  <text x="802" y="308" class="note">a longer one: that step</text>
+  <text x="802" y="324" class="note">carried a prompt's chunk</text>
+
+  <!-- TTFT and TPOT -->
+  <line x1="300" y1="360" x2="600" y2="360" stroke="#334155" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="450" y="352" class="label" text-anchor="middle">TTFT</text>
+  <text x="450" y="382" class="note" text-anchor="middle">arrival to first token: waiting + prefill</text>
+  <line x1="600" y1="410" x2="1000" y2="410" stroke="#334155" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="800" y="402" class="label" text-anchor="middle">TPOT = (last token − first token) / (tokens − 1)</text>
+  <text x="800" y="432" class="note" text-anchor="middle">the mean inter-token latency of this request</text>
+
+  <text x="40" y="472" class="small">The engine plans each step while the previous one runs, so a request that arrives during a step waits for the step</text>
+  <text x="40" y="494" class="small">after next; it can also wait for room in the batch or the KV cache. Every step's length is the price of everything in it,</text>
+  <text x="40" y="516" class="small">so the request's latency depends on the other requests it shares steps with.</text>
+</svg>

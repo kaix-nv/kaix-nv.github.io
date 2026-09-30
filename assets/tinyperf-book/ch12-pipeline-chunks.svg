@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" role="img"
+     aria-labelledby="title description">
+  <title id="title">A prompt through two pipeline stages, whole and in chunks</title>
+  <desc id="description">
+    Two timelines for one prompt on a pipeline of two stages. In the first,
+    the prompt is not chunked: stage 1 runs it for half a traverse while stage
+    2 idles, then stage 2 runs it while stage 1 idles, so the first token comes
+    after one full traverse, the same as on one GPU. In the second, the same
+    prompt is fed in four chunks: stage 1 runs chunk 1, then chunk 2 while
+    stage 2 runs chunk 1, and so on, so the prompt finishes after five chunk
+    stage-times instead of eight, five eighths of a traverse. A formula below
+    reads: c chunks through pp stages take c + pp - 1 stage-times, so TTFT is
+    the traverse times (c + pp - 1) over (pp times c).
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .inbox { font: 600 14px system-ui, sans-serif; fill: #ffffff; }
+      .idle { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .num { font: 700 15px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+  </defs>
+  <rect width="1100" height="520" rx="18" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">The chunks of a prompt pipeline; the prompt does not</text>
+  <text x="40" y="70" class="subtitle">One prompt on two stages, each holding half the layers. Time runs to the right.</text>
+
+  <!-- panel (a): x0 = 250, one stage-time of the whole prompt = 320 px -->
+  <text x="40" y="112" class="label">One prompt, not chunked</text>
+  <text x="40" y="152" class="small">stage 1, GPU 0</text>
+  <text x="40" y="198" class="small">stage 2, GPU 1</text>
+  <rect x="250" y="130" width="320" height="36" rx="5" fill="#2563eb"/>
+  <text x="410" y="153" class="inbox" text-anchor="middle">prompt</text>
+  <rect x="570" y="130" width="320" height="36" rx="5" fill="#e2e8f0" stroke="#cbd5e1" stroke-dasharray="4 4"/>
+  <text x="730" y="153" class="idle" text-anchor="middle">idle</text>
+  <rect x="250" y="176" width="320" height="36" rx="5" fill="#e2e8f0" stroke="#cbd5e1" stroke-dasharray="4 4"/>
+  <text x="410" y="199" class="idle" text-anchor="middle">idle (the bubble)</text>
+  <rect x="570" y="176" width="320" height="36" rx="5" fill="#ea580c"/>
+  <text x="730" y="199" class="inbox" text-anchor="middle">prompt</text>
+  <line x1="890" y1="122" x2="890" y2="222" stroke="#0f172a" stroke-width="2"/>
+  <text x="900" y="160" class="label">first token</text>
+  <text x="900" y="180" class="small">one traverse,</text>
+  <text x="900" y="198" class="small">as on one GPU</text>
+
+  <!-- panel (b): four chunks, one chunk stage-time = 80 px -->
+  <text x="40" y="262" class="label">The same prompt in four chunks</text>
+  <text x="40" y="302" class="small">stage 1, GPU 0</text>
+  <text x="40" y="348" class="small">stage 2, GPU 1</text>
+  <g>
+    <rect x="250" y="280" width="78" height="36" rx="5" fill="#2563eb"/><text x="289" y="303" class="inbox" text-anchor="middle">c1</text>
+    <rect x="330" y="280" width="78" height="36" rx="5" fill="#2563eb"/><text x="369" y="303" class="inbox" text-anchor="middle">c2</text>
+    <rect x="410" y="280" width="78" height="36" rx="5" fill="#2563eb"/><text x="449" y="303" class="inbox" text-anchor="middle">c3</text>
+    <rect x="490" y="280" width="78" height="36" rx="5" fill="#2563eb"/><text x="529" y="303" class="inbox" text-anchor="middle">c4</text>
+    <rect x="250" y="326" width="78" height="36" rx="5" fill="#e2e8f0" stroke="#cbd5e1" stroke-dasharray="4 4"/>
+    <text x="289" y="349" class="idle" text-anchor="middle">idle</text>
+    <rect x="330" y="326" width="78" height="36" rx="5" fill="#ea580c"/><text x="369" y="349" class="inbox" text-anchor="middle">c1</text>
+    <rect x="410" y="326" width="78" height="36" rx="5" fill="#ea580c"/><text x="449" y="349" class="inbox" text-anchor="middle">c2</text>
+    <rect x="490" y="326" width="78" height="36" rx="5" fill="#ea580c"/><text x="529" y="349" class="inbox" text-anchor="middle">c3</text>
+    <rect x="570" y="326" width="78" height="36" rx="5" fill="#ea580c"/><text x="609" y="349" class="inbox" text-anchor="middle">c4</text>
+  </g>
+  <line x1="650" y1="272" x2="650" y2="372" stroke="#0f172a" stroke-width="2"/>
+  <text x="660" y="310" class="label">first token</text>
+  <text x="660" y="330" class="small">5 chunk stage-times, not 8:</text>
+  <text x="660" y="348" class="small">5/8 of a traverse</text>
+  <line x1="890" y1="272" x2="890" y2="372" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 5"/>
+  <text x="900" y="330" class="idle">unchunked</text>
+
+  <!-- time axis -->
+  <line x1="250" y1="400" x2="1000" y2="400" stroke="#475569" stroke-width="1.5"/>
+  <path d="M 1000 395 L 1010 400 L 1000 405 z" fill="#475569"/>
+  <text x="1016" y="405" class="small">time</text>
+  <g stroke="#94a3b8"><line x1="250" y1="396" x2="250" y2="404"/><line x1="570" y1="396" x2="570" y2="404"/><line x1="890" y1="396" x2="890" y2="404"/></g>
+  <text x="250" y="422" class="idle" text-anchor="middle">0</text>
+  <text x="570" y="422" class="idle" text-anchor="middle">½ traverse</text>
+  <text x="890" y="422" class="idle" text-anchor="middle">1 traverse</text>
+
+  <text x="40" y="468" class="small">c chunks through pp stages take c + pp − 1 stage-times, one stage-time being a chunk's traverse over pp:</text>
+  <text x="40" y="496" class="num">TTFT = traverse(prompt) × (c + pp − 1) / (pp × c)</text>
+</svg>

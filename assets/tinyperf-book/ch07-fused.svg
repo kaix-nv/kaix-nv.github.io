@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" role="img"
+     aria-labelledby="title description">
+  <title id="title">Attention as written, and as a fused kernel runs it</title>
+  <desc id="description">
+    Left: attention as three kernels. QK-transpose reads Q and K from DRAM and writes the score
+    matrix S there, in fp32 as tinyperf assumes; softmax reads S and writes probabilities P in fp16; P times V reads P and
+    V and writes the output O. Every score crosses the memory bus four times: 4 + 4 + 2 + 2 = 12
+    bytes. Right: a fused (FlashAttention) kernel. One CTA keeps a block of query rows in registers
+    and streams K and V through shared memory one block of keys at a time; each block's scores live
+    on chip, a running maximum and sum per row rescale the output accumulator, and O is written once.
+    DRAM sees only Q, K, V and O.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 16px system-ui, sans-serif; fill: #0f172a; }
+      .box { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 600 13px ui-monospace, monospace; fill: #ea580c; }
+      .arrow { stroke: #475569; stroke-width: 1.6; fill: none; }
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="520" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Attention as written, and as a fused kernel runs it</text>
+  <text x="40" y="72" class="subtitle">One layer. Orange is the score matrix: only the fused kernel keeps it off the memory bus.</text>
+
+  <!-- ===================== left: three kernels ===================== -->
+  <text x="50" y="116" class="label">As written: three kernels</text>
+
+  <g fill="#dbeafe" stroke="#2563eb" stroke-width="1.5">
+    <rect x="60" y="140" width="120" height="50" rx="8"/>
+    <rect x="220" y="140" width="120" height="50" rx="8"/>
+    <rect x="380" y="140" width="120" height="50" rx="8"/>
+  </g>
+  <g class="box" text-anchor="middle">
+    <text x="120" y="171">Q · Kᵀ</text><text x="280" y="171">softmax</text><text x="440" y="171">P · V</text>
+  </g>
+
+  <rect x="50" y="300" width="470" height="100" rx="10" fill="#e2e8f0"/>
+  <text x="62" y="392" class="note">DRAM</text>
+  <g stroke-width="1.5">
+    <rect x="60" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="100" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="150" y="315" width="120" height="55" rx="4" fill="#fdba74" stroke="#ea580c"/>
+    <rect x="290" y="322" width="60" height="40" rx="4" fill="#fdba74" stroke="#ea580c"/>
+    <rect x="370" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="470" y="322" width="34" height="40" rx="4" fill="#dcfce7" stroke="#15803d"/>
+  </g>
+  <g class="box" text-anchor="middle">
+    <text x="77" y="347">Q</text><text x="117" y="347">K</text>
+    <text x="210" y="341">S</text><text x="320" y="347">P</text>
+    <text x="387" y="347">V</text><text x="487" y="347">O</text>
+  </g>
+  <text x="210" y="360" class="note" text-anchor="middle">fp32</text>
+  <text x="320" y="376" class="note" text-anchor="middle">fp16</text>
+
+  <g class="arrow" marker-end="url(#head)">
+    <line x1="77" y1="320" x2="95" y2="194"/>
+    <line x1="117" y1="320" x2="120" y2="194"/>
+    <line x1="160" y1="192" x2="188" y2="311"/>
+    <line x1="238" y1="311" x2="262" y2="194"/>
+    <line x1="300" y1="192" x2="316" y2="318"/>
+    <line x1="332" y1="318" x2="410" y2="194"/>
+    <line x1="387" y1="320" x2="432" y2="194"/>
+    <line x1="480" y1="192" x2="487" y2="318"/>
+  </g>
+  <g class="mono">
+    <text x="181" y="246">4 B</text>
+    <text x="253" y="262">4 B</text>
+    <text x="315" y="246">2 B</text>
+    <text x="342" y="292" text-anchor="end">2 B</text>
+  </g>
+  <text x="50" y="434" class="small">Bytes per score on each arrow: 4 + 4 + 2 + 2 = 12 cross the bus.</text>
+  <text x="50" y="456" class="small">Scores per layer: heads × tokens × keys, growing with the</text>
+  <text x="50" y="476" class="small">square of the prompt: 68.7 GB at 32,768 tokens (Qwen3-8B).</text>
+
+  <!-- ===================== right: one fused kernel ===================== -->
+  <text x="590" y="116" class="label">Fused (FlashAttention): one kernel</text>
+
+  <rect x="590" y="132" width="470" height="148" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="5 4"/>
+  <text x="604" y="152" class="note">one CTA on one SM, looping over blocks of keys</text>
+
+  <g stroke-width="1.5">
+    <rect x="605" y="222" width="100" height="42" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="725" y="222" width="110" height="42" rx="6" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="655" y="164" width="150" height="40" rx="6" fill="#fdba74" stroke="#ea580c"/>
+    <rect x="850" y="164" width="195" height="40" rx="6" fill="#e2e8f0" stroke="#94a3b8"/>
+    <rect x="850" y="222" width="195" height="42" rx="6" fill="#dcfce7" stroke="#15803d"/>
+  </g>
+  <g class="small" text-anchor="middle">
+    <text x="655" y="248">Q block</text>
+    <text x="780" y="248">K, V block</text>
+    <text x="730" y="189">this block's scores</text>
+    <text x="947" y="189">running max and sum</text>
+    <text x="947" y="248">O, rescaled each block</text>
+  </g>
+  <g class="arrow" marker-end="url(#head)">
+    <line x1="668" y1="221" x2="690" y2="207"/>
+    <line x1="765" y1="221" x2="752" y2="207"/>
+    <line x1="806" y1="184" x2="846" y2="184"/>
+    <line x1="836" y1="243" x2="846" y2="243"/>
+    <line x1="947" y1="205" x2="947" y2="219"/>
+  </g>
+
+  <rect x="590" y="300" width="470" height="100" rx="10" fill="#e2e8f0"/>
+  <text x="1048" y="392" class="note" text-anchor="end">DRAM</text>
+  <g stroke-width="1.5">
+    <rect x="620" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="740" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="786" y="322" width="34" height="40" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+    <rect x="930" y="322" width="34" height="40" rx="4" fill="#dcfce7" stroke="#15803d"/>
+  </g>
+  <g class="box" text-anchor="middle">
+    <text x="637" y="347">Q</text><text x="757" y="347">K</text><text x="803" y="347">V</text><text x="947" y="347">O</text>
+  </g>
+  <g class="arrow" marker-end="url(#head)">
+    <line x1="637" y1="320" x2="645" y2="268"/>
+    <line x1="765" y1="320" x2="772" y2="268"/>
+    <line x1="947" y1="266" x2="947" y2="318"/>
+  </g>
+  <g class="note">
+    <text x="652" y="298">read once</text>
+    <text x="780" y="298">streamed, block by block</text>
+    <text x="955" y="298">written once</text>
+  </g>
+  <text x="590" y="434" class="small">Traffic: Q, K, V and O, once each. The scores never leave the SM.</text>
+  <text x="590" y="456" class="small">Math: both matrix multiplies, with exponentials, maxima and</text>
+  <text x="590" y="476" class="small">rescaling between them, so it runs below a GEMM's rate.</text>
+</svg>
