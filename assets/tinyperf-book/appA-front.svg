@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">Throughput per GPU against interactivity: Llama-3-70B decode</title>
+<desc id="desc">Pareto fronts of tokens per second per GPU (log scale) against tokens per second per user, from a sweep of tensor and pipeline parallelism, precision and batch. Each front falls from high throughput at low interactivity to low throughput at high interactivity. The B200 front lies above and to the right of the H100&#x27;s; the H100&#x27;s bf16-only front lies below and to the left of its full front.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Throughput per GPU against interactivity: Llama-3-70B decode</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="388.0" x2="870" y2="388.0" stroke="#e2e8f0"/>
+<text x="72" y="392.0" class="tick" text-anchor="end">30</text>
+<line x1="80" y1="320.0" x2="870" y2="320.0" stroke="#e2e8f0"/>
+<text x="72" y="324.0" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="258.0" x2="870" y2="258.0" stroke="#e2e8f0"/>
+<text x="72" y="262.0" class="tick" text-anchor="end">300</text>
+<line x1="80" y1="190.0" x2="870" y2="190.0" stroke="#e2e8f0"/>
+<text x="72" y="194.0" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="128.0" x2="870" y2="128.0" stroke="#e2e8f0"/>
+<text x="72" y="132.0" class="tick" text-anchor="end">3,000</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">10,000</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">0</text>
+<text x="192.9" y="470" class="tick" text-anchor="middle">20</text>
+<text x="305.7" y="470" class="tick" text-anchor="middle">40</text>
+<text x="418.6" y="470" class="tick" text-anchor="middle">60</text>
+<text x="531.4" y="470" class="tick" text-anchor="middle">80</text>
+<text x="644.3" y="470" class="tick" text-anchor="middle">100</text>
+<text x="757.1" y="470" class="tick" text-anchor="middle">120</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">140</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">tokens per second per user (1000 / TPOT ms)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">tokens per second per GPU (log scale)</text>
+<polyline points="841.2,420.5 841.2,381.4 837.7,342.5 830.7,303.9 817.1,265.8 791.4,228.6 744.6,193.4 667.4,161.2 556.6,133.9 414.5,114.7 292.4,101.2" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="841.2" cy="420.5" r="3.2" fill="#ea580c"/>
+<circle cx="841.2" cy="381.4" r="3.2" fill="#ea580c"/>
+<circle cx="837.7" cy="342.5" r="3.2" fill="#ea580c"/>
+<circle cx="830.7" cy="303.9" r="3.2" fill="#ea580c"/>
+<circle cx="817.1" cy="265.8" r="3.2" fill="#ea580c"/>
+<circle cx="791.4" cy="228.6" r="3.2" fill="#ea580c"/>
+<circle cx="744.6" cy="193.4" r="3.2" fill="#ea580c"/>
+<circle cx="667.4" cy="161.2" r="3.2" fill="#ea580c"/>
+<circle cx="556.6" cy="133.9" r="3.2" fill="#ea580c"/>
+<circle cx="414.5" cy="114.7" r="3.2" fill="#ea580c"/>
+<circle cx="292.4" cy="101.2" r="3.2" fill="#ea580c"/>
+<line x1="113.9" y1="371.7" x2="143.9" y2="371.7" stroke="#ea580c" stroke-width="2.2"/>
+<text x="151.9" y="375.7" class="legend">B200, every layout</text>
+<polyline points="679.4,434.0 676.3,395.2 670.1,356.6 658.2,318.6 635.7,281.7 595.3,246.9 529.9,215.4 438.9,189.0 339.2,168.3 250.6,152.7" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="679.4" cy="434.0" r="3.2" fill="#2563eb"/>
+<circle cx="676.3" cy="395.2" r="3.2" fill="#2563eb"/>
+<circle cx="670.1" cy="356.6" r="3.2" fill="#2563eb"/>
+<circle cx="658.2" cy="318.6" r="3.2" fill="#2563eb"/>
+<circle cx="635.7" cy="281.7" r="3.2" fill="#2563eb"/>
+<circle cx="595.3" cy="246.9" r="3.2" fill="#2563eb"/>
+<circle cx="529.9" cy="215.4" r="3.2" fill="#2563eb"/>
+<circle cx="438.9" cy="189.0" r="3.2" fill="#2563eb"/>
+<circle cx="339.2" cy="168.3" r="3.2" fill="#2563eb"/>
+<circle cx="250.6" cy="152.7" r="3.2" fill="#2563eb"/>
+<line x1="113.9" y1="393.7" x2="143.9" y2="393.7" stroke="#2563eb" stroke-width="2.2"/>
+<text x="151.9" y="397.7" class="legend">H100 SXM, every layout</text>
+<polyline points="522.1,451.2 519.3,412.4 513.8,374.0 503.2,336.2 483.5,299.8 448.7,265.8 394.7,235.6 323.8,210.8 239.7,195.6" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="113.9" y1="415.7" x2="143.9" y2="415.7" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="151.9" y="419.7" class="legend">H100 SXM, bf16 only</text>
+</svg>

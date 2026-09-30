@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 470" role="img"
+     aria-labelledby="title description">
+  <title id="title">Wave quantization: tiles run in rounds of one per SM</title>
+  <desc id="description">
+    Eighteen tiles on a GPU with eight SMs. The first two waves each run eight
+    tiles, one per SM. The third wave runs the remaining two tiles and leaves
+    six SMs idle, yet takes as long as a full wave. Eighteen tiles cost three
+    wave-times, the same as twenty-four would.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .cell { font: 700 14px ui-monospace, monospace; }
+    </style>
+    <pattern id="idle" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#f1f5f9"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#cbd5e1" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="1100" height="470" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Waves: 18 tiles on 8 SMs take 3 rounds</text>
+  <text x="40" y="72" class="subtitle">Each SM runs one tile at a time. A round is as slow as its slowest SM, full or not.</text>
+
+  <!-- SM headers -->
+  <g class="label" text-anchor="middle">
+    <text x="245" y="120">SM 0</text><text x="335" y="120">SM 1</text><text x="425" y="120">SM 2</text>
+    <text x="515" y="120">SM 3</text><text x="605" y="120">SM 4</text><text x="695" y="120">SM 5</text>
+    <text x="785" y="120">SM 6</text><text x="875" y="120">SM 7</text>
+  </g>
+  <g class="label">
+    <text x="60" y="170">wave 1</text><text x="60" y="250">wave 2</text><text x="60" y="330">wave 3</text>
+  </g>
+  <g fill="#2563eb">
+    <rect x="205" y="136" width="80" height="60" rx="6"/><rect x="295" y="136" width="80" height="60" rx="6"/>
+    <rect x="385" y="136" width="80" height="60" rx="6"/><rect x="475" y="136" width="80" height="60" rx="6"/>
+    <rect x="565" y="136" width="80" height="60" rx="6"/><rect x="655" y="136" width="80" height="60" rx="6"/>
+    <rect x="745" y="136" width="80" height="60" rx="6"/><rect x="835" y="136" width="80" height="60" rx="6"/>
+    <rect x="205" y="216" width="80" height="60" rx="6"/><rect x="295" y="216" width="80" height="60" rx="6"/>
+    <rect x="385" y="216" width="80" height="60" rx="6"/><rect x="475" y="216" width="80" height="60" rx="6"/>
+    <rect x="565" y="216" width="80" height="60" rx="6"/><rect x="655" y="216" width="80" height="60" rx="6"/>
+    <rect x="745" y="216" width="80" height="60" rx="6"/><rect x="835" y="216" width="80" height="60" rx="6"/>
+    <rect x="205" y="296" width="80" height="60" rx="6"/><rect x="295" y="296" width="80" height="60" rx="6"/>
+  </g>
+  <g fill="url(#idle)" stroke="#cbd5e1">
+    <rect x="385" y="296" width="80" height="60" rx="6"/><rect x="475" y="296" width="80" height="60" rx="6"/>
+    <rect x="565" y="296" width="80" height="60" rx="6"/><rect x="655" y="296" width="80" height="60" rx="6"/>
+    <rect x="745" y="296" width="80" height="60" rx="6"/><rect x="835" y="296" width="80" height="60" rx="6"/>
+  </g>
+  <g class="cell" fill="#ffffff" text-anchor="middle" style="fill:#ffffff">
+    <text x="245" y="171">t0</text><text x="335" y="171">t1</text><text x="425" y="171">t2</text>
+    <text x="515" y="171">t3</text><text x="605" y="171">t4</text><text x="695" y="171">t5</text>
+    <text x="785" y="171">t6</text><text x="875" y="171">t7</text>
+    <text x="245" y="251">t8</text><text x="335" y="251">t9</text><text x="425" y="251">t10</text>
+    <text x="515" y="251">t11</text><text x="605" y="251">t12</text><text x="695" y="251">t13</text>
+    <text x="785" y="251">t14</text><text x="875" y="251">t15</text>
+    <text x="245" y="331">t16</text><text x="335" y="331">t17</text>
+  </g>
+  <text x="650" y="378" class="small" text-anchor="middle">6 SMs idle for the whole round</text>
+
+  <!-- time arrow -->
+  <line x1="160" y1="140" x2="160" y2="350" stroke="#64748b" stroke-width="2"/>
+  <path d="M 153 340 L 160 356 L 167 340 z" fill="#64748b"/>
+  <text x="160" y="378" class="small" text-anchor="middle">time</text>
+
+  <text x="205" y="408" class="small">waves = ceil(tiles / SMs) = ceil(18 / 8) = 3.   Utilization = 18 / (3 × 8) = 75%.</text>
+  <text x="205" y="434" class="small">Up to 6 more tiles would cost nothing; 2 fewer would save a whole round.</text>
+</svg>

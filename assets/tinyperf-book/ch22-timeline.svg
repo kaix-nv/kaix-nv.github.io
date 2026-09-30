@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 820" role="img"
+     aria-labelledby="title description">
+  <title id="title">How one constant came apart: nine runs, in order</title>
+  <desc id="description">
+    A timeline of nine measurement runs of gpt-oss-20b on one RTX A6000, in the order they ran, with
+    three columns: the run and what it showed, what was fitted or assumed because of it, and what was
+    measured in its place. 1: fixed batches with 4-bit experts; prefill priced 22 to 40 percent low and
+    batch-8 decode 49 to 59 percent high; the prefill constant 0.66 was fitted, and experts touched were
+    counted for a fair router. 2: the same with bf16 experts; prefill 45 to 48 percent low with no 4-bit
+    unpacking at all; a fused-MoE constant 0.44 and a router skew of 1.4 were fitted. 3: the router read
+    at each prompt's last position, 9.7 experts at batch 8; the skew became 2.15 and the expert kernels'
+    streaming rates were bent to 0.70 and 0.53. 4: batches 2 to 64; the streaming rate became a curve
+    down to 0.53, and a kernel replayed alone ran 1.4 times faster than in a step, read as slower in
+    company. 5: routing counted over the decode steps a time per token covers, 13.1 experts at batch 8;
+    the kernel, timed launch by launch, streams at the full rate, and the skews, bent rates and curve are
+    withdrawn. 6: the first online sweep, 9 of 18 values inside; the KV pool at 4-bit widths, online
+    routing tables and Triton's packed attention were measured. 7: one fresh prompt at a time, 0.90 to
+    1.05; Marlin timed alone on the engine's routing and Triton's prefill attention at a third of the
+    price; 0.66 no longer prices any prompt of more than 24 tokens. 8: prompt chunks beside decodes; Marlin measured by
+    decodes and chunk, its table re-derived at the CUDA-graph launch cost, and a long-prompt sweep fell
+    from 17 to 10 of 18. 9: short replies; routing by reply position; six sweeps 103 of 108 values inside.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 15px system-ui, sans-serif; fill: #475569; }
+      .head { font: 700 13px system-ui, sans-serif; fill: #475569; letter-spacing: 0.04em; }
+      .num { font: 700 15px ui-monospace, monospace; fill: #ffffff; }
+      .run { font: 600 14px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 500 13.5px system-ui, sans-serif; fill: #334155; }
+      .fit { font: 500 13.5px system-ui, sans-serif; fill: #9a3412; }
+      .gone { font: italic 500 13.5px system-ui, sans-serif; fill: #475569; }
+      .meas { font: 500 13.5px system-ui, sans-serif; fill: #14532d; }
+    </style>
+  </defs>
+  <rect width="1100" height="820" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">How one constant came apart: nine runs, in order</text>
+  <text x="40" y="72" class="subtitle">Orange: fitted or assumed. Green: measured or derived, never fitted to the run it explains.</text>
+
+  <g class="head">
+    <text x="84" y="110">THE RUN, AND WHAT IT SHOWED</text>
+    <text x="468" y="110">FITTED OR ASSUMED</text>
+    <text x="766" y="110">MEASURED OR DERIVED INSTEAD</text>
+  </g>
+
+  <line x1="52" y1="140" x2="52" y2="762" stroke="#cbd5e1" stroke-width="3"/>
+
+  <!-- 1 -->
+  <g transform="translate(0,122)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">1</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Fixed batches, 4-bit experts</text>
+    <text x="92" y="50" class="body">prefill 22–40% low; batch-8 decode 49–59% high</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="476" y="28" class="fit">prefill: fit 0.66 of dense math,</text>
+    <text x="476" y="50" class="fit">put down to unpacking 4-bit weights</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">decode: a fair router's count of experts,</text>
+    <text x="774" y="50" class="meas">derived, not fitted (chapter 9)</text>
+  </g>
+
+  <!-- 2 -->
+  <g transform="translate(0,191)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">2</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Fixed batches, bf16 experts, like for like</text>
+    <text x="92" y="50" class="body">prefill 45–48% low with no unpacking at all</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="476" y="28" class="fit">prefill: fused-MoE constant 0.44</text>
+    <text x="476" y="50" class="fit">decode: router skew 1.4</text>
+  </g>
+
+  <!-- 3 -->
+  <g transform="translate(0,260)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">3</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Router read at each prompt's last position</text>
+    <text x="92" y="50" class="body">9.7 experts at batch 8, not the skew's 13</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="476" y="28" class="fit">skew 2.15; kernel streaming bent</text>
+    <text x="476" y="50" class="fit">to 0.70 (bf16) and 0.53 (4-bit)</text>
+  </g>
+
+  <!-- 4 -->
+  <g transform="translate(0,329)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">4</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Batches 2 to 64</text>
+    <text x="92" y="50" class="body">alone, the kernel runs 1.4× faster than in a step</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="476" y="28" class="fit">streaming rate a curve, down to 0.53;</text>
+    <text x="476" y="50" class="fit">the kernel "slower in company"</text>
+  </g>
+
+  <!-- 5 -->
+  <g transform="translate(0,398)">
+    <circle cx="52" cy="34" r="15" fill="#15803d"/><text x="52" y="39" class="num" text-anchor="middle">5</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Routing counted over the steps timed</text>
+    <text x="92" y="50" class="body">13.1 experts at batch 8, near the skew-1.4 fit's 12.9</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4 4"/>
+    <text x="476" y="28" class="gone">withdrawn: both skews, the bent</text>
+    <text x="476" y="50" class="gone">rates, the curve, "in company"</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">each launch paired with its routing:</text>
+    <text x="774" y="50" class="meas">full rate; 0.70 past 32 tokens (ch. 9)</text>
+  </g>
+
+  <!-- 6 -->
+  <g transform="translate(0,467)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">6</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">First online sweep</text>
+    <text x="92" y="50" class="body">9 of 18 values inside their frozen intervals</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">KV pool at 4.25 bits (ch. 10); online</text>
+    <text x="774" y="50" class="meas">routing (ch. 9); Triton packs heads (ch. 7)</text>
+  </g>
+
+  <!-- 7 -->
+  <g transform="translate(0,536)">
+    <circle cx="52" cy="34" r="15" fill="#15803d"/><text x="52" y="39" class="num" text-anchor="middle">7</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">One fresh prompt at a time</text>
+    <text x="92" y="50" class="body">0.90–1.05: low when small, high at some lengths</text>
+    <rect x="462" y="4" width="288" height="60" rx="9" fill="#f8fafc" stroke="#e2e8f0" stroke-dasharray="4 4"/>
+    <text x="476" y="28" class="gone">0.66 prices no prompt over 24 tokens;</text>
+    <text x="476" y="50" class="gone">0.44 stays, not taken apart</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">Marlin alone on the engine's routing;</text>
+    <text x="774" y="50" class="meas">Triton's prefill at a third (ch. 7, 10)</text>
+  </g>
+
+  <!-- 8 -->
+  <g transform="translate(0,605)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">8</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Prompt chunks beside decodes</text>
+    <text x="92" y="50" class="body">a decode beside a chunk adds 4–9 µs per layer</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">Marlin by decodes × chunk; its tables at</text>
+    <text x="774" y="50" class="meas">graph launch cost: a sweep 17 → 10 of 18</text>
+  </g>
+
+  <!-- 9 -->
+  <g transform="translate(0,674)">
+    <circle cx="52" cy="34" r="15" fill="#475569"/><text x="52" y="39" class="num" text-anchor="middle">9</text>
+    <rect x="78" y="4" width="374" height="60" rx="9" fill="#ffffff" stroke="#cbd5e1"/>
+    <text x="92" y="28" class="run">Not the context: short replies</text>
+    <text x="92" y="50" class="body">early in a reply, decodes touch fewer experts</text>
+    <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
+    <text x="774" y="28" class="meas">routing by reply position (ch. 9):</text>
+    <text x="774" y="50" class="meas">six sweeps, 103 of 108 values inside</text>
+  </g>
+
+  <text x="40" y="784" class="subtitle">Runs 1–5 are fixed batches; 6–9 a server under load. Green numbers mark the runs that retired a fitted constant.</text>
+</svg>

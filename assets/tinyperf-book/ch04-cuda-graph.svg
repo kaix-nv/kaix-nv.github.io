@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" role="img"
+     aria-labelledby="title description">
+  <title id="title">Eager launches against a CUDA graph</title>
+  <desc id="description">
+    Two timelines of the same five small kernels. In eager mode the host issues each
+    kernel in turn, through Python, the framework and the driver, and the GPU runs each
+    kernel as soon as it arrives, then waits idle for the next; each kernel costs the
+    host's issue time, about 14 microseconds on a B200. With a CUDA graph the host issues
+    one replay of a recorded sequence, and the GPU runs the five kernels back to back,
+    about 3.5 microseconds apart; the same work finishes much sooner.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .panel { font: 700 17px system-ui, sans-serif; fill: #0f172a; }
+      .lane { font: 600 15px system-ui, sans-serif; fill: #334155; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .cell { font: 700 13px ui-monospace, monospace; }
+      .num { font: 600 14px ui-monospace, monospace; fill: #334155; }
+    </style>
+    <pattern id="idle" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#f1f5f9"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#cbd5e1" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="1100" height="520" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Eager launches against a CUDA graph</text>
+  <text x="40" y="72" class="subtitle">The same five small kernels, issued one at a time from Python, or replayed from a recorded graph.</text>
+
+  <!-- eager panel -->
+  <text x="40" y="112" class="panel">Eager: the host issues every kernel</text>
+  <text x="60" y="150" class="lane">host</text>
+  <text x="60" y="200" class="lane">GPU</text>
+  <g fill="#fdba74" stroke="#ea580c">
+    <rect x="160" y="130" width="116" height="30" rx="5"/>
+    <rect x="280" y="130" width="116" height="30" rx="5"/>
+    <rect x="400" y="130" width="116" height="30" rx="5"/>
+    <rect x="520" y="130" width="116" height="30" rx="5"/>
+    <rect x="640" y="130" width="116" height="30" rx="5"/>
+  </g>
+  <g class="cell" fill="#7c2d12" text-anchor="middle">
+    <text x="218" y="150">issue k1</text><text x="338" y="150">issue k2</text><text x="458" y="150">issue k3</text>
+    <text x="578" y="150">issue k4</text><text x="698" y="150">issue k5</text>
+  </g>
+  <g fill="url(#idle)" stroke="#cbd5e1">
+    <rect x="160" y="180" width="116" height="30" rx="5"/>
+    <rect x="316" y="180" width="80" height="30" rx="5"/>
+    <rect x="436" y="180" width="80" height="30" rx="5"/>
+    <rect x="556" y="180" width="80" height="30" rx="5"/>
+    <rect x="676" y="180" width="80" height="30" rx="5"/>
+  </g>
+  <g fill="#2563eb">
+    <rect x="278" y="180" width="36" height="30" rx="5"/>
+    <rect x="398" y="180" width="36" height="30" rx="5"/>
+    <rect x="518" y="180" width="36" height="30" rx="5"/>
+    <rect x="638" y="180" width="36" height="30" rx="5"/>
+    <rect x="758" y="180" width="36" height="30" rx="5"/>
+  </g>
+  <g class="cell" fill="#ffffff" text-anchor="middle" style="fill:#ffffff">
+    <text x="296" y="200">k1</text><text x="416" y="200">k2</text><text x="536" y="200">k3</text>
+    <text x="656" y="200">k4</text><text x="776" y="200">k5</text>
+  </g>
+  <text x="820" y="150" class="small">Python, the framework,</text>
+  <text x="820" y="170" class="small">kernel selection, the driver</text>
+  <text x="820" y="200" class="small">the GPU waits (hatched)</text>
+  <text x="160" y="240" class="num">about 14 µs per tiny kernel on a B200; 12-25 µs fitted from cuBLAS GEMMs</text>
+
+  <line x1="40" y1="266" x2="1060" y2="266" stroke="#e2e8f0" stroke-width="2"/>
+
+  <!-- graph panel -->
+  <text x="40" y="302" class="panel">CUDA graph: the host replays a recorded sequence</text>
+  <text x="60" y="340" class="lane">host</text>
+  <text x="60" y="390" class="lane">GPU</text>
+  <rect x="160" y="320" width="70" height="30" rx="5" fill="#fdba74" stroke="#ea580c"/>
+  <text x="195" y="340" class="cell" fill="#7c2d12" text-anchor="middle">replay</text>
+  <g fill="#2563eb">
+    <rect x="232" y="370" width="36" height="30" rx="5"/>
+    <rect x="276" y="370" width="36" height="30" rx="5"/>
+    <rect x="320" y="370" width="36" height="30" rx="5"/>
+    <rect x="364" y="370" width="36" height="30" rx="5"/>
+    <rect x="408" y="370" width="36" height="30" rx="5"/>
+  </g>
+  <g class="cell" fill="#ffffff" text-anchor="middle" style="fill:#ffffff">
+    <text x="250" y="390">k1</text><text x="294" y="390">k2</text><text x="338" y="390">k3</text>
+    <text x="382" y="390">k4</text><text x="426" y="390">k5</text>
+  </g>
+  <text x="470" y="382" class="small">back to back: one launch for the whole sequence</text>
+  <text x="160" y="430" class="num">about 3.5 µs per kernel</text>
+  <text x="160" y="458" class="small">Recorded once, replayed every step. The kernels, their shapes and their memory</text>
+  <text x="160" y="480" class="small">addresses are fixed at recording, so an engine records one graph per batch size.</text>
+
+  <!-- time arrow -->
+  <line x1="820" y1="430" x2="1040" y2="430" stroke="#64748b" stroke-width="2"/>
+  <path d="M 1030 423 L 1046 430 L 1030 437 z" fill="#64748b"/>
+  <text x="930" y="454" class="small" text-anchor="middle">time</text>
+</svg>

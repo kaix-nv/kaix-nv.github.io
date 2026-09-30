@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 580" role="img"
+     aria-labelledby="title description">
+  <title id="title">The serving simulator's event loop and its step-price cache</title>
+  <desc id="description">
+    A loop of six boxes. One: requests that arrived before the previous
+    step began join the queue (by now, if the engine is idle). Two: admission, first
+    come first served, while the batch has room and the KV cache can hold the
+    request. Three: compose the step, every running request decoding one
+    token and waiting prompts filling the rest of the token budget. Four:
+    price the step with the step-price model. Five: advance the clock by the
+    price. Six: update the requests, recording first tokens and finishing
+    requests, then back to one. Four calls out to a side panel, the
+    step-price cache: a step shape is looked up by its key; on a miss the
+    step's graph is built and priced and the price stored. When no request
+    is left, the loop hands its requests to the report, which gives TTFT and
+    TPOT percentiles and throughput.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 700 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #334155; }
+      .mono { font: 600 13px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="580" rx="18" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">The event loop: one step at a time</text>
+  <text x="40" y="70" class="subtitle">Each turn of the loop is one engine step. The clock jumps by the step's price; nothing happens in between.</text>
+
+  <!-- left column: 1, 2, 3 -->
+  <rect x="40" y="96" width="320" height="108" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="56" y="118" class="label">1  Arrivals</text>
+  <text x="56" y="139" class="small">requests that arrived before the previous</text>
+  <text x="56" y="156" class="small">step began join the queue (by now, if the</text>
+  <text x="56" y="173" class="small">engine is idle); with nothing to do, the</text>
+  <text x="56" y="190" class="small">clock jumps to the next arrival</text>
+
+  <rect x="40" y="226" width="320" height="92" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="56" y="250" class="label">2  Admission</text>
+  <text x="56" y="272" class="small">first come, first served, while the batch</text>
+  <text x="56" y="290" class="small">has room and the KV cache can hold the</text>
+  <text x="56" y="308" class="small">request: reserved, or paged (chapter 17)</text>
+
+  <rect x="40" y="352" width="320" height="92" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="56" y="376" class="label">3  Compose the step</text>
+  <text x="56" y="398" class="small">every running request decodes one token;</text>
+  <text x="56" y="416" class="small">waiting prompts fill the rest of the token</text>
+  <text x="56" y="434" class="small">budget, in order of admission</text>
+
+  <!-- middle column: 6, 5, 4 -->
+  <rect x="420" y="100" width="320" height="92" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="436" y="124" class="label">6  Update the requests</text>
+  <text x="436" y="146" class="small">chunks advance; a finished prompt emits its</text>
+  <text x="436" y="164" class="small">first token (TTFT); decodes gain a token;</text>
+  <text x="436" y="182" class="small">finished requests leave and free their KV</text>
+
+  <rect x="420" y="226" width="320" height="92" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="436" y="250" class="label">5  Advance the clock</text>
+  <text x="436" y="276" class="mono">t += step price + sampler</text>
+  <text x="436" y="302" class="small">the price covers the whole batch at once</text>
+
+  <rect x="420" y="352" width="320" height="92" rx="10" fill="#fdba74" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="436" y="376" class="label">4  Price the step</text>
+  <text x="436" y="400" class="mono">decode_us(batch, context)</text>
+  <text x="436" y="420" class="mono">mixed_step_us(decodes, chunks)</text>
+  <text x="436" y="438" class="small">chapters 15 and 16 build these prices</text>
+
+  <!-- loop arrows -->
+  <line x1="200" y1="204" x2="200" y2="222" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="200" y1="318" x2="200" y2="348" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="360" y1="398" x2="416" y2="398" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="580" y1="352" x2="580" y2="322" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="580" y1="226" x2="580" y2="196" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <path d="M 420 146 L 364 146" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="392" y="138" class="small" text-anchor="middle">next</text>
+
+  <!-- the cache -->
+  <rect x="790" y="100" width="270" height="344" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="806" y="124" class="label">The step-price cache</text>
+  <text x="806" y="146" class="small">StepLatencyModel, per deployment</text>
+  <rect x="806" y="162" width="238" height="54" rx="6" fill="#e2e8f0"/>
+  <text x="816" y="184" class="small">key: phase, batch, context</text>
+  <text x="816" y="204" class="small">in 256-token buckets, rows</text>
+  <text x="806" y="242" class="label">hit</text>
+  <text x="840" y="242" class="small">return the stored price</text>
+  <text x="806" y="274" class="label">miss</text>
+  <text x="848" y="274" class="small">build the step's graph</text>
+  <text x="848" y="292" class="small">(chapter 6), fuse, price it</text>
+  <text x="848" y="310" class="small">with execute (chapter 5),</text>
+  <text x="848" y="328" class="small">store the price</text>
+  <text x="806" y="364" class="small">between two buckets:</text>
+  <text x="806" y="382" class="small">interpolate the two prices</text>
+  <text x="806" y="414" class="small">thousands of steps,</text>
+  <text x="806" y="432" class="small">hundreds of graphs</text>
+  <line x1="740" y1="398" x2="786" y2="398" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+  <line x1="786" y1="420" x2="744" y2="420" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- exit -->
+  <rect x="40" y="480" width="700" height="72" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text x="56" y="506" class="label">When no request is left: the report</text>
+  <text x="56" y="530" class="small">add the online path's fixed cost to every request (chapter 16), then TTFT and TPOT percentiles,</text>
+  <text x="56" y="547" class="small">output tokens per second over the whole run, and the number of steps</text>
+  <path d="M 40 170 L 22 170 L 22 516 L 36 516" fill="none" stroke="#15803d" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+  <text x="17" y="340" class="small" text-anchor="middle" transform="rotate(-90 17 340)">no request left</text>
+</svg>

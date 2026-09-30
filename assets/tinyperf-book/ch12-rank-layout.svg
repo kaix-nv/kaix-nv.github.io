@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 580" role="img"
+     aria-labelledby="title description">
+  <title id="title">One rank layout: eight GPUs as tp=2 x dp=4, with experts over all eight (ep=8)</title>
+  <desc id="description">
+    Eight GPUs drawn as four pairs. Each pair is a tensor-parallel group of two
+    GPUs and one attention replica: each GPU of the pair holds half of the
+    attention heads and runs the attention for the replica's own sixteen
+    requests of a global batch of sixty-four, all-reducing inside the pair.
+    Every GPU also holds sixteen whole experts of the model's 128, so experts
+    0 to 15 sit on GPU 0, 16 to 31 on GPU 1, and so on. Below the GPUs, one
+    band spans all eight: in every MoE layer tokens travel to their experts'
+    GPUs and back. A note says the world is tp x cp x dp x pp = 8, that a
+    pipeline of two stages would repeat the picture for the second half of
+    the layers, and that two context-parallel ranks would repeat it for the
+    second half of every sequence.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 24px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 13px system-ui, sans-serif; fill: #334155; }
+      .inbox { font: 600 13px system-ui, sans-serif; fill: #ffffff; }
+      .inboxdark { font: 600 13px system-ui, sans-serif; fill: #0f172a; }
+      .num { font: 700 14px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="580" rx="18" fill="#f8fafc"/>
+  <text x="40" y="44" class="title">Eight GPUs as tp=2 × dp=4, with experts over all eight (ep=8)</text>
+  <text x="40" y="70" class="subtitle">Each pair is an attention replica: each GPU holds 32 of the 64 heads, and 16 whole experts of the 128.</text>
+
+  <!-- replica brackets -->
+  <g>
+    <path d="M 85 112 L 85 104 L 295 104 L 295 112" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="190" y="96" class="label" text-anchor="middle">replica 0: requests 0–15</text>
+    <path d="M 325 112 L 325 104 L 535 104 L 535 112" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="430" y="96" class="label" text-anchor="middle">replica 1: requests 16–31</text>
+    <path d="M 565 112 L 565 104 L 775 104 L 775 112" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="670" y="96" class="label" text-anchor="middle">replica 2: requests 32–47</text>
+    <path d="M 805 112 L 805 104 L 1015 104 L 1015 112" fill="none" stroke="#2563eb" stroke-width="2"/>
+    <text x="910" y="96" class="label" text-anchor="middle">replica 3: requests 48–63</text>
+  </g>
+
+  <!-- GPU boxes: x = 85 + 240 g + 110 j -->
+  <g id="gpus">
+    <!-- group 0 -->
+    <rect x="85" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="135" y="144" class="label" text-anchor="middle">GPU 0</text>
+    <rect x="93" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="135" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="135" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="93" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="135" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="135" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="93" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="135" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="135" y="336" class="inbox" text-anchor="middle">0–15</text>
+
+    <rect x="195" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="245" y="144" class="label" text-anchor="middle">GPU 1</text>
+    <rect x="203" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="245" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="245" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="203" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="245" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="245" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="203" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="245" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="245" y="336" class="inbox" text-anchor="middle">16–31</text>
+
+    <!-- group 1 -->
+    <rect x="325" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="375" y="144" class="label" text-anchor="middle">GPU 2</text>
+    <rect x="333" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="375" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="375" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="333" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="375" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="375" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="333" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="375" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="375" y="336" class="inbox" text-anchor="middle">32–47</text>
+
+    <rect x="435" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="485" y="144" class="label" text-anchor="middle">GPU 3</text>
+    <rect x="443" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="485" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="485" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="443" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="485" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="485" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="443" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="485" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="485" y="336" class="inbox" text-anchor="middle">48–63</text>
+
+    <!-- group 2 -->
+    <rect x="565" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="615" y="144" class="label" text-anchor="middle">GPU 4</text>
+    <rect x="573" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="615" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="615" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="573" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="615" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="615" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="573" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="615" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="615" y="336" class="inbox" text-anchor="middle">64–79</text>
+
+    <rect x="675" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="725" y="144" class="label" text-anchor="middle">GPU 5</text>
+    <rect x="683" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="725" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="725" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="683" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="725" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="725" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="683" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="725" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="725" y="336" class="inbox" text-anchor="middle">80–95</text>
+
+    <!-- group 3 -->
+    <rect x="805" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="855" y="144" class="label" text-anchor="middle">GPU 6</text>
+    <rect x="813" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="855" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="855" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="813" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="855" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="855" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="813" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="855" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="855" y="336" class="inbox" text-anchor="middle">96–111</text>
+
+    <rect x="915" y="122" width="100" height="250" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="965" y="144" class="label" text-anchor="middle">GPU 7</text>
+    <rect x="923" y="154" width="84" height="62" rx="6" fill="#2563eb"/>
+    <text x="965" y="180" class="inbox" text-anchor="middle">attention</text>
+    <text x="965" y="200" class="inbox" text-anchor="middle">32 heads</text>
+    <rect x="923" y="222" width="84" height="46" rx="6" fill="#dbeafe"/>
+    <text x="965" y="242" class="inboxdark" text-anchor="middle">KV cache,</text>
+    <text x="965" y="259" class="inboxdark" text-anchor="middle">16 requests</text>
+    <rect x="923" y="290" width="84" height="62" rx="6" fill="#ea580c"/>
+    <text x="965" y="316" class="inbox" text-anchor="middle">experts</text>
+    <text x="965" y="336" class="inbox" text-anchor="middle">112–127</text>
+  </g>
+
+  <!-- all-reduce inside each pair -->
+  <g stroke="#2563eb" stroke-width="2" fill="none">
+    <line x1="178" y1="185" x2="202" y2="185" marker-start="url(#arr)" marker-end="url(#arr)"/>
+    <line x1="418" y1="185" x2="442" y2="185" marker-start="url(#arr)" marker-end="url(#arr)"/>
+    <line x1="658" y1="185" x2="682" y2="185" marker-start="url(#arr)" marker-end="url(#arr)"/>
+    <line x1="898" y1="185" x2="922" y2="185" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- the expert band -->
+  <g stroke="#ea580c" stroke-width="2">
+    <line x1="135" y1="372" x2="135" y2="398"/><line x1="245" y1="372" x2="245" y2="398"/>
+    <line x1="375" y1="372" x2="375" y2="398"/><line x1="485" y1="372" x2="485" y2="398"/>
+    <line x1="615" y1="372" x2="615" y2="398"/><line x1="725" y1="372" x2="725" y2="398"/>
+    <line x1="855" y1="372" x2="855" y2="398"/><line x1="965" y1="372" x2="965" y2="398"/>
+  </g>
+  <rect x="85" y="398" width="930" height="42" rx="10" fill="#fdba74"/>
+  <text x="550" y="424" class="label" text-anchor="middle">every MoE layer: each token goes to its experts' GPUs and comes back (ep = 8)</text>
+
+  <text x="85" y="478" class="small">↔ inside a pair: tensor parallelism (tp = 2), two all-reduces per layer, as in chapter 11.</text>
+  <text x="85" y="502" class="small">world = tp × cp × dp × pp = <tspan class="num">2 × 1 × 4 × 1 = 8</tspan>. The global batch of 64 is split 16 per replica; the experts see all 64.</text>
+  <text x="85" y="526" class="small">A pipeline (pp = 2) would repeat this picture for the second half of the layers and hand activations across.</text>
+  <text x="85" y="550" class="small">Context parallelism (cp = 2) would repeat it for the second half of every sequence.</text>
+</svg>

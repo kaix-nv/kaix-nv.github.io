@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">A 4096 x 4096 weight GEMM by rows, RTX A6000</title>
+<desc id="desc">Measured time of a bf16 GEMM with a 4096 by 4096 weight on an RTX A6000, from 1 to 1280 rows, against the tile model and a roofline with launch cost. All three are flat to 128 rows. Measured time jumps at 129, 257, 513 and 1025 rows; the tile model follows the trend but not the jumps, and sits below the measurement between 129 and 512 rows.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">A 4096 x 4096 weight GEMM by rows, RTX A6000</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0</text>
+<line x1="80" y1="401.2" x2="870" y2="401.2" stroke="#e2e8f0"/>
+<text x="72" y="405.2" class="tick" text-anchor="end">50</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="303.8" x2="870" y2="303.8" stroke="#e2e8f0"/>
+<text x="72" y="307.8" class="tick" text-anchor="end">150</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">200</text>
+<line x1="80" y1="206.2" x2="870" y2="206.2" stroke="#e2e8f0"/>
+<text x="72" y="210.2" class="tick" text-anchor="end">250</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">300</text>
+<line x1="80" y1="108.8" x2="870" y2="108.8" stroke="#e2e8f0"/>
+<text x="72" y="112.8" class="tick" text-anchor="end">350</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">400</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">0</text>
+<text x="159.0" y="470" class="tick" text-anchor="middle">128</text>
+<text x="238.0" y="470" class="tick" text-anchor="middle">256</text>
+<text x="317.0" y="470" class="tick" text-anchor="middle">384</text>
+<text x="396.0" y="470" class="tick" text-anchor="middle">512</text>
+<text x="475.0" y="470" class="tick" text-anchor="middle">640</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">768</text>
+<text x="633.0" y="470" class="tick" text-anchor="middle">896</text>
+<text x="712.0" y="470" class="tick" text-anchor="middle">1024</text>
+<text x="791.0" y="470" class="tick" text-anchor="middle">1152</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">1280</text>
+<line x1="159.0" y1="60" x2="159.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="163.0" y="442" class="note">128</text>
+<line x1="238.0" y1="60" x2="238.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="242.0" y="442" class="note">256</text>
+<line x1="396.0" y1="60" x2="396.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="400.0" y="442" class="note">512</text>
+<line x1="712.0" y1="60" x2="712.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="716.0" y="442" class="note">1024</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">rows (M)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">microseconds</text>
+<polyline points="80.6,399.3 81.2,399.5 82.5,399.4 84.9,399.3 89.9,399.0 94.8,399.1 99.8,399.0 104.7,398.6 109.6,398.4 114.6,398.3 119.5,394.0 139.2,396.4 159.0,395.0 159.6,354.9 163.9,353.7 178.8,367.9 198.5,362.4 218.2,328.0 238.0,320.8 238.6,280.4 242.9,272.9 257.8,271.4 277.5,273.8 317.0,278.6 317.6,284.6 321.9,290.8 356.5,273.1 396.0,277.0 396.6,240.7 400.9,236.7 435.5,229.5 475.0,249.2 554.0,186.1 712.0,119.7 712.6,68.4 716.9,64.0 751.5,104.2 791.0,99.7 870.0,88.1" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<circle cx="80.6" cy="399.3" r="3.2" fill="#0f172a"/>
+<circle cx="81.2" cy="399.5" r="3.2" fill="#0f172a"/>
+<circle cx="82.5" cy="399.4" r="3.2" fill="#0f172a"/>
+<circle cx="84.9" cy="399.3" r="3.2" fill="#0f172a"/>
+<circle cx="89.9" cy="399.0" r="3.2" fill="#0f172a"/>
+<circle cx="94.8" cy="399.1" r="3.2" fill="#0f172a"/>
+<circle cx="99.8" cy="399.0" r="3.2" fill="#0f172a"/>
+<circle cx="104.7" cy="398.6" r="3.2" fill="#0f172a"/>
+<circle cx="109.6" cy="398.4" r="3.2" fill="#0f172a"/>
+<circle cx="114.6" cy="398.3" r="3.2" fill="#0f172a"/>
+<circle cx="119.5" cy="394.0" r="3.2" fill="#0f172a"/>
+<circle cx="139.2" cy="396.4" r="3.2" fill="#0f172a"/>
+<circle cx="159.0" cy="395.0" r="3.2" fill="#0f172a"/>
+<circle cx="159.6" cy="354.9" r="3.2" fill="#0f172a"/>
+<circle cx="163.9" cy="353.7" r="3.2" fill="#0f172a"/>
+<circle cx="178.8" cy="367.9" r="3.2" fill="#0f172a"/>
+<circle cx="198.5" cy="362.4" r="3.2" fill="#0f172a"/>
+<circle cx="218.2" cy="328.0" r="3.2" fill="#0f172a"/>
+<circle cx="238.0" cy="320.8" r="3.2" fill="#0f172a"/>
+<circle cx="238.6" cy="280.4" r="3.2" fill="#0f172a"/>
+<circle cx="242.9" cy="272.9" r="3.2" fill="#0f172a"/>
+<circle cx="257.8" cy="271.4" r="3.2" fill="#0f172a"/>
+<circle cx="277.5" cy="273.8" r="3.2" fill="#0f172a"/>
+<circle cx="317.0" cy="278.6" r="3.2" fill="#0f172a"/>
+<circle cx="317.6" cy="284.6" r="3.2" fill="#0f172a"/>
+<circle cx="321.9" cy="290.8" r="3.2" fill="#0f172a"/>
+<circle cx="356.5" cy="273.1" r="3.2" fill="#0f172a"/>
+<circle cx="396.0" cy="277.0" r="3.2" fill="#0f172a"/>
+<circle cx="396.6" cy="240.7" r="3.2" fill="#0f172a"/>
+<circle cx="400.9" cy="236.7" r="3.2" fill="#0f172a"/>
+<circle cx="435.5" cy="229.5" r="3.2" fill="#0f172a"/>
+<circle cx="475.0" cy="249.2" r="3.2" fill="#0f172a"/>
+<circle cx="554.0" cy="186.1" r="3.2" fill="#0f172a"/>
+<circle cx="712.0" cy="119.7" r="3.2" fill="#0f172a"/>
+<circle cx="712.6" cy="68.4" r="3.2" fill="#0f172a"/>
+<circle cx="716.9" cy="64.0" r="3.2" fill="#0f172a"/>
+<circle cx="751.5" cy="104.2" r="3.2" fill="#0f172a"/>
+<circle cx="791.0" cy="99.7" r="3.2" fill="#0f172a"/>
+<circle cx="870.0" cy="88.1" r="3.2" fill="#0f172a"/>
+<line x1="487.3" y1="342.8" x2="517.3" y2="342.8" stroke="#0f172a" stroke-width="2.2"/>
+<text x="525.3" y="346.8" class="legend">measured (cuBLAS in a CUDA graph)</text>
+<polyline points="80.6,399.1 81.2,399.0 82.5,399.0 84.9,399.0 89.9,398.9 94.8,398.6 99.8,398.5 104.7,398.2 109.6,398.1 114.6,397.9 119.5,397.8 139.2,396.7 159.0,396.3 159.6,391.1 163.9,391.0 178.8,390.8 198.5,374.5 218.2,374.5 238.0,350.4 238.6,350.4 242.9,350.4 257.8,350.4 277.5,350.4 317.0,326.4 317.6,312.9 321.9,312.9 356.5,302.4 396.0,278.3 396.6,278.3 400.9,278.3 435.5,278.3 475.0,254.3 554.0,206.2 712.0,134.1 712.6,134.1 716.9,134.1 751.5,134.1 791.0,110.1 870.0,62.0" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<line x1="487.3" y1="364.8" x2="517.3" y2="364.8" stroke="#2563eb" stroke-width="2.2"/>
+<text x="525.3" y="368.8" class="legend">tile model</text>
+<polyline points="80.6,399.2 81.2,399.2 82.5,399.2 84.9,399.1 89.9,398.9 94.8,398.7 99.8,398.5 104.7,398.3 109.6,398.1 114.6,398.0 119.5,397.8 139.2,397.0 159.0,396.3 159.6,396.3 163.9,396.1 178.8,395.6 198.5,392.5 218.2,383.5 238.0,374.5 238.6,374.2 242.9,372.2 257.8,365.4 277.5,356.4 317.0,338.4 317.6,338.1 321.9,336.1 356.5,320.4 396.0,302.3 396.6,302.1 400.9,300.1 435.5,284.3 475.0,266.3 554.0,230.2 712.0,158.1 712.6,157.8 716.9,155.8 751.5,140.1 791.0,122.0 870.0,86.0" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="487.3" y1="386.8" x2="517.3" y2="386.8" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="525.3" y="390.8" class="legend">roofline + launch</text>
+</svg>

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">NCCL on two RTX A6000s against the ring model</title>
+<desc id="desc">Bytes per GPU divided by time for NCCL all-reduce and all-gather on two RTX A6000s over a PCIe host bridge, each call timed inside a CUDA graph, from 8 KB to 32 MB, with the ring model&#x27;s line for each. Large all-reduces reach 3.85 GB/s and all-gathers 3.30. Between 64 KB and 512 KB, where a decode step&#x27;s all-reduces fall at batch 8 to 64, the measured all-reduce delivers 0.72 to 0.91 of what the ring model assumes; at 8 KB it is faster than the model. The ring model&#x27;s all-gather line sits above its all-reduce line because an all-gather pays half the hops.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">NCCL on two RTX A6000s against the ring model</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">0</text>
+<line x1="80" y1="352.5" x2="870" y2="352.5" stroke="#e2e8f0"/>
+<text x="72" y="356.5" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="255.0" x2="870" y2="255.0" stroke="#e2e8f0"/>
+<text x="72" y="259.0" class="tick" text-anchor="end">2</text>
+<line x1="80" y1="157.5" x2="870" y2="157.5" stroke="#e2e8f0"/>
+<text x="72" y="161.5" class="tick" text-anchor="end">3</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">4</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">8 KB</text>
+<text x="211.7" y="470" class="tick" text-anchor="middle">32 KB</text>
+<text x="343.3" y="470" class="tick" text-anchor="middle">128 KB</text>
+<text x="475.0" y="470" class="tick" text-anchor="middle">512 KB</text>
+<text x="606.7" y="470" class="tick" text-anchor="middle">2 MB</text>
+<text x="738.3" y="470" class="tick" text-anchor="middle">8 MB</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">32 MB</text>
+<line x1="277.5" y1="60" x2="277.5" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="281.5" y="442" class="note">decode, batch 8</text>
+<line x1="475.0" y1="60" x2="475.0" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="479.0" y="442" class="note">batch 64</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">message per GPU (log scale)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">bytes per GPU / time, GB/s</text>
+<polyline points="80.0,403.6 145.8,373.9 184.3,358.2 211.7,339.1 250.2,316.5 277.5,321.2 316.0,289.2 343.3,267.2 381.8,231.4 409.2,197.9 447.7,165.2 475.0,139.8 513.5,115.2 540.8,107.3 579.3,102.7 606.7,99.6 645.2,92.7 672.5,88.3 738.3,80.4 804.2,76.2 870.0,74.6" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="403.6" r="3.2" fill="#2563eb"/>
+<circle cx="145.8" cy="373.9" r="3.2" fill="#2563eb"/>
+<circle cx="184.3" cy="358.2" r="3.2" fill="#2563eb"/>
+<circle cx="211.7" cy="339.1" r="3.2" fill="#2563eb"/>
+<circle cx="250.2" cy="316.5" r="3.2" fill="#2563eb"/>
+<circle cx="277.5" cy="321.2" r="3.2" fill="#2563eb"/>
+<circle cx="316.0" cy="289.2" r="3.2" fill="#2563eb"/>
+<circle cx="343.3" cy="267.2" r="3.2" fill="#2563eb"/>
+<circle cx="381.8" cy="231.4" r="3.2" fill="#2563eb"/>
+<circle cx="409.2" cy="197.9" r="3.2" fill="#2563eb"/>
+<circle cx="447.7" cy="165.2" r="3.2" fill="#2563eb"/>
+<circle cx="475.0" cy="139.8" r="3.2" fill="#2563eb"/>
+<circle cx="513.5" cy="115.2" r="3.2" fill="#2563eb"/>
+<circle cx="540.8" cy="107.3" r="3.2" fill="#2563eb"/>
+<circle cx="579.3" cy="102.7" r="3.2" fill="#2563eb"/>
+<circle cx="606.7" cy="99.6" r="3.2" fill="#2563eb"/>
+<circle cx="645.2" cy="92.7" r="3.2" fill="#2563eb"/>
+<circle cx="672.5" cy="88.3" r="3.2" fill="#2563eb"/>
+<circle cx="738.3" cy="80.4" r="3.2" fill="#2563eb"/>
+<circle cx="804.2" cy="76.2" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="74.6" r="3.2" fill="#2563eb"/>
+<line x1="514.5" y1="298.9" x2="544.5" y2="298.9" stroke="#2563eb" stroke-width="2.2"/>
+<text x="552.5" y="302.9" class="legend">all-reduce, measured</text>
+<polyline points="80.0,412.9 145.8,382.3 184.3,356.6 211.7,334.6 250.2,299.2 277.5,271.9 316.0,232.5 343.3,205.5 381.8,170.8 409.2,149.4 447.7,124.6 475.0,110.5 513.5,95.2 540.8,87.0 579.3,78.4 606.7,74.0 645.2,69.4 672.5,67.1 738.3,63.6 804.2,61.8 870.0,60.9" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="514.5" y1="320.9" x2="544.5" y2="320.9" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="552.5" y="324.9" class="legend">all-reduce, ring model</text>
+<polyline points="80.0,399.8 145.8,372.1 184.3,353.8 211.7,356.3 250.2,328.1 277.5,307.4 316.0,281.0 343.3,255.8 381.8,215.1 409.2,196.4 447.7,183.0 475.0,163.9 513.5,154.4 540.8,145.5 579.3,142.1 606.7,138.9 645.2,134.5 672.5,131.9 738.3,130.1 804.2,129.3 870.0,128.3" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="399.8" r="3.2" fill="#ea580c"/>
+<circle cx="145.8" cy="372.1" r="3.2" fill="#ea580c"/>
+<circle cx="184.3" cy="353.8" r="3.2" fill="#ea580c"/>
+<circle cx="211.7" cy="356.3" r="3.2" fill="#ea580c"/>
+<circle cx="250.2" cy="328.1" r="3.2" fill="#ea580c"/>
+<circle cx="277.5" cy="307.4" r="3.2" fill="#ea580c"/>
+<circle cx="316.0" cy="281.0" r="3.2" fill="#ea580c"/>
+<circle cx="343.3" cy="255.8" r="3.2" fill="#ea580c"/>
+<circle cx="381.8" cy="215.1" r="3.2" fill="#ea580c"/>
+<circle cx="409.2" cy="196.4" r="3.2" fill="#ea580c"/>
+<circle cx="447.7" cy="183.0" r="3.2" fill="#ea580c"/>
+<circle cx="475.0" cy="163.9" r="3.2" fill="#ea580c"/>
+<circle cx="513.5" cy="154.4" r="3.2" fill="#ea580c"/>
+<circle cx="540.8" cy="145.5" r="3.2" fill="#ea580c"/>
+<circle cx="579.3" cy="142.1" r="3.2" fill="#ea580c"/>
+<circle cx="606.7" cy="138.9" r="3.2" fill="#ea580c"/>
+<circle cx="645.2" cy="134.5" r="3.2" fill="#ea580c"/>
+<circle cx="672.5" cy="131.9" r="3.2" fill="#ea580c"/>
+<circle cx="738.3" cy="130.1" r="3.2" fill="#ea580c"/>
+<circle cx="804.2" cy="129.3" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="128.3" r="3.2" fill="#ea580c"/>
+<line x1="514.5" y1="342.9" x2="544.5" y2="342.9" stroke="#ea580c" stroke-width="2.2"/>
+<text x="552.5" y="346.9" class="legend">all-gather, measured</text>
+<polyline points="80.0,391.0 145.8,347.6 184.3,314.2 211.7,287.8 250.2,248.5 277.5,220.8 316.0,184.3 343.3,161.3 381.8,133.9 409.2,118.2 447.7,100.8 475.0,91.5 513.5,81.6 540.8,76.4 579.3,71.1 606.7,68.4 645.2,65.6 672.5,64.2 738.3,62.1 804.2,61.1 870.0,60.5" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="514.5" y1="364.9" x2="544.5" y2="364.9" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="552.5" y="368.9" class="legend">all-gather, ring model</text>
+</svg>

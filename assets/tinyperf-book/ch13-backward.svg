@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" role="img" aria-labelledby="title desc">
+<title id="title">A GEMM and its two backward GEMMs</title>
+<desc id="desc">The forward GEMM Y = X W multiplies an M by K activation by a K by N weight. The backward pass computes the input gradient dX = dY W-transpose, M by N times N by K, and the weight gradient dW = X-transpose dY, K by M times M by N. All three do 2 M N K FLOPs.</desc>
+<defs><style>
+  .title { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+  .head { font: 600 14px system-ui, sans-serif; fill: #0f172a; }
+  .label { font: 500 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .num { font: 600 11px ui-monospace, monospace; fill: #0f172a; }
+  .dim { font: 600 13px ui-monospace, monospace; fill: #334155; }
+</style></defs>
+<rect width="1000" height="330" rx="16" fill="#f8fafc"/>
+<text x="30" y="38" class="title">One GEMM forward, two GEMMs backward</text>
+<text x="30" y="68" class="head">forward: Y = X · W</text>
+<rect x="30" y="90" width="57" height="95" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5" rx="3"/>
+<text x="58.5" y="142.5" class="head" text-anchor="middle">X</text>
+<text x="58.5" y="203" class="dim" text-anchor="middle">M×K</text>
+<text x="99" y="150" class="head" text-anchor="middle">·</text>
+<rect x="111" y="90" width="76" height="57" fill="#e2e8f0" stroke="#475569" stroke-width="1.5" rx="3"/>
+<text x="149.0" y="123.5" class="head" text-anchor="middle">W</text>
+<text x="149.0" y="165" class="dim" text-anchor="middle">K×N</text>
+<text x="199" y="150" class="head" text-anchor="middle">=</text>
+<rect x="211" y="90" width="76" height="95" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5" rx="3"/>
+<text x="249.0" y="142.5" class="head" text-anchor="middle">Y</text>
+<text x="249.0" y="203" class="dim" text-anchor="middle">M×N</text>
+<text x="30" y="235" class="note">2·M·N·K FLOPs</text>
+<text x="331" y="68" class="head">input gradient (D): dX = dY · Wᵀ</text>
+<rect x="331" y="90" width="76" height="95" fill="#fdba74" stroke="#ea580c" stroke-width="1.5" rx="3"/>
+<text x="369.0" y="142.5" class="head" text-anchor="middle">dY</text>
+<text x="369.0" y="203" class="dim" text-anchor="middle">M×N</text>
+<text x="419" y="150" class="head" text-anchor="middle">·</text>
+<rect x="431" y="90" width="57" height="76" fill="#e2e8f0" stroke="#475569" stroke-width="1.5" rx="3"/>
+<text x="459.5" y="133.0" class="head" text-anchor="middle">Wᵀ</text>
+<text x="459.5" y="184" class="dim" text-anchor="middle">N×K</text>
+<text x="500" y="150" class="head" text-anchor="middle">=</text>
+<rect x="512" y="90" width="57" height="95" fill="#fdba74" stroke="#ea580c" stroke-width="1.5" rx="3"/>
+<text x="540.5" y="142.5" class="head" text-anchor="middle">dX</text>
+<text x="540.5" y="203" class="dim" text-anchor="middle">M×K</text>
+<text x="331" y="235" class="note">2·M·N·K FLOPs</text>
+<text x="613" y="68" class="head">weight gradient (W): dW = Xᵀ · dY</text>
+<rect x="613" y="90" width="95" height="57" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5" rx="3"/>
+<text x="660.5" y="123.5" class="head" text-anchor="middle">Xᵀ</text>
+<text x="660.5" y="165" class="dim" text-anchor="middle">K×M</text>
+<text x="720" y="150" class="head" text-anchor="middle">·</text>
+<rect x="732" y="90" width="76" height="95" fill="#fdba74" stroke="#ea580c" stroke-width="1.5" rx="3"/>
+<text x="770.0" y="142.5" class="head" text-anchor="middle">dY</text>
+<text x="770.0" y="203" class="dim" text-anchor="middle">M×N</text>
+<text x="820" y="150" class="head" text-anchor="middle">=</text>
+<rect x="832" y="90" width="76" height="57" fill="#dcfce7" stroke="#15803d" stroke-width="1.5" rx="3"/>
+<text x="870.0" y="123.5" class="head" text-anchor="middle">dW</text>
+<text x="870.0" y="165" class="dim" text-anchor="middle">K×N</text>
+<text x="613" y="235" class="note">2·M·N·K FLOPs</text>
+<text x="30" y="308" class="note">M: tokens in the micro-batch · K: input width · N: output width. Forward 2·M·N·K, backward 4·M·N·K: 6 FLOPs per weight per token.</text>
+</svg>

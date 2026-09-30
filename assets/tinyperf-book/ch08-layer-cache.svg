@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-labelledby="title desc">
+<title id="title">What one layer keeps for one sequence, by attention design</title>
+<desc id="desc">Megabytes one layer stores for one sequence against context, 1k to 1M tokens, both axes logarithmic. Full attention, per-head K and V, the latent and the compressed layers grow in proportion to the context, at different levels: per-head K and V for Kimi-K3&#x27;s 96 heads is 53 times its latent. The linear-attention state (3.2 MB) and the 128-token window (0.26 MB) are flat. The state equals a full Qwen3.8-27B layer&#x27;s cache at 783 tokens.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="560" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">What one layer keeps for one sequence, by attention design</text>
+<line x1="80" y1="490.0" x2="870" y2="490.0" stroke="#e2e8f0"/>
+<text x="72" y="494.0" class="tick" text-anchor="end">0.1</text>
+<line x1="80" y1="428.6" x2="870" y2="428.6" stroke="#e2e8f0"/>
+<text x="72" y="432.6" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="367.1" x2="870" y2="367.1" stroke="#e2e8f0"/>
+<text x="72" y="371.1" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="305.7" x2="870" y2="305.7" stroke="#e2e8f0"/>
+<text x="72" y="309.7" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="244.3" x2="870" y2="244.3" stroke="#e2e8f0"/>
+<text x="72" y="248.3" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="182.9" x2="870" y2="182.9" stroke="#e2e8f0"/>
+<text x="72" y="186.9" class="tick" text-anchor="end">10,000</text>
+<line x1="80" y1="121.4" x2="870" y2="121.4" stroke="#e2e8f0"/>
+<text x="72" y="125.4" class="tick" text-anchor="end">100,000</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">1,000,000</text>
+<text x="80.0" y="510" class="tick" text-anchor="middle">1k</text>
+<text x="159.0" y="510" class="tick" text-anchor="middle">2k</text>
+<text x="238.0" y="510" class="tick" text-anchor="middle">4k</text>
+<text x="317.0" y="510" class="tick" text-anchor="middle">8k</text>
+<text x="396.0" y="510" class="tick" text-anchor="middle">16k</text>
+<text x="475.0" y="510" class="tick" text-anchor="middle">32k</text>
+<text x="554.0" y="510" class="tick" text-anchor="middle">64k</text>
+<text x="633.0" y="510" class="tick" text-anchor="middle">128k</text>
+<text x="712.0" y="510" class="tick" text-anchor="middle">256k</text>
+<text x="791.0" y="510" class="tick" text-anchor="middle">512k</text>
+<text x="870.0" y="510" class="tick" text-anchor="middle">1M</text>
+<line x1="80" y1="490" x2="870" y2="490" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="490" stroke="#64748b"/>
+<text x="475.0" y="538" class="axis" text-anchor="middle">context (tokens)</text>
+<text x="22" y="275.0" class="axis" text-anchor="middle" transform="rotate(-90 22 275.0)">MB per layer per sequence</text>
+<polyline points="80.0,318.1 159.0,299.6 238.0,281.1 317.0,262.6 396.0,244.1 475.0,225.6 554.0,207.1 633.0,188.6 712.0,170.1 791.0,151.7 870.0,133.2" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="73.6" x2="125.8" y2="73.6" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="77.6" class="legend">per-head K and V (Kimi-K3&#x27;s heads)</text>
+<polyline points="80.0,390.3 159.0,371.8 238.0,353.3 317.0,334.8 396.0,316.4 475.0,297.9 554.0,279.4 633.0,260.9 712.0,242.4 791.0,223.9 870.0,205.4" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<line x1="95.8" y1="95.6" x2="125.8" y2="95.6" stroke="#0f172a" stroke-width="2.2"/>
+<text x="133.8" y="99.6" class="legend">full attention, GQA (Qwen3.8-27B)</text>
+<polyline points="80.0,424.2 159.0,405.7 238.0,387.2 317.0,368.7 396.0,350.2 475.0,331.7 554.0,313.2 633.0,294.7 712.0,276.2 791.0,257.7 870.0,239.2" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<line x1="95.8" y1="117.6" x2="125.8" y2="117.6" stroke="#2563eb" stroke-width="2.2"/>
+<text x="133.8" y="121.6" class="legend">latent, 512 + 64 (Kimi-K3)</text>
+<polyline points="80.0,446.6 159.0,432.3 238.0,416.2 317.0,399.0 396.0,381.2 475.0,363.0 554.0,344.7 633.0,326.3 712.0,307.8 791.0,289.3 870.0,270.9" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="139.6" x2="125.8" y2="139.6" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="143.6" class="legend">4:1 compressed + window (V4-Flash)</text>
+<polyline points="80.0,478.0 159.0,476.5 238.0,473.7 317.0,468.8 396.0,461.1 475.0,450.3 554.0,436.7 633.0,421.0 712.0,404.1 791.0,386.4 870.0,368.3" fill="none" stroke="#94a3b8" stroke-width="2.2"/>
+<line x1="95.8" y1="161.6" x2="125.8" y2="161.6" stroke="#94a3b8" stroke-width="2.2"/>
+<text x="133.8" y="165.6" class="legend">128:1 compressed + window (V4-Flash)</text>
+<polyline points="80.0,397.5 159.0,397.5 238.0,397.5 317.0,397.5 396.0,397.5 475.0,397.5 554.0,397.5 633.0,397.5 712.0,397.5 791.0,397.5 870.0,397.5" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<line x1="95.8" y1="183.6" x2="125.8" y2="183.6" stroke="#15803d" stroke-width="2.2"/>
+<text x="133.8" y="187.6" class="legend">linear attention state (Qwen3.8-27B)</text>
+<polyline points="80.0,464.3 159.0,464.3 238.0,464.3 317.0,464.3 396.0,464.3 475.0,464.3 554.0,464.3 633.0,464.3 712.0,464.3 791.0,464.3 870.0,464.3" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<line x1="95.8" y1="205.6" x2="125.8" y2="205.6" stroke="#ea580c" stroke-width="2.2"/>
+<text x="133.8" y="209.6" class="legend">window of 128 tokens (gpt-oss-20b)</text>
+</svg>

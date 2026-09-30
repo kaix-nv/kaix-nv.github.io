@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 600" role="img"
+     aria-labelledby="title description">
+  <title id="title">One decoder layer, and the shapes it runs at</title>
+  <desc id="description">
+    A Qwen3-8B decoder layer as the model builds it. The attention half: RMSNorm, the QKV
+    projection from 4096 to 6144 columns, RoPE, attention, the output projection from 4096 to
+    4096, and a residual add. The new tokens' keys, after RoPE, and values are appended to the
+    KV cache, and attention reads the cache. The feed-forward half: RMSNorm, the gate and up
+    projection from 4096 to twice 12288, SwiGLU, the down projection from 12288 to 4096, and a
+    residual add. Every GEMM runs T rows, one per token in the step. In prefill T is the prompt
+    length, attention sees the tokens before each token, and the LM head runs for the last
+    token only. In decode T is the number of sequences, one new token each, attention reads each
+    sequence's whole cache, and the LM head runs for every row.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .white { font: 600 15px system-ui, sans-serif; fill: #ffffff; }
+      .whitesmall { font: 500 13px ui-monospace, monospace; fill: #dbeafe; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .mono { font: 500 13px ui-monospace, monospace; fill: #334155; }
+      .note { font: 500 13px system-ui, sans-serif; fill: #475569; }
+      .flow { stroke: #64748b; stroke-width: 1.8; fill: none; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="600" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">One decoder layer, and the shapes it runs at</text>
+  <text x="40" y="72" class="subtitle">Qwen3-8B: hidden 4096; 32 query heads and 8 KV heads of 128; FFN 12288. T = rows, one per token in the step.</text>
+
+  <!-- residual skip, attention half -->
+  <path d="M80 130 V104 H985 V138" class="flow" marker-end="url(#arrow)"/>
+  <text x="500" y="98" class="note">residual</text>
+
+  <!-- row A: attention half -->
+  <rect x="40" y="130" width="80" height="56" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="80" y="154" class="label" text-anchor="middle">x</text>
+  <text x="80" y="174" class="mono" text-anchor="middle">T×4096</text>
+
+  <rect x="150" y="130" width="100" height="56" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="200" y="163" class="label" text-anchor="middle">RMSNorm</text>
+
+  <rect x="280" y="130" width="170" height="56" rx="8" fill="#2563eb"/>
+  <text x="365" y="154" class="white" text-anchor="middle">QKV projection</text>
+  <text x="365" y="174" class="whitesmall" text-anchor="middle">4096 → 6144</text>
+
+  <rect x="480" y="130" width="80" height="56" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="520" y="163" class="label" text-anchor="middle">RoPE</text>
+
+  <rect x="590" y="130" width="150" height="56" rx="8" fill="#ea580c"/>
+  <text x="665" y="154" class="white" text-anchor="middle">attention</text>
+  <text x="665" y="174" class="whitesmall" text-anchor="middle" fill="#ffedd5">softmax(QKᵀ)V</text>
+
+  <rect x="770" y="130" width="170" height="56" rx="8" fill="#2563eb"/>
+  <text x="855" y="154" class="white" text-anchor="middle">output projection</text>
+  <text x="855" y="174" class="whitesmall" text-anchor="middle">4096 → 4096</text>
+
+  <circle cx="985" cy="158" r="18" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="985" y="164" class="label" text-anchor="middle">+</text>
+
+  <g class="flow">
+    <line x1="120" y1="158" x2="148" y2="158" marker-end="url(#arrow)"/>
+    <line x1="250" y1="158" x2="278" y2="158" marker-end="url(#arrow)"/>
+    <line x1="450" y1="158" x2="478" y2="158" marker-end="url(#arrow)"/>
+    <line x1="560" y1="158" x2="588" y2="158" marker-end="url(#arrow)"/>
+    <line x1="740" y1="158" x2="768" y2="158" marker-end="url(#arrow)"/>
+    <line x1="940" y1="158" x2="965" y2="158" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- KV cache -->
+  <rect x="590" y="222" width="150" height="54" rx="8" fill="#fdba74" stroke="#ea580c"/>
+  <text x="665" y="245" class="label" text-anchor="middle">KV cache</text>
+  <text x="665" y="265" class="mono" text-anchor="middle">8 KV heads × 128</text>
+  <path d="M520 186 V249 H588" fill="none" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arrowo)"/>
+  <text x="508" y="232" class="note" text-anchor="end">new tokens' keys (after RoPE)</text>
+  <text x="508" y="250" class="note" text-anchor="end">and values appended</text>
+  <line x1="665" y1="222" x2="665" y2="189" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arrowo)"/>
+  <text x="752" y="245" class="note">attention reads</text>
+  <text x="752" y="263" class="note">every cached token</text>
+
+  <!-- stream from the first add into the feed-forward half -->
+  <path d="M985 176 V300 H115 V358 H148" class="flow" marker-end="url(#arrow)"/>
+  <!-- residual skip, feed-forward half -->
+  <path d="M115 358 V412 H870 V378" class="flow" marker-end="url(#arrow)"/>
+  <text x="470" y="430" class="note">residual</text>
+
+  <!-- row B: feed-forward half -->
+  <rect x="150" y="330" width="100" height="56" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="200" y="363" class="label" text-anchor="middle">RMSNorm</text>
+
+  <rect x="280" y="330" width="190" height="56" rx="8" fill="#2563eb"/>
+  <text x="375" y="354" class="white" text-anchor="middle">gate-up projection</text>
+  <text x="375" y="374" class="whitesmall" text-anchor="middle">4096 → 2×12288</text>
+
+  <rect x="500" y="330" width="100" height="56" rx="8" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="550" y="363" class="label" text-anchor="middle">SwiGLU</text>
+
+  <rect x="630" y="330" width="190" height="56" rx="8" fill="#2563eb"/>
+  <text x="725" y="354" class="white" text-anchor="middle">down projection</text>
+  <text x="725" y="374" class="whitesmall" text-anchor="middle">12288 → 4096</text>
+
+  <circle cx="870" cy="358" r="18" fill="#e2e8f0" stroke="#94a3b8"/>
+  <text x="870" y="364" class="label" text-anchor="middle">+</text>
+
+  <g class="flow">
+    <line x1="250" y1="358" x2="278" y2="358" marker-end="url(#arrow)"/>
+    <line x1="470" y1="358" x2="498" y2="358" marker-end="url(#arrow)"/>
+    <line x1="600" y1="358" x2="628" y2="358" marker-end="url(#arrow)"/>
+    <line x1="820" y1="358" x2="850" y2="358" marker-end="url(#arrow)"/>
+    <line x1="888" y1="358" x2="928" y2="358" marker-end="url(#arrow)"/>
+  </g>
+  <text x="936" y="354" class="label">next layer</text>
+  <text x="936" y="374" class="small">(36 in all)</text>
+  <text x="920" y="408" class="note">after the last:</text>
+  <text x="920" y="426" class="note">RMSNorm, LM head</text>
+  <text x="920" y="444" class="mono">4096 → 151936</text>
+
+  <!-- prefill vs decode -->
+  <rect x="40" y="466" width="500" height="112" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="60" y="494" class="label">Prefill: one prompt of s tokens</text>
+  <text x="60" y="520" class="small">T = s rows through every GEMM</text>
+  <text x="60" y="542" class="small">attention: each token sees the tokens before it</text>
+  <text x="60" y="564" class="small">the LM head runs for the last token only</text>
+
+  <rect x="560" y="466" width="500" height="112" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="580" y="494" class="label">Decode: B sequences, one new token each</text>
+  <text x="580" y="520" class="small">T = B rows through every GEMM</text>
+  <text x="580" y="542" class="small">attention: each token reads its sequence's whole cache</text>
+  <text x="580" y="564" class="small">the LM head runs for every row</text>
+</svg>

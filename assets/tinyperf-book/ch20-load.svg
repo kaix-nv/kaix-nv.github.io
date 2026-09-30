@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 460" role="img" aria-labelledby="title desc">
+<title id="title">The colocated pair and 1P1D against load: Qwen3-8B on two RTX A6000s</title>
+<desc id="desc">Two panels against the offered load, 1 to 8 requests per second, for 240 requests of 1024 tokens in and 128 out. Left: median TTFT on a log scale. The colocated pair stays between about 220 and 460 ms; 1P1D starts about 50 ms higher and climbs from 3 requests per second, past 4.5 seconds at 8, as its one prefill GPU saturates. Right: mean TPOT. The pair's rises from 27 to 93 ms as prompt steps interrupt more decodes; 1P1D's rises only from 26 to 35 ms. The model (dashed) follows the measurements (solid, through points); its 1P1D TTFT runs low at 6 to 8 requests per second.</desc>
+<rect width="1120" height="460" fill="#f8fafc"/>
+<svg x="0" y="0" width="560" height="460" viewBox="0 0 560 460">
+<title id="t0">Median time to first token</title>
+<desc id="d0"></desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="560" height="460" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Median time to first token</text>
+<line x1="80" y1="390.0" x2="530" y2="390.0" stroke="#e2e8f0"/>
+<text x="72" y="394.0" class="tick" text-anchor="end">200</text>
+<line x1="80" y1="296.1" x2="530" y2="296.1" stroke="#e2e8f0"/>
+<text x="72" y="300.1" class="tick" text-anchor="end">500</text>
+<line x1="80" y1="225.0" x2="530" y2="225.0" stroke="#e2e8f0"/>
+<text x="72" y="229.0" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="153.9" x2="530" y2="153.9" stroke="#e2e8f0"/>
+<text x="72" y="157.9" class="tick" text-anchor="end">2,000</text>
+<line x1="80" y1="60.0" x2="530" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">5,000</text>
+<text x="80.0" y="410" class="tick" text-anchor="middle">0</text>
+<text x="136.2" y="410" class="tick" text-anchor="middle">1</text>
+<text x="192.5" y="410" class="tick" text-anchor="middle">2</text>
+<text x="248.8" y="410" class="tick" text-anchor="middle">3</text>
+<text x="305.0" y="410" class="tick" text-anchor="middle">4</text>
+<text x="361.2" y="410" class="tick" text-anchor="middle">5</text>
+<text x="417.5" y="410" class="tick" text-anchor="middle">6</text>
+<text x="473.8" y="410" class="tick" text-anchor="middle">7</text>
+<text x="530.0" y="410" class="tick" text-anchor="middle">8</text>
+<line x1="80" y1="390" x2="530" y2="390" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="390" stroke="#64748b"/>
+<text x="305.0" y="438" class="axis" text-anchor="middle">offered load, requests per second</text>
+<text x="22" y="225.0" class="axis" text-anchor="middle" transform="rotate(-90 22 225.0)">TTFT p50, ms (log scale)</text>
+<polyline points="136.2,377.1 192.5,374.3 248.8,372.6 305.0,369.3 361.2,366.7 417.5,358.4 473.8,341.6 530.0,305.7" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="96.9" y1="77.9" x2="126.9" y2="77.9" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="134.9" y="81.9" class="legend">pair, model</text>
+<polyline points="136.2,380.6 192.5,378.0 248.8,375.9 305.0,373.9 361.2,369.5 417.5,361.0 473.8,344.6 530.0,304.7" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="136.2" cy="380.6" r="3.2" fill="#2563eb"/>
+<circle cx="192.5" cy="378.0" r="3.2" fill="#2563eb"/>
+<circle cx="248.8" cy="375.9" r="3.2" fill="#2563eb"/>
+<circle cx="305.0" cy="373.9" r="3.2" fill="#2563eb"/>
+<circle cx="361.2" cy="369.5" r="3.2" fill="#2563eb"/>
+<circle cx="417.5" cy="361.0" r="3.2" fill="#2563eb"/>
+<circle cx="473.8" cy="344.6" r="3.2" fill="#2563eb"/>
+<circle cx="530.0" cy="304.7" r="3.2" fill="#2563eb"/>
+<line x1="96.9" y1="99.9" x2="126.9" y2="99.9" stroke="#2563eb" stroke-width="2.2"/>
+<text x="134.9" y="103.9" class="legend">pair, measured</text>
+<polyline points="136.2,353.4 192.5,347.5 248.8,309.2 305.0,296.0 361.2,263.5 417.5,222.1 473.8,146.2 530.0,81.3" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="96.9" y1="121.9" x2="126.9" y2="121.9" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="134.9" y="125.9" class="legend">1P1D, model</text>
+<polyline points="136.2,358.4 192.5,351.3 248.8,313.1 305.0,291.0 361.2,258.8 417.5,209.1 473.8,125.6 530.0,69.2" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="136.2" cy="358.4" r="3.2" fill="#ea580c"/>
+<circle cx="192.5" cy="351.3" r="3.2" fill="#ea580c"/>
+<circle cx="248.8" cy="313.1" r="3.2" fill="#ea580c"/>
+<circle cx="305.0" cy="291.0" r="3.2" fill="#ea580c"/>
+<circle cx="361.2" cy="258.8" r="3.2" fill="#ea580c"/>
+<circle cx="417.5" cy="209.1" r="3.2" fill="#ea580c"/>
+<circle cx="473.8" cy="125.6" r="3.2" fill="#ea580c"/>
+<circle cx="530.0" cy="69.2" r="3.2" fill="#ea580c"/>
+<line x1="96.9" y1="143.9" x2="126.9" y2="143.9" stroke="#ea580c" stroke-width="2.2"/>
+<text x="134.9" y="147.9" class="legend">1P1D, measured</text>
+</svg>
+
+<svg x="560" y="0" width="560" height="460" viewBox="0 0 560 460">
+<title id="t1">Time per output token</title>
+<desc id="d1"></desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="560" height="460" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Time per output token</text>
+<line x1="80" y1="390.0" x2="530" y2="390.0" stroke="#e2e8f0"/>
+<text x="72" y="394.0" class="tick" text-anchor="end">0</text>
+<line x1="80" y1="324.0" x2="530" y2="324.0" stroke="#e2e8f0"/>
+<text x="72" y="328.0" class="tick" text-anchor="end">20</text>
+<line x1="80" y1="258.0" x2="530" y2="258.0" stroke="#e2e8f0"/>
+<text x="72" y="262.0" class="tick" text-anchor="end">40</text>
+<line x1="80" y1="192.0" x2="530" y2="192.0" stroke="#e2e8f0"/>
+<text x="72" y="196.0" class="tick" text-anchor="end">60</text>
+<line x1="80" y1="126.0" x2="530" y2="126.0" stroke="#e2e8f0"/>
+<text x="72" y="130.0" class="tick" text-anchor="end">80</text>
+<line x1="80" y1="60.0" x2="530" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">100</text>
+<text x="80.0" y="410" class="tick" text-anchor="middle">0</text>
+<text x="136.2" y="410" class="tick" text-anchor="middle">1</text>
+<text x="192.5" y="410" class="tick" text-anchor="middle">2</text>
+<text x="248.8" y="410" class="tick" text-anchor="middle">3</text>
+<text x="305.0" y="410" class="tick" text-anchor="middle">4</text>
+<text x="361.2" y="410" class="tick" text-anchor="middle">5</text>
+<text x="417.5" y="410" class="tick" text-anchor="middle">6</text>
+<text x="473.8" y="410" class="tick" text-anchor="middle">7</text>
+<text x="530.0" y="410" class="tick" text-anchor="middle">8</text>
+<line x1="80" y1="390" x2="530" y2="390" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="390" stroke="#64748b"/>
+<text x="305.0" y="438" class="axis" text-anchor="middle">offered load, requests per second</text>
+<text x="22" y="225.0" class="axis" text-anchor="middle" transform="rotate(-90 22 225.0)">mean TPOT, ms</text>
+<polyline points="136.2,300.7 192.5,291.0 248.8,278.2 305.0,261.5 361.2,239.0 417.5,206.3 473.8,157.6 530.0,78.6" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="96.9" y1="73.2" x2="126.9" y2="73.2" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="134.9" y="77.2" class="legend">pair, model</text>
+<polyline points="136.2,302.1 192.5,292.5 248.8,279.7 305.0,262.7 361.2,239.1 417.5,206.3 473.8,159.8 530.0,83.5" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="136.2" cy="302.1" r="3.2" fill="#2563eb"/>
+<circle cx="192.5" cy="292.5" r="3.2" fill="#2563eb"/>
+<circle cx="248.8" cy="279.7" r="3.2" fill="#2563eb"/>
+<circle cx="305.0" cy="262.7" r="3.2" fill="#2563eb"/>
+<circle cx="361.2" cy="239.1" r="3.2" fill="#2563eb"/>
+<circle cx="417.5" cy="206.3" r="3.2" fill="#2563eb"/>
+<circle cx="473.8" cy="159.8" r="3.2" fill="#2563eb"/>
+<circle cx="530.0" cy="83.5" r="3.2" fill="#2563eb"/>
+<line x1="96.9" y1="95.2" x2="126.9" y2="95.2" stroke="#2563eb" stroke-width="2.2"/>
+<text x="134.9" y="99.2" class="legend">pair, measured</text>
+<polyline points="136.2,303.8 192.5,299.4 248.8,294.9 305.0,289.2 361.2,283.1 417.5,276.4 473.8,272.6 530.0,272.2" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="96.9" y1="117.2" x2="126.9" y2="117.2" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="134.9" y="121.2" class="legend">1P1D, model</text>
+<polyline points="136.2,304.8 192.5,299.8 248.8,294.5 305.0,288.3 361.2,282.4 417.5,277.2 473.8,275.1 530.0,274.9" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="136.2" cy="304.8" r="3.2" fill="#ea580c"/>
+<circle cx="192.5" cy="299.8" r="3.2" fill="#ea580c"/>
+<circle cx="248.8" cy="294.5" r="3.2" fill="#ea580c"/>
+<circle cx="305.0" cy="288.3" r="3.2" fill="#ea580c"/>
+<circle cx="361.2" cy="282.4" r="3.2" fill="#ea580c"/>
+<circle cx="417.5" cy="277.2" r="3.2" fill="#ea580c"/>
+<circle cx="473.8" cy="275.1" r="3.2" fill="#ea580c"/>
+<circle cx="530.0" cy="274.9" r="3.2" fill="#ea580c"/>
+<line x1="96.9" y1="139.2" x2="126.9" y2="139.2" stroke="#ea580c" stroke-width="2.2"/>
+<text x="134.9" y="143.2" class="legend">1P1D, measured</text>
+</svg>
+
+</svg>

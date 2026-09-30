@@ -10,3 +10,7 @@ timezone: America/Los_Angeles
 header_pages:
   - series.md
   - about.md
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-redirect-from

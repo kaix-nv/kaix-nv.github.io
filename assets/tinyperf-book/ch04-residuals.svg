@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" role="img" aria-labelledby="title desc">
+<title id="title">Predicted / measured for 27 cuBLAS GEMMs, RTX A6000</title>
+<desc id="desc">Ratio of predicted to measured time for each of 27 fp16 GEMMs on an RTX A6000, grouped by regime, on a log scale. On datasheet rates (PROJ, orange) every ratio is below 1. Where one term dominates, the ratio is nearly level (the tall GEMMs 0.79-0.84); where a fixed cost is missing it falls as kernels get shorter: the 1024 cube reads 0.51, the smallest decode-like weights 0.65, the two tiny GEMMs near 0.1. With the four fitted constants (CAL, blue) the points gather around 1, within 0.89-1.15 apart from the tiny GEMMs at 0.76 and 0.91.</desc>
+<defs><style>.title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }.axis { font: 500 14px system-ui, sans-serif; fill: #334155; }.tick { font: 500 12px ui-monospace, monospace; fill: #475569; }.group { font: 600 13px system-ui, sans-serif; fill: #334155; }.legend { font: 600 13px system-ui, sans-serif; fill: #334155; }</style></defs>
+<rect width="1000" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="38" class="title">Predicted / measured for 27 cuBLAS GEMMs, RTX A6000</text>
+<line x1="80" y1="430.0" x2="970" y2="430.0" stroke="#e2e8f0"/>
+<text x="72" y="434.0" class="tick" text-anchor="end">0.1</text>
+<line x1="80" y1="346.7" x2="970" y2="346.7" stroke="#e2e8f0"/>
+<text x="72" y="350.7" class="tick" text-anchor="end">0.2</text>
+<line x1="80" y1="236.6" x2="970" y2="236.6" stroke="#e2e8f0"/>
+<text x="72" y="240.6" class="tick" text-anchor="end">0.5</text>
+<line x1="80" y1="153.3" x2="970" y2="153.3" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="72" y="157.3" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="70.0" x2="970" y2="70.0" stroke="#e2e8f0"/>
+<text x="72" y="74.0" class="tick" text-anchor="end">2</text>
+<text x="145.9" y="452" class="group" text-anchor="middle">square</text>
+<line x1="211.9" y1="70" x2="211.9" y2="430" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="475.6" y="452" class="group" text-anchor="middle">decode-like (1-128 rows)</text>
+<line x1="739.3" y1="70" x2="739.3" y2="430" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="772.2" y="452" class="group" text-anchor="middle">tall</text>
+<line x1="805.2" y1="70" x2="805.2" y2="430" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="854.6" y="452" class="group" text-anchor="middle">batched</text>
+<line x1="904.1" y1="70" x2="904.1" y2="430" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="937.0" y="452" class="group" text-anchor="middle">tiny</text>
+<line x1="80" y1="430" x2="970" y2="430" stroke="#64748b"/>
+<line x1="80" y1="70" x2="80" y2="430" stroke="#64748b"/>
+<text x="525.0" y="490" class="axis" text-anchor="middle">the 27 measured shapes, grouped by regime</text>
+<text x="22" y="250.0" class="axis" text-anchor="middle" transform="rotate(-90 22 250.0)">predicted / measured (log scale)</text>
+<line x1="96.5" y1="234.8" x2="96.5" y2="136.1" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="96.5" cy="234.8" r="5" fill="#ea580c"/>
+<circle cx="96.5" cy="136.1" r="5" fill="#2563eb"/>
+<line x1="129.4" y1="174.2" x2="129.4" y2="149.8" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="129.4" cy="174.2" r="5" fill="#ea580c"/>
+<circle cx="129.4" cy="149.8" r="5" fill="#2563eb"/>
+<line x1="162.4" y1="174.5" x2="162.4" y2="153.9" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="162.4" cy="174.5" r="5" fill="#ea580c"/>
+<circle cx="162.4" cy="153.9" r="5" fill="#2563eb"/>
+<line x1="195.4" y1="194.0" x2="195.4" y2="161.6" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="195.4" cy="194.0" r="5" fill="#ea580c"/>
+<circle cx="195.4" cy="161.6" r="5" fill="#2563eb"/>
+<line x1="228.3" y1="205.2" x2="228.3" y2="150.7" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="228.3" cy="205.2" r="5" fill="#ea580c"/>
+<circle cx="228.3" cy="150.7" r="5" fill="#2563eb"/>
+<line x1="261.3" y1="174.8" x2="261.3" y2="149.6" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="261.3" cy="174.8" r="5" fill="#ea580c"/>
+<circle cx="261.3" cy="149.6" r="5" fill="#2563eb"/>
+<line x1="294.3" y1="182.3" x2="294.3" y2="151.7" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="294.3" cy="182.3" r="5" fill="#ea580c"/>
+<circle cx="294.3" cy="151.7" r="5" fill="#2563eb"/>
+<line x1="327.2" y1="181.7" x2="327.2" y2="151.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="327.2" cy="181.7" r="5" fill="#ea580c"/>
+<circle cx="327.2" cy="151.0" r="5" fill="#2563eb"/>
+<line x1="360.2" y1="205.9" x2="360.2" y2="151.4" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="360.2" cy="205.9" r="5" fill="#ea580c"/>
+<circle cx="360.2" cy="151.4" r="5" fill="#2563eb"/>
+<line x1="393.1" y1="180.9" x2="393.1" y2="155.7" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="393.1" cy="180.9" r="5" fill="#ea580c"/>
+<circle cx="393.1" cy="155.7" r="5" fill="#2563eb"/>
+<line x1="426.1" y1="181.3" x2="426.1" y2="150.7" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="426.1" cy="181.3" r="5" fill="#ea580c"/>
+<circle cx="426.1" cy="150.7" r="5" fill="#2563eb"/>
+<line x1="459.1" y1="182.8" x2="459.1" y2="152.2" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="459.1" cy="182.8" r="5" fill="#ea580c"/>
+<circle cx="459.1" cy="152.2" r="5" fill="#2563eb"/>
+<line x1="492.0" y1="203.1" x2="492.0" y2="149.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="492.0" cy="203.1" r="5" fill="#ea580c"/>
+<circle cx="492.0" cy="149.0" r="5" fill="#2563eb"/>
+<line x1="525.0" y1="174.1" x2="525.0" y2="149.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="525.0" cy="174.1" r="5" fill="#ea580c"/>
+<circle cx="525.0" cy="149.0" r="5" fill="#2563eb"/>
+<line x1="558.0" y1="181.7" x2="558.0" y2="151.2" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="558.0" cy="181.7" r="5" fill="#ea580c"/>
+<circle cx="558.0" cy="151.2" r="5" fill="#2563eb"/>
+<line x1="590.9" y1="180.5" x2="590.9" y2="150.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="590.9" cy="180.5" r="5" fill="#ea580c"/>
+<circle cx="590.9" cy="150.0" r="5" fill="#2563eb"/>
+<line x1="623.9" y1="191.0" x2="623.9" y2="148.7" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="623.9" cy="191.0" r="5" fill="#ea580c"/>
+<circle cx="623.9" cy="148.7" r="5" fill="#2563eb"/>
+<line x1="656.9" y1="179.2" x2="656.9" y2="154.4" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="656.9" cy="179.2" r="5" fill="#ea580c"/>
+<circle cx="656.9" cy="154.4" r="5" fill="#2563eb"/>
+<line x1="689.8" y1="175.3" x2="689.8" y2="143.9" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="689.8" cy="175.3" r="5" fill="#ea580c"/>
+<circle cx="689.8" cy="143.9" r="5" fill="#2563eb"/>
+<line x1="722.8" y1="167.9" x2="722.8" y2="150.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="722.8" cy="167.9" r="5" fill="#ea580c"/>
+<circle cx="722.8" cy="150.0" r="5" fill="#2563eb"/>
+<line x1="755.7" y1="182.3" x2="755.7" y2="149.6" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="755.7" cy="182.3" r="5" fill="#ea580c"/>
+<circle cx="755.7" cy="149.6" r="5" fill="#2563eb"/>
+<line x1="788.7" y1="174.1" x2="788.7" y2="150.6" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="788.7" cy="174.1" r="5" fill="#ea580c"/>
+<circle cx="788.7" cy="150.6" r="5" fill="#2563eb"/>
+<line x1="821.7" y1="185.2" x2="821.7" y2="166.9" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="821.7" cy="185.2" r="5" fill="#ea580c"/>
+<circle cx="821.7" cy="166.9" r="5" fill="#2563eb"/>
+<line x1="854.6" y1="171.5" x2="854.6" y2="153.4" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="854.6" cy="171.5" r="5" fill="#ea580c"/>
+<circle cx="854.6" cy="153.4" r="5" fill="#2563eb"/>
+<line x1="887.6" y1="184.9" x2="887.6" y2="144.1" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="887.6" cy="184.9" r="5" fill="#ea580c"/>
+<circle cx="887.6" cy="144.1" r="5" fill="#2563eb"/>
+<line x1="920.6" y1="416.0" x2="920.6" y2="186.0" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="920.6" cy="416.0" r="5" fill="#ea580c"/>
+<circle cx="920.6" cy="186.0" r="5" fill="#2563eb"/>
+<line x1="953.5" y1="382.2" x2="953.5" y2="165.2" stroke="#cbd5e1" stroke-width="1.5"/>
+<circle cx="953.5" cy="382.2" r="5" fill="#ea580c"/>
+<circle cx="953.5" cy="165.2" r="5" fill="#2563eb"/>
+<rect x="346.1851851851852" y="275.97871511684957" width="290" height="62" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+<circle cx="360.1851851851852" cy="293.97871511684957" r="5" fill="#ea580c"/>
+<text x="374.1851851851852" y="297.97871511684957" class="legend">PROJ: datasheet rates</text>
+<circle cx="360.1851851851852" cy="317.97871511684957" r="5" fill="#2563eb"/>
+<text x="374.1851851851852" y="321.97871511684957" class="legend">CAL: four fitted constants</text>
+</svg>

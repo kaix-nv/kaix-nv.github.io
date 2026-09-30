@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">How far ahead to draft: an MTP head run k times</title>
+<desc id="desc">Speedup over plain decoding against the number of drafted tokens k, 1 to 16, for Qwen3.8-27B with its MTP head on a B200 at batch 1, context 4096, first-position acceptance 0.8. With i.i.d. acceptance the speedup rises to about 3.0 at k = 8. When acceptance decays with position it peaks at k = 3 or 4, between 2.0 and 2.5, and falls for deeper drafts.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">How far ahead to draft: an MTP head run k times</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">1</text>
+<line x1="80" y1="372.0" x2="870" y2="372.0" stroke="#e2e8f0"/>
+<text x="72" y="376.0" class="tick" text-anchor="end">1.5</text>
+<line x1="80" y1="294.0" x2="870" y2="294.0" stroke="#e2e8f0"/>
+<text x="72" y="298.0" class="tick" text-anchor="end">2</text>
+<line x1="80" y1="216.0" x2="870" y2="216.0" stroke="#e2e8f0"/>
+<text x="72" y="220.0" class="tick" text-anchor="end">2.5</text>
+<line x1="80" y1="138.0" x2="870" y2="138.0" stroke="#e2e8f0"/>
+<text x="72" y="142.0" class="tick" text-anchor="end">3</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">3.5</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">1</text>
+<text x="132.7" y="470" class="tick" text-anchor="middle">2</text>
+<text x="238.0" y="470" class="tick" text-anchor="middle">4</text>
+<text x="343.3" y="470" class="tick" text-anchor="middle">6</text>
+<text x="448.7" y="470" class="tick" text-anchor="middle">8</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">10</text>
+<text x="659.3" y="470" class="tick" text-anchor="middle">12</text>
+<text x="764.7" y="470" class="tick" text-anchor="middle">14</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">16</text>
+<line x1="448.7" y1="60" x2="448.7" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="452.7" y="442" class="note">best k, i.i.d.</text>
+<line x1="185.3" y1="60" x2="185.3" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="189.3" y="442" class="note">best k, decay 0.8</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">drafted tokens per cycle (k)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">speedup over plain decoding</text>
+<polyline points="80.0,339.3 132.7,261.8 185.3,208.5 238.0,173.1 290.7,150.9 343.3,138.4 448.7,132.3 554.0,140.8 659.3,156.5 870.0,195.1" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<line x1="580.3" y1="67.8" x2="610.3" y2="67.8" stroke="#2563eb" stroke-width="2.2"/>
+<text x="618.3" y="71.8" class="legend">acceptance i.i.d.</text>
+<polyline points="80.0,339.3 132.7,270.8 185.3,235.8 238.0,223.9 290.7,225.9 343.3,235.0 448.7,259.4 554.0,283.3 659.3,304.3 870.0,339.4" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="339.3" r="3.2" fill="#15803d"/>
+<circle cx="132.7" cy="270.8" r="3.2" fill="#15803d"/>
+<circle cx="185.3" cy="235.8" r="3.2" fill="#15803d"/>
+<circle cx="238.0" cy="223.9" r="3.2" fill="#15803d"/>
+<circle cx="290.7" cy="225.9" r="3.2" fill="#15803d"/>
+<circle cx="343.3" cy="235.0" r="3.2" fill="#15803d"/>
+<circle cx="448.7" cy="259.4" r="3.2" fill="#15803d"/>
+<circle cx="554.0" cy="283.3" r="3.2" fill="#15803d"/>
+<circle cx="659.3" cy="304.3" r="3.2" fill="#15803d"/>
+<circle cx="870.0" cy="339.4" r="3.2" fill="#15803d"/>
+<line x1="580.3" y1="89.8" x2="610.3" y2="89.8" stroke="#15803d" stroke-width="2.2"/>
+<text x="618.3" y="93.8" class="legend">decay 0.9</text>
+<polyline points="80.0,339.3 132.7,279.8 185.3,259.4 238.0,260.7 290.7,270.9 343.3,283.4 448.7,307.4 554.0,328.3 659.3,346.5 870.0,376.6" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="339.3" r="3.2" fill="#ea580c"/>
+<circle cx="132.7" cy="279.8" r="3.2" fill="#ea580c"/>
+<circle cx="185.3" cy="259.4" r="3.2" fill="#ea580c"/>
+<circle cx="238.0" cy="260.7" r="3.2" fill="#ea580c"/>
+<circle cx="290.7" cy="270.9" r="3.2" fill="#ea580c"/>
+<circle cx="343.3" cy="283.4" r="3.2" fill="#ea580c"/>
+<circle cx="448.7" cy="307.4" r="3.2" fill="#ea580c"/>
+<circle cx="554.0" cy="328.3" r="3.2" fill="#ea580c"/>
+<circle cx="659.3" cy="346.5" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="376.6" r="3.2" fill="#ea580c"/>
+<line x1="580.3" y1="111.8" x2="610.3" y2="111.8" stroke="#ea580c" stroke-width="2.2"/>
+<text x="618.3" y="115.8" class="legend">decay 0.8</text>
+<polyline points="80.0,339.3 132.7,297.9 185.3,297.0 238.0,308.1 290.7,320.4 343.3,332.0 448.7,352.6 554.0,370.3 659.3,385.7 870.0,411.3" fill="none" stroke="#475569" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="580.3" y1="133.8" x2="610.3" y2="133.8" stroke="#475569" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="618.3" y="137.8" class="legend">decay 0.6</text>
+</svg>

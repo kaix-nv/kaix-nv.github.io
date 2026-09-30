@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
+<title id="title">Decode attention per layer: measured and model</title>
+<desc id="desc">Microseconds per layer for one decode-attention call, Qwen3-8B, against context from 256 to 8192 tokens, both axes logarithmic, at batch 1, 8 and 64. Measured points and the fitted model (7 us per call plus the cache at 0.96 of the fitted DRAM rate) track each other; at batch 1 the kernel costs 12 to 13 us up to 1024 tokens, a floor the generic price (the cache at the DRAM rate plus a launch, 5 us at 256 tokens) misses.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+  .note { font: 500 12px system-ui, sans-serif; fill: #64748b; }
+</style></defs>
+<rect width="900" height="520" rx="16" fill="#f8fafc"/>
+<text x="80" y="36" class="title">Decode attention per layer: measured and model</text>
+<line x1="80" y1="450.0" x2="870" y2="450.0" stroke="#e2e8f0"/>
+<text x="72" y="454.0" class="tick" text-anchor="end">3</text>
+<line x1="80" y1="382.0" x2="870" y2="382.0" stroke="#e2e8f0"/>
+<text x="72" y="386.0" class="tick" text-anchor="end">10</text>
+<line x1="80" y1="320.0" x2="870" y2="320.0" stroke="#e2e8f0"/>
+<text x="72" y="324.0" class="tick" text-anchor="end">30</text>
+<line x1="80" y1="252.0" x2="870" y2="252.0" stroke="#e2e8f0"/>
+<text x="72" y="256.0" class="tick" text-anchor="end">100</text>
+<line x1="80" y1="190.0" x2="870" y2="190.0" stroke="#e2e8f0"/>
+<text x="72" y="194.0" class="tick" text-anchor="end">300</text>
+<line x1="80" y1="122.0" x2="870" y2="122.0" stroke="#e2e8f0"/>
+<text x="72" y="126.0" class="tick" text-anchor="end">1,000</text>
+<line x1="80" y1="60.0" x2="870" y2="60.0" stroke="#e2e8f0"/>
+<text x="72" y="64.0" class="tick" text-anchor="end">3,000</text>
+<text x="80.0" y="470" class="tick" text-anchor="middle">256</text>
+<text x="238.0" y="470" class="tick" text-anchor="middle">512</text>
+<text x="396.0" y="470" class="tick" text-anchor="middle">1024</text>
+<text x="554.0" y="470" class="tick" text-anchor="middle">2048</text>
+<text x="712.0" y="470" class="tick" text-anchor="middle">4096</text>
+<text x="870.0" y="470" class="tick" text-anchor="middle">8192</text>
+<line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
+<line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
+<text x="475.0" y="498" class="axis" text-anchor="middle">context (tokens)</text>
+<text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">microseconds per layer</text>
+<polyline points="80.0,244.0 238.0,209.4 396.0,172.0 554.0,134.2 712.0,95.8 870.0,56.8" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="244.0" r="3.2" fill="#15803d"/>
+<circle cx="238.0" cy="209.4" r="3.2" fill="#15803d"/>
+<circle cx="396.0" cy="172.0" r="3.2" fill="#15803d"/>
+<circle cx="554.0" cy="134.2" r="3.2" fill="#15803d"/>
+<circle cx="712.0" cy="95.8" r="3.2" fill="#15803d"/>
+<circle cx="870.0" cy="56.8" r="3.2" fill="#15803d"/>
+<line x1="95.8" y1="60.0" x2="125.8" y2="60.0" stroke="#15803d" stroke-width="2.2"/>
+<text x="133.8" y="64.0" class="legend">batch 64: measured</text>
+<polyline points="80.0,245.0 238.0,209.0 396.0,171.5 554.0,133.1 712.0,94.4 870.0,55.5" fill="none" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="82.0" x2="125.8" y2="82.0" stroke="#15803d" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="86.0" class="legend">batch 64: model</text>
+<polyline points="80.0,323.9 238.0,303.1 396.0,276.2 554.0,245.1 712.0,209.5 870.0,174.2" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="80.0" cy="323.9" r="3.2" fill="#ea580c"/>
+<circle cx="238.0" cy="303.1" r="3.2" fill="#ea580c"/>
+<circle cx="396.0" cy="276.2" r="3.2" fill="#ea580c"/>
+<circle cx="554.0" cy="245.1" r="3.2" fill="#ea580c"/>
+<circle cx="712.0" cy="209.5" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="174.2" r="3.2" fill="#ea580c"/>
+<line x1="95.8" y1="104.0" x2="125.8" y2="104.0" stroke="#ea580c" stroke-width="2.2"/>
+<text x="133.8" y="108.0" class="legend">batch 8: measured</text>
+<polyline points="80.0,334.2 238.0,309.7 396.0,279.7 554.0,245.7 712.0,209.3 870.0,171.6" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="126.0" x2="125.8" y2="126.0" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="130.0" class="legend">batch 8: model</text>
+<polyline points="80.0,373.1 238.0,370.7 396.0,366.6 554.0,328.6 712.0,306.6 870.0,276.8" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="373.1" r="3.2" fill="#2563eb"/>
+<circle cx="238.0" cy="370.7" r="3.2" fill="#2563eb"/>
+<circle cx="396.0" cy="366.6" r="3.2" fill="#2563eb"/>
+<circle cx="554.0" cy="328.6" r="3.2" fill="#2563eb"/>
+<circle cx="712.0" cy="306.6" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="276.8" r="3.2" fill="#2563eb"/>
+<line x1="95.8" y1="148.0" x2="125.8" y2="148.0" stroke="#2563eb" stroke-width="2.2"/>
+<text x="133.8" y="152.0" class="legend">batch 1: measured</text>
+<polyline points="80.0,371.2 238.0,364.3 396.0,352.6 554.0,334.6 712.0,310.0 870.0,279.8" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="170.0" x2="125.8" y2="170.0" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="174.0" class="legend">batch 1: model</text>
+<polyline points="80.0,420.7 238.0,405.8 396.0,384.4 554.0,356.7 712.0,324.3 870.0,288.9" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<line x1="95.8" y1="192.0" x2="125.8" y2="192.0" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="133.8" y="196.0" class="legend">generic price, batch 1</text>
+</svg>

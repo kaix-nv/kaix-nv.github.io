@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 580" role="img"
+     aria-labelledby="title description">
+  <title id="title">A hierarchical all-reduce across two nodes, in three phases</title>
+  <desc id="description">
+    Eight GPUs in two nodes of four. Every GPU starts with its own partial result for a whole
+    buffer, drawn as four chunks. Phase 1, a reduce-scatter inside each node over NVLink, leaves
+    GPU i with chunk i summed over its node. Phase 2, an all-reduce across nodes over InfiniBand,
+    pairs GPU i of one node with GPU i of the other; each pair sums only its own chunk, a quarter
+    of the buffer, so four exchanges run side by side, one per network card. Afterwards GPU i
+    holds chunk i summed over all eight GPUs. Phase 3, an all-gather inside each node over
+    NVLink, gives every GPU all four summed chunks. The time is the NVLink ring's bandwidth term
+    over the whole buffer plus the InfiniBand ring's over one GPU's chunk of it. On H100s the
+    InfiniBand phase moves an eighth of the bytes at a ninth of NVLink's rate.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .section { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .link { font: 600 14px system-ui, sans-serif; fill: #475569; }
+      .gpu { font: 600 12px system-ui, sans-serif; fill: #334155; }
+      .node { font: 600 13px system-ui, sans-serif; fill: #475569; }
+      .note { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .mono { font: 500 15px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+  </defs>
+  <rect width="1100" height="580" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">Crossing the node edge: a hierarchical all-reduce</text>
+  <text x="40" y="72" class="subtitle">Eight GPUs, four per node. Each starts with its own partial result for the whole buffer: four chunks.</text>
+  <text x="40" y="112" class="section">1. reduce-scatter inside each node</text>
+  <text x="40" y="132" class="link">NVLink ring, (g−1)/g of the buffer</text>
+  <rect x="40" y="148" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="52" y="166" class="node">node 0</text>
+  <rect x="40" y="290" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="52" y="384" class="node">node 1</text>
+  <path d="M70 238 H330" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+  <path d="M120 362 H330" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+  <text x="82" y="188" class="gpu" text-anchor="middle">GPU 0</text>
+  <rect x="54" y="196" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="68" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="82" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="96" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="158" y="188" class="gpu" text-anchor="middle">GPU 1</text>
+  <rect x="130" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="144" y="196" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="158" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="172" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="234" y="188" class="gpu" text-anchor="middle">GPU 2</text>
+  <rect x="206" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="220" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="234" y="196" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="248" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="310" y="188" class="gpu" text-anchor="middle">GPU 3</text>
+  <rect x="282" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="296" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="310" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="324" y="196" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="82" y="344" class="gpu" text-anchor="middle">GPU 4</text>
+  <rect x="54" y="306" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="68" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="82" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="96" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="158" y="344" class="gpu" text-anchor="middle">GPU 5</text>
+  <rect x="130" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="144" y="306" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="158" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="172" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="234" y="344" class="gpu" text-anchor="middle">GPU 6</text>
+  <rect x="206" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="220" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="234" y="306" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="248" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="310" y="344" class="gpu" text-anchor="middle">GPU 7</text>
+  <rect x="282" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="296" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="310" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="324" y="306" width="14" height="18" fill="#2563eb" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="400" y="112" class="section">2. all-reduce across nodes</text>
+  <text x="400" y="132" class="link">InfiniBand, one chunk (B/g) per GPU</text>
+  <rect x="400" y="148" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="412" y="166" class="node">node 0</text>
+  <rect x="400" y="290" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="412" y="384" class="node">node 1</text>
+  <line x1="421" y1="214" x2="421" y2="306" stroke="#ea580c" stroke-width="2.5"/>
+  <line x1="511" y1="214" x2="511" y2="306" stroke="#ea580c" stroke-width="2.5"/>
+  <line x1="601" y1="214" x2="601" y2="306" stroke="#ea580c" stroke-width="2.5"/>
+  <line x1="691" y1="214" x2="691" y2="306" stroke="#ea580c" stroke-width="2.5"/>
+  <text x="442" y="188" class="gpu" text-anchor="middle">GPU 0</text>
+  <rect x="414" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="428" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="442" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="456" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="518" y="188" class="gpu" text-anchor="middle">GPU 1</text>
+  <rect x="490" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="504" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="518" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="532" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="594" y="188" class="gpu" text-anchor="middle">GPU 2</text>
+  <rect x="566" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="580" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="594" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="608" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="670" y="188" class="gpu" text-anchor="middle">GPU 3</text>
+  <rect x="642" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="656" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="670" y="196" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="684" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="442" y="344" class="gpu" text-anchor="middle">GPU 4</text>
+  <rect x="414" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="428" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="442" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="456" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="518" y="344" class="gpu" text-anchor="middle">GPU 5</text>
+  <rect x="490" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="504" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="518" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="532" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="594" y="344" class="gpu" text-anchor="middle">GPU 6</text>
+  <rect x="566" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="580" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="594" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="608" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="670" y="344" class="gpu" text-anchor="middle">GPU 7</text>
+  <rect x="642" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="656" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="670" y="306" width="14" height="18" fill="#ffffff" stroke="#cbd5e1"/>
+  <rect x="684" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="760" y="112" class="section">3. all-gather inside each node</text>
+  <text x="760" y="132" class="link">NVLink ring, (g−1)/g of the buffer</text>
+  <rect x="760" y="148" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="772" y="166" class="node">node 0</text>
+  <rect x="760" y="290" width="320" height="104" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="772" y="384" class="node">node 1</text>
+  <path d="M790 238 H1050" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+  <path d="M840 362 H1050" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+  <text x="802" y="188" class="gpu" text-anchor="middle">GPU 0</text>
+  <rect x="774" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="788" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="802" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="816" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="878" y="188" class="gpu" text-anchor="middle">GPU 1</text>
+  <rect x="850" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="864" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="878" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="892" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="954" y="188" class="gpu" text-anchor="middle">GPU 2</text>
+  <rect x="926" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="940" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="954" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="968" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="1030" y="188" class="gpu" text-anchor="middle">GPU 3</text>
+  <rect x="1002" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1016" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1030" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1044" y="196" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="802" y="344" class="gpu" text-anchor="middle">GPU 4</text>
+  <rect x="774" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="788" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="802" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="816" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="878" y="344" class="gpu" text-anchor="middle">GPU 5</text>
+  <rect x="850" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="864" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="878" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="892" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="954" y="344" class="gpu" text-anchor="middle">GPU 6</text>
+  <rect x="926" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="940" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="954" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="968" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <text x="1030" y="344" class="gpu" text-anchor="middle">GPU 7</text>
+  <rect x="1002" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1016" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1030" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="1044" y="306" width="14" height="18" fill="#15803d" stroke="#f8fafc" stroke-width="1.5"/>
+  <rect x="40" y="420" width="16" height="16" fill="#2563eb"/>
+  <text x="64" y="433" class="note">a chunk summed over its node</text>
+  <rect x="300" y="420" width="16" height="16" fill="#15803d"/>
+  <text x="324" y="433" class="note">a chunk summed over all eight GPUs</text>
+  <rect x="604" y="420" width="16" height="16" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="628" y="433" class="note">a chunk no longer held</text>
+  <line x1="812" y1="428" x2="842" y2="428" stroke="#2563eb" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="850" y="433" class="note">NVLink</text>
+  <line x1="930" y1="428" x2="960" y2="428" stroke="#ea580c" stroke-width="2.5"/>
+  <text x="968" y="433" class="note">InfiniBand</text>
+  <text x="40" y="486" class="mono">t = 2(g−1)/g · B / NVLink  +  2(N−1)/N · (B/g) / InfiniBand  +  hops · latency  +  launch</text>
+  <text x="40" y="514" class="note">B bytes per GPU, g GPUs per node, N nodes. Each phase is a ring, so the ring's closed forms add up.</text>
+  <text x="40" y="540" class="note">On H100s, NVLink 450 GB/s per direction and InfiniBand 50 GB/s per GPU: the InfiniBand phase moves 1/8 of the bytes at 1/9 of the rate.</text>
+</svg>

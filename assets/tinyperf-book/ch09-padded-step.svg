@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" role="img"
+     aria-labelledby="title description">
+  <title id="title">A padded CUDA-graph step routes its stale rows</title>
+  <desc id="description">
+    A decode step of 9 sequences runs the CUDA graph captured for 16 rows. The
+    other 7 rows hold stale tokens left in the engine's input buffer, and the
+    router routes them like real tokens. On Qwen3-30B-A3B the 9 real rows touch
+    37.6 experts per layer, all 16 rows touch 56.4, and a full step of 16 real
+    decodes touches 47.4, so the step of 9 streams more expert weights than the
+    step of 16. In a separate run the step of 9 took 30.4 ms and the step of 16
+    took 29.5 ms.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .label { font: 600 15px system-ui, sans-serif; fill: #0f172a; }
+      .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
+      .num { font: 700 15px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+  </defs>
+  <rect width="1100" height="520" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">A padded row is not idle</text>
+  <text x="40" y="72" class="subtitle">9 decodes run in the CUDA graph captured for 16 rows. The other 7 rows hold stale tokens, and the router routes them.</text>
+
+  <!-- the 16 rows -->
+  <text x="60" y="112" class="label">the graph's 16 rows</text>
+  <g fill="#2563eb">
+    <rect x="60" y="124" width="200" height="18" rx="3"/><rect x="60" y="146" width="200" height="18" rx="3"/>
+    <rect x="60" y="168" width="200" height="18" rx="3"/><rect x="60" y="190" width="200" height="18" rx="3"/>
+    <rect x="60" y="212" width="200" height="18" rx="3"/><rect x="60" y="234" width="200" height="18" rx="3"/>
+    <rect x="60" y="256" width="200" height="18" rx="3"/><rect x="60" y="278" width="200" height="18" rx="3"/>
+    <rect x="60" y="300" width="200" height="18" rx="3"/>
+  </g>
+  <g fill="#fdba74">
+    <rect x="60" y="322" width="200" height="18" rx="3"/><rect x="60" y="344" width="200" height="18" rx="3"/>
+    <rect x="60" y="366" width="200" height="18" rx="3"/><rect x="60" y="388" width="200" height="18" rx="3"/>
+    <rect x="60" y="410" width="200" height="18" rx="3"/><rect x="60" y="432" width="200" height="18" rx="3"/>
+    <rect x="60" y="454" width="200" height="18" rx="3"/>
+  </g>
+  <path d="M 272 124 L 280 124 L 280 318 L 272 318" fill="none" stroke="#2563eb" stroke-width="2"/>
+  <text x="290" y="226" class="small">9 decodes</text>
+  <path d="M 272 322 L 280 322 L 280 472 L 272 472" fill="none" stroke="#ea580c" stroke-width="2"/>
+  <text x="290" y="392" class="small">7 stale tokens,</text>
+  <text x="290" y="412" class="small">left in the input buffer</text>
+
+  <!-- bars: experts touched per layer, scale 128 experts = 440 px from x=560 -->
+  <text x="560" y="112" class="label">experts touched per layer (of 128), Qwen3-30B-A3B</text>
+  <line x1="560" y1="124" x2="560" y2="360" stroke="#64748b"/>
+  <rect x="560" y="150" width="129" height="36" fill="#2563eb"/>
+  <text x="700" y="174" class="num">37.6</text>
+  <text x="760" y="174" class="small">the 9 real rows</text>
+  <rect x="560" y="230" width="129" height="36" fill="#2563eb"/>
+  <rect x="689" y="230" width="65" height="36" fill="#fdba74"/>
+  <text x="765" y="254" class="num">56.4</text>
+  <text x="825" y="254" class="small">all 16 rows, as the step runs</text>
+  <rect x="560" y="310" width="163" height="36" fill="#1e40af"/>
+  <text x="734" y="334" class="num">47.4</text>
+  <text x="794" y="334" class="small">a full step of 16 real decodes</text>
+
+  <text x="560" y="396" class="small">Timed in a separate run: 9 decodes padded to 16 take 30.4 ms,</text>
+  <text x="560" y="418" class="small">16 real decodes 29.5 ms. Fewer sequences, more weights read.</text>
+  <text x="560" y="452" class="small">Stale rows are prompt text: they share few experts with the</text>
+  <text x="560" y="474" class="small">decodes, so 7 of them add 18.8 experts where 7 decodes add 9.8.</text>
+</svg>

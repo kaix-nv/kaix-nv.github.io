@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" role="img" aria-labelledby="title desc">
+<title id="title">What a Qwen3-8B decode step is made of, RTX A6000</title>
+<desc id="desc">Stacked bars of the model&#x27;s decode step by batch, 1 to 64 sequences, split into the weight GEMMs, the LM head, the small ops, attention and the sampler, with the measured step on the engine&#x27;s clock as a dot. Left: 128-token prompts at context 278 with top-p sampling; the GEMMs are about 21 to 24 ms of every step and the sampler grows to 4.7 ms at 64 sequences. Right: half 128-token and half 1920-token prompts, mean context 1124, greedy; attention grows to about 16 ms at 64 sequences. Every dot sits on its bar within 2 percent.</desc>
+<defs><style>
+  .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
+  .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
+  .tick { font: 500 12px system-ui, sans-serif; fill: #475569; }
+  .legend { font: 600 13px system-ui, sans-serif; fill: #334155; }
+</style></defs>
+<rect width="1000" height="560" rx="16" fill="#f8fafc"/>
+<text x="70" y="36" class="title">What a Qwen3-8B decode step is made of, RTX A6000</text>
+<rect x="70" y="56" width="16" height="12" fill="#2563eb"/>
+<text x="92" y="67" class="legend">GEMMs</text>
+<rect x="156" y="56" width="16" height="12" fill="#dbeafe" stroke="#2563eb"/>
+<text x="178" y="67" class="legend">LM head</text>
+<rect x="258" y="56" width="16" height="12" fill="#94a3b8"/>
+<text x="280" y="67" class="legend">small ops</text>
+<rect x="376" y="56" width="16" height="12" fill="#ea580c"/>
+<text x="398" y="67" class="legend">attention</text>
+<rect x="494" y="56" width="16" height="12" fill="#15803d"/>
+<text x="516" y="67" class="legend">sampler</text>
+<circle cx="604" cy="62" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="616" y="67" class="legend">measured step</text>
+<text x="22" y="295.0" class="axis" text-anchor="middle" transform="rotate(-90 22 295.0)">milliseconds per step</text>
+<text x="280.0" y="98" class="axis" text-anchor="middle">128-token prompts, context 278, top-p</text>
+<line x1="70" y1="480.0" x2="490" y2="480.0" stroke="#e2e8f0"/>
+<text x="62" y="484.0" class="tick" text-anchor="end">0</text>
+<line x1="70" y1="406.0" x2="490" y2="406.0" stroke="#e2e8f0"/>
+<text x="62" y="410.0" class="tick" text-anchor="end">10</text>
+<line x1="70" y1="332.0" x2="490" y2="332.0" stroke="#e2e8f0"/>
+<text x="62" y="336.0" class="tick" text-anchor="end">20</text>
+<line x1="70" y1="258.0" x2="490" y2="258.0" stroke="#e2e8f0"/>
+<text x="62" y="262.0" class="tick" text-anchor="end">30</text>
+<line x1="70" y1="184.0" x2="490" y2="184.0" stroke="#e2e8f0"/>
+<text x="62" y="188.0" class="tick" text-anchor="end">40</text>
+<line x1="70" y1="110.0" x2="490" y2="110.0" stroke="#e2e8f0"/>
+<text x="62" y="114.0" class="tick" text-anchor="end">50</text>
+<line x1="70" y1="480.0" x2="490" y2="480.0" stroke="#475569"/>
+<rect x="78.4" y="324.6" width="29.9" height="155.4" fill="#2563eb"/>
+<rect x="78.4" y="311.0" width="29.9" height="13.6" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="78.4" y="305.3" width="29.9" height="5.7" fill="#94a3b8"/>
+<rect x="78.4" y="302.0" width="29.9" height="3.3" fill="#ea580c"/>
+<rect x="78.4" y="298.5" width="29.9" height="3.5" fill="#15803d"/>
+<circle cx="93.3" cy="300.2" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="93.3" y="500" class="tick" text-anchor="middle">1</text>
+<rect x="125.1" y="322.2" width="29.9" height="157.8" fill="#2563eb"/>
+<rect x="125.1" y="308.4" width="29.9" height="13.8" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="125.1" y="302.2" width="29.9" height="6.3" fill="#94a3b8"/>
+<rect x="125.1" y="295.7" width="29.9" height="6.5" fill="#ea580c"/>
+<rect x="125.1" y="288.7" width="29.9" height="7.0" fill="#15803d"/>
+<text x="140.0" y="500" class="tick" text-anchor="middle">8</text>
+<rect x="171.7" y="322.0" width="29.9" height="158.0" fill="#2563eb"/>
+<rect x="171.7" y="308.2" width="29.9" height="13.8" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="171.7" y="301.3" width="29.9" height="6.9" fill="#94a3b8"/>
+<rect x="171.7" y="291.1" width="29.9" height="10.2" fill="#ea580c"/>
+<rect x="171.7" y="280.2" width="29.9" height="10.9" fill="#15803d"/>
+<circle cx="186.7" cy="278.2" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="186.7" y="500" class="tick" text-anchor="middle">16</text>
+<rect x="218.4" y="318.5" width="29.9" height="161.5" fill="#2563eb"/>
+<rect x="218.4" y="304.8" width="29.9" height="13.7" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="218.4" y="297.4" width="29.9" height="7.5" fill="#94a3b8"/>
+<rect x="218.4" y="283.4" width="29.9" height="13.9" fill="#ea580c"/>
+<rect x="218.4" y="268.6" width="29.9" height="14.9" fill="#15803d"/>
+<text x="233.3" y="500" class="tick" text-anchor="middle">24</text>
+<rect x="265.1" y="318.3" width="29.9" height="161.7" fill="#2563eb"/>
+<rect x="265.1" y="304.6" width="29.9" height="13.7" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="265.1" y="296.5" width="29.9" height="8.1" fill="#94a3b8"/>
+<rect x="265.1" y="278.9" width="29.9" height="17.6" fill="#ea580c"/>
+<rect x="265.1" y="260.0" width="29.9" height="18.8" fill="#15803d"/>
+<circle cx="280.0" cy="257.4" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="280.0" y="500" class="tick" text-anchor="middle">32</text>
+<rect x="311.7" y="304.5" width="29.9" height="175.5" fill="#2563eb"/>
+<rect x="311.7" y="290.7" width="29.9" height="13.9" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="311.7" y="282.0" width="29.9" height="8.7" fill="#94a3b8"/>
+<rect x="311.7" y="260.6" width="29.9" height="21.3" fill="#ea580c"/>
+<rect x="311.7" y="237.9" width="29.9" height="22.8" fill="#15803d"/>
+<text x="326.7" y="500" class="tick" text-anchor="middle">40</text>
+<rect x="358.4" y="303.2" width="29.9" height="176.8" fill="#2563eb"/>
+<rect x="358.4" y="289.3" width="29.9" height="13.9" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="358.4" y="280.0" width="29.9" height="9.3" fill="#94a3b8"/>
+<rect x="358.4" y="254.9" width="29.9" height="25.1" fill="#ea580c"/>
+<rect x="358.4" y="228.2" width="29.9" height="26.7" fill="#15803d"/>
+<circle cx="373.3" cy="227.8" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="373.3" y="500" class="tick" text-anchor="middle">48</text>
+<rect x="405.1" y="304.8" width="29.9" height="175.2" fill="#2563eb"/>
+<rect x="405.1" y="290.8" width="29.9" height="14.0" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="405.1" y="280.9" width="29.9" height="9.9" fill="#94a3b8"/>
+<rect x="405.1" y="252.2" width="29.9" height="28.8" fill="#ea580c"/>
+<rect x="405.1" y="221.5" width="29.9" height="30.7" fill="#15803d"/>
+<text x="420.0" y="500" class="tick" text-anchor="middle">56</text>
+<rect x="451.7" y="308.0" width="29.9" height="172.0" fill="#2563eb"/>
+<rect x="451.7" y="294.0" width="29.9" height="14.0" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="451.7" y="283.5" width="29.9" height="10.5" fill="#94a3b8"/>
+<rect x="451.7" y="251.0" width="29.9" height="32.5" fill="#ea580c"/>
+<rect x="451.7" y="216.4" width="29.9" height="34.6" fill="#15803d"/>
+<circle cx="466.7" cy="211.9" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="466.7" y="500" class="tick" text-anchor="middle">64</text>
+<text x="280.0" y="530" class="axis" text-anchor="middle">sequences in the step</text>
+<text x="750.0" y="98" class="axis" text-anchor="middle">half 128, half 1920 tokens: mean context 1124, greedy</text>
+<line x1="540" y1="480.0" x2="960" y2="480.0" stroke="#e2e8f0"/>
+<text x="532" y="484.0" class="tick" text-anchor="end">0</text>
+<line x1="540" y1="406.0" x2="960" y2="406.0" stroke="#e2e8f0"/>
+<text x="532" y="410.0" class="tick" text-anchor="end">10</text>
+<line x1="540" y1="332.0" x2="960" y2="332.0" stroke="#e2e8f0"/>
+<text x="532" y="336.0" class="tick" text-anchor="end">20</text>
+<line x1="540" y1="258.0" x2="960" y2="258.0" stroke="#e2e8f0"/>
+<text x="532" y="262.0" class="tick" text-anchor="end">30</text>
+<line x1="540" y1="184.0" x2="960" y2="184.0" stroke="#e2e8f0"/>
+<text x="532" y="188.0" class="tick" text-anchor="end">40</text>
+<line x1="540" y1="110.0" x2="960" y2="110.0" stroke="#e2e8f0"/>
+<text x="532" y="114.0" class="tick" text-anchor="end">50</text>
+<line x1="540" y1="480.0" x2="960" y2="480.0" stroke="#475569"/>
+<rect x="548.4" y="324.6" width="29.9" height="155.4" fill="#2563eb"/>
+<rect x="548.4" y="311.0" width="29.9" height="13.6" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="548.4" y="305.3" width="29.9" height="5.7" fill="#94a3b8"/>
+<rect x="548.4" y="300.7" width="29.9" height="4.7" fill="#ea580c"/>
+<rect x="548.4" y="300.6" width="29.9" height="0.1" fill="#15803d"/>
+<text x="563.3" y="500" class="tick" text-anchor="middle">1</text>
+<rect x="595.1" y="322.2" width="29.9" height="157.8" fill="#2563eb"/>
+<rect x="595.1" y="308.4" width="29.9" height="13.8" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="595.1" y="302.2" width="29.9" height="6.3" fill="#94a3b8"/>
+<rect x="595.1" y="284.5" width="29.9" height="17.6" fill="#ea580c"/>
+<rect x="595.1" y="284.3" width="29.9" height="0.2" fill="#15803d"/>
+<text x="610.0" y="500" class="tick" text-anchor="middle">8</text>
+<rect x="641.7" y="322.0" width="29.9" height="158.0" fill="#2563eb"/>
+<rect x="641.7" y="308.2" width="29.9" height="13.8" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="641.7" y="301.3" width="29.9" height="6.9" fill="#94a3b8"/>
+<rect x="641.7" y="268.8" width="29.9" height="32.5" fill="#ea580c"/>
+<rect x="641.7" y="268.5" width="29.9" height="0.4" fill="#15803d"/>
+<circle cx="656.7" cy="270.1" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="656.7" y="500" class="tick" text-anchor="middle">16</text>
+<rect x="688.4" y="318.5" width="29.9" height="161.5" fill="#2563eb"/>
+<rect x="688.4" y="304.8" width="29.9" height="13.7" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="688.4" y="297.4" width="29.9" height="7.5" fill="#94a3b8"/>
+<rect x="688.4" y="250.1" width="29.9" height="47.3" fill="#ea580c"/>
+<rect x="688.4" y="249.5" width="29.9" height="0.5" fill="#15803d"/>
+<text x="703.3" y="500" class="tick" text-anchor="middle">24</text>
+<rect x="735.1" y="318.3" width="29.9" height="161.7" fill="#2563eb"/>
+<rect x="735.1" y="304.6" width="29.9" height="13.7" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="735.1" y="296.5" width="29.9" height="8.1" fill="#94a3b8"/>
+<rect x="735.1" y="234.3" width="29.9" height="62.2" fill="#ea580c"/>
+<rect x="735.1" y="233.7" width="29.9" height="0.7" fill="#15803d"/>
+<circle cx="750.0" cy="236.6" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="750.0" y="500" class="tick" text-anchor="middle">32</text>
+<rect x="781.7" y="304.5" width="29.9" height="175.5" fill="#2563eb"/>
+<rect x="781.7" y="290.7" width="29.9" height="13.9" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="781.7" y="282.0" width="29.9" height="8.7" fill="#94a3b8"/>
+<rect x="781.7" y="205.0" width="29.9" height="77.0" fill="#ea580c"/>
+<rect x="781.7" y="204.2" width="29.9" height="0.8" fill="#15803d"/>
+<text x="796.7" y="500" class="tick" text-anchor="middle">40</text>
+<rect x="828.4" y="303.2" width="29.9" height="176.8" fill="#2563eb"/>
+<rect x="828.4" y="289.3" width="29.9" height="13.9" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="828.4" y="280.0" width="29.9" height="9.3" fill="#94a3b8"/>
+<rect x="828.4" y="188.2" width="29.9" height="91.8" fill="#ea580c"/>
+<rect x="828.4" y="187.2" width="29.9" height="0.9" fill="#15803d"/>
+<circle cx="843.3" cy="191.4" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="843.3" y="500" class="tick" text-anchor="middle">48</text>
+<rect x="875.1" y="304.8" width="29.9" height="175.2" fill="#2563eb"/>
+<rect x="875.1" y="290.8" width="29.9" height="14.0" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="875.1" y="280.9" width="29.9" height="9.9" fill="#94a3b8"/>
+<rect x="875.1" y="174.3" width="29.9" height="106.7" fill="#ea580c"/>
+<rect x="875.1" y="173.2" width="29.9" height="1.1" fill="#15803d"/>
+<text x="890.0" y="500" class="tick" text-anchor="middle">56</text>
+<rect x="921.7" y="308.0" width="29.9" height="172.0" fill="#2563eb"/>
+<rect x="921.7" y="294.0" width="29.9" height="14.0" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<rect x="921.7" y="283.5" width="29.9" height="10.5" fill="#94a3b8"/>
+<rect x="921.7" y="162.0" width="29.9" height="121.5" fill="#ea580c"/>
+<rect x="921.7" y="160.7" width="29.9" height="1.2" fill="#15803d"/>
+<circle cx="936.7" cy="159.0" r="5" fill="#0f172a" stroke="#f8fafc" stroke-width="1.5"/>
+<text x="936.7" y="500" class="tick" text-anchor="middle">64</text>
+<text x="750.0" y="530" class="axis" text-anchor="middle">sequences in the step</text>
+</svg>
