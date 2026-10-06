@@ -295,7 +295,8 @@ so the server applies the model's generation config, for Qwen3
 temperature 0.6, top-k 20 and top-p 0.95: every step sorts. A tool that
 sends `temperature: 0` gets greedy. Two runs of "the same" benchmark can
 differ by 4.76 ms a step at 64 sequences (Table 15.6). If you serve with
-a model's generation config, tell the model.
+a model's generation config, tell the model; chapter 14's engine preset,
+`serving.VLLM`, says `"top_p"` for these checkpoints.
 
 > **Field note: the constant that was the sampler.** Chapter 4's field
 > note "three zeros" follows where a per-sequence cost went; this is
@@ -351,6 +352,11 @@ def padded_batch(b: int, sizes=DEFAULT_CUDAGRAPH_SIZES) -> int:
             return sz
     return b        # beyond the largest captured size the engine runs eagerly, unpadded
 ```
+
+These are vLLM's sizes under a 64-sequence cap, the one measured here.
+For a larger cap, `vllm_cudagraph_sizes(cap)` lists vLLM's default
+sizes (1, 2, 4, then every 8 up to 256), the ones the engine preset
+uses past 64 sequences, unmeasured.
 
 `decode_us` prices the forward at the graph's size, then swaps its
 attention for the real sequences' (docstring and the MoE routing lines

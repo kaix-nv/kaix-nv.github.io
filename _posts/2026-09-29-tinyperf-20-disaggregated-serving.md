@@ -133,7 +133,7 @@ Table 20.1  Moving one prompt's KV cache: the transfer on three links, and the p
   weight bytes per cached byte, Llama-3-70B over Qwen3-8B: 3.9 (tp=4 divides cache and math alike)
   a latent cache (chapter 8): DeepSeek-V4-Flash 8300 bytes per token, 18 times less than Qwen3-8B's
   the pair's rate: a 16 MB NCCL send/recv inside a CUDA graph, 2.56 ms: 6.55 GB/s, the model's p2p_bw_gbps
-  the device file as shipped: p2p_bw_gbps 0, nvlink_bw_gbps 56; its 1024-token transfer 2.7 ms
+  the one-GPU device file, rtx_a6000: p2p_bw_gbps 0, nvlink_bw_gbps 56; its 1024-token transfer 2.7 ms
 ```
 
 The transfer and the prefill both grow with the prompt, so their ratio
@@ -144,9 +144,11 @@ against 20.2. Llama-3-70B does about 4 times the math per cached byte
 (tp=4 divides both alike): 1.7 ms against 61.6. A latent cache is
 negligible.
 
-The pair's 6.55 GB/s is a send inside a CUDA graph; the device file
-lacks it (Where it breaks), so every run here passes
-`p2p_bw_gbps=6.55, nvlink_bw_gbps=4.0`. On the connector's own clock:
+The pair's 6.55 GB/s is a send inside a CUDA graph. The one-GPU device
+file lacks it (Where it breaks), so every run here loads the pair's own,
+`Device.load("rtx_a6000_pcie_pair")`: `p2p_bw_gbps` 6.55 beside chapter
+11's 4.0 GB/s ring. Each GPU's server is chapter 14's
+`VLLM.with_(max_num_seqs=64)`. On the connector's own clock:
 
 ```
 Recorded  The KV transfer on the connector's own clock: 1P1D, 1024-token prompts, 1 and 3 req/s, medians, ms
@@ -245,7 +247,10 @@ def kv_transfer_us(p, device, prompt_tokens, recipe=None, link="fabric", tp=1) -
 ```
 
 The colocated baseline, `simulate_replicas`, runs n independent
-`simulate`s, each on every n-th request, and adds the hop. Round-robin
+`simulate`s, each on every n-th request, and adds the hop. Both
+functions take `simulate`'s arguments, not the preset's: the script
+passes the server's 64 sequences and 2,048-token budget as `max_batch`
+and `chunk_tokens`. Round-robin
 matters: each GPU sees every other arrival of a Poisson stream, so its
 gaps are sums of two exponential gaps, with 0.71 of the spread and
 fewer bursts. A random split would leave each GPU a Poisson stream:
@@ -539,9 +544,10 @@ only at the right ratio.
   InfiniBand, or with tensor parallelism in a pool is measured.
 - **The transfer is priced as a bulk copy,** four times low, and hides
   only because each layer's send keeps pace with its compute.
-- **The device file's link.** `Device.load("rtx_a6000")` has no
-  point-to-point rate and a 56 GB/s NVLink field, so it prices this
-  pair's transfer at 2.7 ms, not 23.1; pass the measured link.
+- **The device file's link.** `Device.load("rtx_a6000")`, the one-GPU
+  file, has no point-to-point rate and a 56 GB/s NVLink field, so it
+  prices this pair's transfer at 2.7 ms, not 23.1; load
+  `rtx_a6000_pcie_pair`, the measured link.
 - **The save is fitted end to end,** idle, at one to four prompts per
   step; under load the prefill steps read up to 5% low, and the prefill
   server's knee 0.78.

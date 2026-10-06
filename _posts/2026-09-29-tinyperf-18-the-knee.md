@@ -70,7 +70,8 @@ The weight read a costs no capacity: every step pays it whatever the
 batch. Every other microsecond is a request's own work, and ρ is its
 share of the time. As ρ grows the step stretches, each request stays
 longer, and more are in flight. An engine caps that number: vLLM's
-`max_num_seqs`, 64 in every run here, which we call its *seats*. When B
+`max_num_seqs`, 64 in every run here (`VLLM.with_(max_num_seqs=64)`,
+chapter 14), which we call its *seats*. When B
 reaches the seats, a new request waits for one. That is the knee.
 
 Table 18.1 takes Table 1.4's workload, 1,024-token prompts and
@@ -94,7 +95,8 @@ Table 18.1  The step stretches with the load: the envelope against the simulator
   simulator at 4, 5 and 8 req/s, while requests queue for a seat: 62.2-62.8 decoding, 1.2-1.8 prefilling; with no queue (23-48% of the run, its start and drain): 30-35 decoding
 ```
 
-The simulator's decodes and seat queue are time-averages over the run.
+The simulator's decodes and seat queue are time-averages over the run;
+the seat queue counts the requests in the engine beyond its 64 seats.
 Up to 3.5 requests per second the envelope's step is within about 4% of
 the simulator's TPOT, and nobody waits for a seat; the step roughly
 doubles from 1 to 3, the 1/(1 − ρ) at work. At 4 the seats fill and a
@@ -520,8 +522,9 @@ the step bias stayed 0.993–1.007. The step bias is the check.
 
 ## Exercises
 
-1. **More seats.** Rerun Table 18.2 with `max_batch=256`. Where does the
-   knee move, and what limits it now: ρ, or chapter 17's KV pool?
+1. **More seats.** Rerun Table 18.2 with 256 seats, vLLM's own default
+   (`VLLM` as shipped). Where does the knee move, and what limits it
+   now: ρ, or chapter 17's KV pool?
    Compare with the envelope at S = 256.
 2. **A band by composition.** Fit the step bias separately for steps
    that carry prefill and steps that don't, from the recorded cells of

@@ -342,7 +342,10 @@ and then re-prefilling a cache it already had. Its time to first token
 Three sweeps pushed vLLM past its pool under `vllm bench serve`, with
 prefix caching off: Poisson arrivals, lengths from a recorded trace,
 every output run to full length. The simulator replays the same trace
-(`bench_requests`, chapter 14):
+(`bench_requests`, chapter 14) through the engine preset with each
+sweep's memory share, `VLLM.with_(gpu_memory_utilization=util)`, and
+vLLM's defaults otherwise: 256 sequences, the 2,048-token budget, paged
+KV, CUDA-graph sizes up to 256 (chapters 14 and 15):
 
 ```
 Table 17.4  Three sweeps past the pool: vLLM 0.15.1 serving Qwen3-8B on one RTX A6000, prefix caching off
@@ -367,8 +370,8 @@ Table 17.5  Qwen3-8B at KV-cache saturation on one RTX A6000: vLLM's scheduler, 
   A       2.5    0.992  1.008  1.008  1.000       97 / 95         45 / 45        42%
   A       3.5    1.000  0.999  1.007  0.997      117 / 118        46 / 46        51%
   H1     0.75    0.996  1.002  1.006  0.997        0 / 0          70 / 68         0%
-  H1     1.25    0.997  1.004  0.997  1.000      155 / 169        80 / 80        83%
-  H1        2    1.014  1.025  1.017  0.988      172 / 168        87 / 86        90%
+  H1     1.25    0.997  1.002  0.996  1.001      154 / 169        80 / 80        82%
+  H1        2    1.014  1.026  1.018  0.988      172 / 168        87 / 86        90%
   H2        2    0.961  0.977  0.985  1.008      236 / 237        61 / 61       102%
   H2        3    0.979  0.981  0.988  1.011      238 / 235        64 / 63       108%
   H2        5    0.968  0.982  0.987  1.012      254 / 248        73 / 74       115%
@@ -381,14 +384,14 @@ Table 17.5  Qwen3-8B at KV-cache saturation on one RTX A6000: vLLM's scheduler, 
 
 On the six held-out cells, TTFT's median and 95th percentile land within
 0.96–1.03, time per output token (TPOT) within 0.98–1.02 and throughput
-within 1.2%. So does the schedule: preemptions within 9% (155 against
+within 1.2%. So does the schedule: preemptions within 9% (154 against
 169 is the worst), the peak batch within 3%, steps within 0.3%. On this
 chapter's derived pools, median TTFT and TPOT stay within 3%.
 
 Preemption has a price. On H1, once the pool binds between 0.75 and
 1.25 requests per second, the engine's output *falls* from 579 to 507
 tokens per second; in the model's schedule the re-prefilled tokens come
-to 83–90% of the prompts. On H2, with short prompts and long outputs,
+to 82–90% of the prompts. On H2, with short prompts and long outputs,
 they exceed the prompts.
 
 It also shapes the tail. At 1.25 requests per second the median request

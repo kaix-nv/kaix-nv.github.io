@@ -12,7 +12,7 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/08/28/building-tinyperf-m20.html
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` and `StepLatencyModel`, and [`tools/bench_trace.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/bench_trace.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch14_serving.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` and `StepLatencyModel`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) at a later commit, `EngineConfig` and `VLLM`; and [`tools/bench_trace.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/bench_trace.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch14_serving.py`.*
 
 Every price so far has been one step. A server never runs one step.
 Requests arrive when their users send them, join a batch that is
@@ -42,6 +42,8 @@ By the end of this chapter you will know:
   its context buckets are safe;
 - its scheduling policies: admission, chunked prefill, the chunk step;
 - how to replay a benchmark's own arrivals, and why it matters;
+- how one preset, `serving.VLLM`, sets every knob the way the engine
+  runs it;
 - how close it comes to a vLLM server under load.
 
 ## Why a queue needs a simulation
@@ -110,8 +112,10 @@ pool.*
 
 The real function is about 450 lines, with paged memory, prefix caching
 and disaggregation (prefill and decode on separate servers; chapter 20)
-woven through nested helper functions. Here is the loop in the mode this
-chapter validates, as **pseudocode**:
+woven through nested helper functions. Here is the loop with chunked
+prefill, as **pseudocode**, admitting by reservation, the simpler of
+its two policies (on this chapter's benchmarks both admit alike; Table
+14.3):
 
 ```python
 # Pseudocode of simulate(): chunked prefill, admission by reservation.
@@ -495,6 +499,95 @@ the script counts the good requests' tokens.) Flat, then a *knee*, the
 load where TTFT turns sharply upward: chapter 18 is about where it
 falls and why it is so sharp.
 
+## One preset for the engine
+
+A prediction is of one server, and the settings that make it that
+server are spread over several chapters: the step model's tier and
+launch cost (chapter 4), its attention backend (chapter 7) and sampler
+(chapter 15); the scheduler's seats, token budget and KV allocator
+(this chapter and chapter 17); planning each step while the previous
+one runs (chapter 16); and the CUDA-graph sizes both use (chapter 15).
+`simulate`'s own defaults are the function's history, not an engine's:
+the projected tier, the greedy sampler, prefill-first, reservation, 64
+sequences. Miss one and the simulator prices a server nobody ran. Here
+is the benchmark of Table 14.6 under three set-ups, beside what vLLM
+measured (in-sample; the measurements are described in the next
+section):
+
+```
+Worked example  One benchmark, three set-ups: Qwen3-8B, RTX A6000, 240 requests of 1024 in, 128 out; TTFT p50 / p95 and mean TPOT, ms
+  req/s            measured          simulate()                VLLM  VLLM.with_(max_num_seqs=64)
+      1    222 / 367 / 30.6    160 / 259 / 26.2    233 / 370 / 31.1             233 / 370 / 31.1
+      3    328 / 769 / 59.4    174 / 422 / 40.3    355 / 787 / 59.6             355 / 787 / 59.6
+      4  1063 / 2693 / 106.4    224 / 507 / 55.0  699 / 1400 / 132.8          1378 / 3126 / 110.6
+  simulate(): the function's defaults (projected tier, greedy sampler, prefill-first, 64 sequences); VLLM: vLLM 0.15.1's defaults, 256 sequences
+```
+
+Called with its defaults, `simulate` reads the median TTFT 28–79% low
+and TPOT 14–48% low, and at 4 requests per second it sees no knee: a
+p95 TTFT of 507 ms against 2,693 measured. `serving.VLLM` holds every
+setting at once, under vLLM's own names, priced as the validated runs
+were (the docstrings, type annotations, the `capture_sizes` property,
+the body of `simulate` and the KV-pool methods trimmed):
+
+```python
+@dataclass(frozen=True)
+class EngineConfig:
+    name: str = "vLLM 0.15.1"
+    max_num_seqs: int = 256
+    max_num_batched_tokens: int = 2048
+    gpu_memory_utilization: float = 0.9
+    kv_paging: str = "paged"
+    block_size: int = 16
+    async_scheduling: bool = True
+    sampling: str = "top_p"
+    attn_backend: str = "flash_attn"
+    cudagraph_sizes: tuple | None = None      # None: vllm_cudagraph_sizes(max_num_seqs)
+    methodology: Methodology = Methodology.CALIBRATED
+    stack: str = "graph"
+
+    def with_(self, **changes):
+        return replace(self, **changes)
+
+    def step_model(self, p, device, tp=1, **kw):
+        return StepLatencyModel(p, device, tp=tp, methodology=self.methodology, stack=self.stack,
+                                sampling=self.sampling, attn_backend=self.attn_backend,
+                                cudagraph_sizes=self.capture_sizes, **kw)
+
+    def simulate(self, p, device, requests, tp=1, latency_model=None, **kw):
+        ...
+
+VLLM = EngineConfig()
+```
+
+`VLLM.step_model` builds the model of the engine's steps, with any
+other argument the step model takes (`tp`, a precision `recipe`).
+`VLLM.simulate` passes each scheduler setting to this chapter's
+`simulate` under that function's name (`max_num_seqs` is `max_batch`,
+`max_num_batched_tokens` is `chunk_tokens`, `block_size` is
+`page_tokens`), builds the step model unless it is given one, and
+passes any other argument on: a trace, `step_scale`, `tp`. `with_`
+changes settings and keeps the rest.
+
+The defaults are vLLM 0.15.1's on the RTX A6000 it was measured on:
+256 sequences and a 2,048-token budget. Every server in this book's
+evidence was started with `--max-num-seqs 64`, so the scripts use
+
+```python
+SERVER = VLLM.with_(max_num_seqs=64)
+LAT = SERVER.step_model(qwen3_8b(), a6000)          # one step-price cache for a sweep
+report = SERVER.simulate(qwen3_8b(), a6000, bench_requests(trace, rate), latency_model=LAT)
+```
+
+and the seats matter: at 4 requests per second the model gives the
+256-seat server a p95 TTFT of 1.4 s, where the measured 64-seat server
+took 2.7 s (the model reads 3.1 s). More seats move the knee (chapter
+18). vLLM chooses its defaults by GPU and entry point, so read yours
+from the server's start-up log. Past 64 sequences the capture sizes
+follow vLLM's default list (`vllm_cudagraph_sizes`: 1, 2, 4, then
+every 8 up to 256), not measured here. A GPU without a calibration has
+no calibrated tier: `VLLM.with_(methodology="proj")` projects it.
+
 ## How close is it?
 
 The evidence is Qwen3-8B in bf16 on one RTX A6000, served by vLLM
@@ -502,9 +595,8 @@ The evidence is Qwen3-8B in bf16 on one RTX A6000, served by vLLM
 2,048 tokens) and loaded by `vllm bench serve` with random-token
 prompts, forced output lengths and Poisson arrivals. The server sampled
 with top-p, its default for this model, and the model prices that. The
-simulator runs `simulate(..., max_batch=64, chunk_tokens=2048)` on each
-run's own trace, the set-up of `test_serving_dynamics_envelope` in
-`tests/test_core.py`.
+simulator runs `VLLM.with_(max_num_seqs=64)` on each run's own trace,
+the set-up of `test_serving_dynamics_envelope` in `tests/test_core.py`.
 
 **In-sample.** The first sweep is the one the serving mechanisms were
 developed against; chapter 1's Table 1.4 showed its p95 TTFT. The other
@@ -591,6 +683,9 @@ Nothing was fitted to a loaded run.
   a point prediction is worth little; chapter 18 gives intervals.
 - **One scheduler.** First come, first served, as vLLM 0.15.1 does it:
   no priorities, no cancellations, one replica.
+- **One engine's defaults.** `VLLM` is vLLM 0.15.1 as it ran on one
+  GPU. Another version or GPU may choose other seats, budget or capture
+  sizes; the preset knows only what it is told.
 - **The per-request overhead** is one fitted constant, the same for
   every request (chapter 16).
 - **Synthetic traffic.** Every validated run used random-token prompts
@@ -609,6 +704,8 @@ Nothing was fitted to a loaded run.
 - Admission by reservation or by pages, chunked prefill under a token
   budget, and the chunk step.
 - Benchmark replay, request for request.
+- An engine preset, `serving.VLLM`: the tier, launch cost, sampler,
+  seats, budget and KV allocator as vLLM runs them.
 - Held-out evidence: TTFT typical error 5.4% (median) and 7.1% (p95),
   TPOT 1.9%, and the engine's schedule within 4%.
 

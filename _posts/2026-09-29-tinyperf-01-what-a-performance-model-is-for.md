@@ -310,7 +310,7 @@ requests, each a 1,024-token prompt asking for 128 tokens, at random
 times at a fixed average rate. The simulator replays the same arrivals
 through a model of vLLM's scheduler, the part of the engine that decides
 which requests join each step, and prices every step at the calibrated
-tier. The *p95 TTFT* is the TTFT that 95% of requests beat.
+tier (`serving.VLLM`, vLLM's settings as one preset; chapter 14). The *p95 TTFT* is the TTFT that 95% of requests beat.
 
 ```
 Table 1.4  How much load can one RTX A6000 take? Qwen3-8B under vLLM, 240 requests of 1024 tokens in, 128 out (in-sample)
