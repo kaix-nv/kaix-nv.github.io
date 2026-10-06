@@ -1,191 +1,221 @@
-# Editorial plan only. The live series still uses tinyserve_order.yml.
-# Legacy slugs are primary destinations for review, not active redirects.
-# Split articles require a separate fragment-level migration review.
-status: outline
-parts_approved_on: "2026-10-06"
-chapter_breakdown: working
-style_sample_approved_on: "2026-10-06"
-source_outline: "tinyserve/docs/book-outline.md"
+# Book navigation; original posts remain in tinyserve_order.yml and the milestone archive.
+status: published
+parts_approved_on: '2026-10-06'
+chapter_breakdown: approved
+style_sample_approved_on: '2026-10-06'
+source_outline: tinyserve/docs/book-outline.md
 parts:
-  - id: foundations
-    number: I
-    title: Foundations and Measurement
-  - id: architecture
-    number: II
-    title: Model Architecture and Computation
-  - id: runtime
-    number: III
-    title: The Serving Runtime
-  - id: optimization
-    number: IV
-    title: Execution Optimization
-  - id: distributed
-    number: V
-    title: Distributed Serving
+- id: foundations
+  number: I
+  title: Foundations and Measurement
+- id: architecture
+  number: II
+  title: Model Architecture and Computation
+- id: runtime
+  number: III
+  title: The Serving Runtime
+- id: optimization
+  number: IV
+  title: Execution Optimization
+- id: distributed
+  number: V
+  title: Distributed Serving
 chapters:
-  - number: 1
-    part: foundations
-    slug: tinyserve-01-first-token
-    title: From weights to the first token
-    status: draft
-    draft_post: 2026-10-06-tinyserve-01-first-token
-    question: How does a checkpoint become a generated token?
-    legacy_posts:
-      - building-tinyserve-m0
-  - number: 2
-    part: foundations
-    slug: tinyserve-02-performance-foundations
-    title: How to reason about inference performance
-    question: What work are we measuring and can we trust the comparison?
-    legacy_posts:
-      - building-tinyserve-m7a
-  - number: 3
-    part: architecture
-    group: attention
-    slug: tinyserve-03-dense-attention
-    title: Dense attention and its memory
-    question: How does a token retrieve information from its history?
-    legacy_posts: []
-  - number: 4
-    part: architecture
-    group: attention
-    slug: tinyserve-04-efficient-attention
-    title: Efficient attention implementation
-    question: How can attention execute without unnecessary intermediate storage and traffic?
-    legacy_posts:
-      - building-tinyserve-m7d
-  - number: 5
-    part: architecture
-    group: attention
-    slug: tinyserve-05-sparse-attention
-    title: Sparse attention
-    question: Which history should a query read and what does selection cost?
-    implementation_boundary: Background and design material until a separate Tinyserve implementation is qualified.
-    legacy_posts: []
-  - number: 6
-    part: architecture
-    group: attention
-    slug: tinyserve-06-linear-attention
-    title: Linear attention and hybrid models
-    question: How do recurrent memory and chunkwise prefill work together?
-    legacy_posts:
-      - building-tinyserve-m7e
-      - building-tinyserve-m7f
-      - building-tinyserve-m7g
-      - building-tinyserve-m7h
-      - building-tinyserve-m7k
-      - building-tinyserve-m7l
-      - building-tinyserve-m7m
-      - building-tinyserve-m7n
-      - building-tinyserve-m7o
-      - building-tinyserve-m7p
-      - building-tinyserve-m7q
-      - building-tinyserve-m7t
-      - building-tinyserve-m7u
-      - building-tinyserve-m7v
-      - building-tinyserve-m7w
-  - number: 7
-    part: architecture
-    group: feed_forward_and_moe
-    slug: tinyserve-07-feed-forward-and-moe
-    title: Feed-forward networks and mixture of experts
-    question: How do tokens choose expert computations and recover their combined outputs?
-    legacy_posts:
-      - building-tinyserve-m7i
-      - building-tinyserve-m7r
-      - building-tinyserve-m7s
-  - number: 8
-    part: runtime
-    slug: tinyserve-08-kv-cache-and-batching
-    title: KV caching and batched generation
-    question: How can several requests reuse their own histories in one batched loop?
-    legacy_posts:
-      - building-tinyserve-m1
-      - building-tinyserve-m2
-  - number: 9
-    part: runtime
-    slug: tinyserve-09-paged-kv-and-prefixes
-    title: Paged KV memory and prefix reuse
-    question: How do logical token histories map to shared and private physical pages?
-    legacy_posts:
-      - building-tinyserve-m3
-      - building-tinyserve-m5b
-  - number: 10
-    part: runtime
-    slug: tinyserve-10-scheduling
-    title: Scheduling prefill and decode
-    status: reviewed
-    draft_post: 2026-10-06-tinyserve-10-scheduling
-    question: Who runs next and how much prompt work can run before decoders progress?
-    legacy_posts:
-      - building-tinyserve-m4
-      - building-tinyserve-m5a
-      - building-tinyserve-m7b
-      - building-tinyserve-m12
-  - number: 11
-    part: runtime
-    slug: tinyserve-11-live-requests
-    title: Request lifecycle and streaming
-    question: How does a request retain its state and randomness from arrival to retirement?
-    legacy_posts:
-      - building-tinyserve-m10a
-      - building-tinyserve-m10b
-      - building-tinyserve-m10c
-  - number: 12
-    part: optimization
-    slug: tinyserve-12-gpu-execution
-    title: Profiling GPU execution and reducing overhead
-    question: Which execution overhead should we change and does the gain survive measurement?
-    legacy_posts:
-      - building-tinyserve-m5c
-      - building-tinyserve-m7c
-      - building-tinyserve-m7j
-      - building-tinyserve-m10d
-  - number: 13
-    part: optimization
-    slug: tinyserve-13-quantization-fundamentals
-    title: Numerical formats and quantization fundamentals
-    question: What do low-precision codes and scales represent and what information is lost?
-    legacy_posts:
-      - building-tinyserve-m8
-  - number: 14
-    part: optimization
-    slug: tinyserve-14-quantized-serving
-    title: Serving quantized weights activations and KV
-    question: When do fewer stored bits improve capacity or serving performance?
-    legacy_posts:
-      - building-tinyserve-m8f
-      - building-tinyserve-m8g
-  - number: 15
-    part: optimization
-    slug: tinyserve-15-speculative-decoding
-    title: Speculative decoding
-    question: When can verified draft tokens save target-model work?
-    legacy_posts:
-      - building-tinyserve-m9a
-      - building-tinyserve-m9b
-      - building-tinyserve-m9c
-      - building-tinyserve-m9d
-  - number: 16
-    part: distributed
-    slug: tinyserve-16-tensor-and-pipeline-parallelism
-    title: Tensor and pipeline parallelism
-    question: What work and communication follow from splitting tensors or layers?
-    legacy_posts:
-      - building-tinyserve-m6a
-      - building-tinyserve-m6b
-  - number: 17
-    part: distributed
-    slug: tinyserve-17-expert-and-context-parallelism
-    title: Expert and context parallelism
-    question: How do distributed expert routes and KV shards preserve their local contracts?
-    legacy_posts:
-      - building-tinyserve-m6c
-      - building-tinyserve-m6d
-  - number: 18
-    part: distributed
-    slug: tinyserve-18-disaggregated-serving
-    title: Disaggregated prefill and decode
-    question: When is transferring KV between model owners worth the added cost?
-    legacy_posts:
-      - building-tinyserve-m11
+- number: 1
+  part: foundations
+  slug: tinyserve-01-first-token
+  title: From weights to the first token
+  status: published
+  question: How does a checkpoint become a generated token?
+  legacy_posts:
+  - building-tinyserve-m0
+  source_document: docs/book/01-first-token.md
+- number: 2
+  part: foundations
+  slug: tinyserve-02-performance-foundations
+  title: How to reason about inference performance
+  question: What work are we measuring and can we trust the comparison?
+  legacy_posts:
+  - building-tinyserve-m7a
+  status: published
+  source_document: docs/book/02-performance-foundations.md
+- number: 3
+  part: architecture
+  group: attention
+  slug: tinyserve-03-dense-attention
+  title: Dense attention and its memory
+  question: How does a token retrieve information from its history?
+  legacy_posts: []
+  status: published
+  source_document: docs/book/03-dense-attention.md
+- number: 4
+  part: architecture
+  group: attention
+  slug: tinyserve-04-efficient-attention
+  title: Efficient attention implementation
+  question: How can attention execute without unnecessary intermediate storage and traffic?
+  legacy_posts:
+  - building-tinyserve-m7d
+  status: published
+  source_document: docs/book/04-efficient-attention.md
+- number: 5
+  part: architecture
+  group: attention
+  slug: tinyserve-05-sparse-attention
+  title: Sparse attention
+  question: Which history should a query read and what does selection cost?
+  implementation_boundary: Background and design material until a separate Tinyserve implementation is qualified.
+  legacy_posts: []
+  status: published
+  source_document: docs/book/05-sparse-attention.md
+- number: 6
+  part: architecture
+  group: attention
+  slug: tinyserve-06-linear-attention
+  title: Linear attention and hybrid models
+  question: How do recurrent memory and chunkwise prefill work together?
+  legacy_posts:
+  - building-tinyserve-m7e
+  - building-tinyserve-m7f
+  - building-tinyserve-m7g
+  - building-tinyserve-m7h
+  - building-tinyserve-m7k
+  - building-tinyserve-m7l
+  - building-tinyserve-m7m
+  - building-tinyserve-m7n
+  - building-tinyserve-m7o
+  - building-tinyserve-m7p
+  - building-tinyserve-m7q
+  - building-tinyserve-m7t
+  - building-tinyserve-m7u
+  - building-tinyserve-m7v
+  - building-tinyserve-m7w
+  status: published
+  source_document: docs/book/06-linear-attention.md
+- number: 7
+  part: architecture
+  group: feed_forward_and_moe
+  slug: tinyserve-07-feed-forward-and-moe
+  title: Feed-forward networks and mixture of experts
+  question: How do tokens choose expert computations and recover their combined outputs?
+  legacy_posts:
+  - building-tinyserve-m7i
+  - building-tinyserve-m7r
+  - building-tinyserve-m7s
+  status: published
+  source_document: docs/book/07-feed-forward-and-moe.md
+- number: 8
+  part: runtime
+  slug: tinyserve-08-kv-cache-and-batching
+  title: KV caching and batched generation
+  question: How can several requests reuse their own histories in one batched loop?
+  legacy_posts:
+  - building-tinyserve-m1
+  - building-tinyserve-m2
+  status: published
+  source_document: docs/book/08-kv-cache-and-batching.md
+- number: 9
+  part: runtime
+  slug: tinyserve-09-paged-kv-and-prefixes
+  title: Paged KV memory and prefix reuse
+  question: How do logical token histories map to shared and private physical pages?
+  legacy_posts:
+  - building-tinyserve-m3
+  - building-tinyserve-m5b
+  status: published
+  source_document: docs/book/09-paged-kv-and-prefixes.md
+- number: 10
+  part: runtime
+  slug: tinyserve-10-scheduling
+  title: Scheduling prefill and decode
+  status: published
+  question: Who runs next and how much prompt work can run before decoders progress?
+  legacy_posts:
+  - building-tinyserve-m4
+  - building-tinyserve-m5a
+  - building-tinyserve-m7b
+  - building-tinyserve-m12
+  source_document: docs/book/10-scheduling.md
+- number: 11
+  part: runtime
+  slug: tinyserve-11-live-requests
+  title: Request lifecycle and streaming
+  question: How does a request retain its state and randomness from arrival to retirement?
+  legacy_posts:
+  - building-tinyserve-m10a
+  - building-tinyserve-m10b
+  - building-tinyserve-m10c
+  status: published
+  source_document: docs/book/11-live-requests.md
+- number: 12
+  part: optimization
+  slug: tinyserve-12-gpu-execution
+  title: Profiling GPU execution and reducing overhead
+  question: Which execution overhead should we change and does the gain survive measurement?
+  legacy_posts:
+  - building-tinyserve-m5c
+  - building-tinyserve-m7c
+  - building-tinyserve-m7j
+  - building-tinyserve-m10d
+  status: published
+  source_document: docs/book/12-gpu-execution.md
+- number: 13
+  part: optimization
+  slug: tinyserve-13-quantization-fundamentals
+  title: Numerical formats and quantization fundamentals
+  question: What do low-precision codes and scales represent and what information is lost?
+  legacy_posts:
+  - building-tinyserve-m8
+  status: published
+  source_document: docs/book/13-quantization-fundamentals.md
+- number: 14
+  part: optimization
+  slug: tinyserve-14-quantized-serving
+  title: Serving quantized weights activations and KV
+  question: When do fewer stored bits improve capacity or serving performance?
+  legacy_posts:
+  - building-tinyserve-m8f
+  - building-tinyserve-m8g
+  status: published
+  source_document: docs/book/14-quantized-serving.md
+- number: 15
+  part: optimization
+  slug: tinyserve-15-speculative-decoding
+  title: Speculative decoding
+  question: When can verified draft tokens save target-model work?
+  legacy_posts:
+  - building-tinyserve-m9a
+  - building-tinyserve-m9b
+  - building-tinyserve-m9c
+  - building-tinyserve-m9d
+  status: published
+  source_document: docs/book/15-speculative-decoding.md
+- number: 16
+  part: distributed
+  slug: tinyserve-16-tensor-and-pipeline-parallelism
+  title: Tensor and pipeline parallelism
+  question: What work and communication follow from splitting tensors or layers?
+  legacy_posts:
+  - building-tinyserve-m6a
+  - building-tinyserve-m6b
+  status: published
+  source_document: docs/book/16-tensor-and-pipeline-parallelism.md
+- number: 17
+  part: distributed
+  slug: tinyserve-17-expert-and-context-parallelism
+  title: Expert and context parallelism
+  question: How do distributed expert routes and KV shards preserve their local contracts?
+  legacy_posts:
+  - building-tinyserve-m6c
+  - building-tinyserve-m6d
+  status: published
+  source_document: docs/book/17-expert-and-context-parallelism.md
+- number: 18
+  part: distributed
+  slug: tinyserve-18-disaggregated-serving
+  title: Disaggregated prefill and decode
+  question: When is transferring KV between model owners worth the added cost?
+  legacy_posts:
+  - building-tinyserve-m11
+  status: published
+  source_document: docs/book/18-disaggregated-serving.md

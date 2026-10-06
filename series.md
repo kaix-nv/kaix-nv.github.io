@@ -6,11 +6,13 @@ permalink: /series/
 
 ## Building tinyserve
 
-Build a minimal, complete modern LLM serving engine from scratch. Each
-milestone begins with a measured limitation, adds one serving technique,
-proves that outputs remain correct, and measures the result.
+An 18-chapter book about building a minimal, complete modern LLM serving
+engine. Learn the model foundations—including attention and MoE—then cache
+ownership, scheduling, execution optimization, and distributed serving.
+Worked examples and figures connect the code to its measured limits.
 
-[Read the series](/series/tinyserve/) ·
+[Read the book](/series/tinyserve/) ·
+[Milestone archive](/series/tinyserve/milestones/) ·
 [Source code](https://github.com/kaix-nv/tinyserve)
 
 ## Building tinyperf

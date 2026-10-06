@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 695" role="img" aria-labelledby="title desc">
+<title id="title">Release ownership, then reuse or reclaim</title>
+<desc id="desc">A shared registered page falls from two references to one and then to zero. Zero-reference warm content may be reactivated by a match or evicted under allocation pressure. Available capacity includes both free and warm pages.</desc>
+<defs><style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker></defs>
+<rect width="1200" height="695" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">Release ownership, then reuse or reclaim</text>
+<text x="32" y="84" class="body" text-anchor="start">Reference counts track live owners. Registered content can outlive its final request.</text><rect x="32" y="145" width="348" height="132" rx="10" class="green"/><text x="52" y="187" class="heading" text-anchor="start">Two live owners</text><text x="52" y="231" class="mono" text-anchor="start">refcount = 2</text><rect x="426" y="145" width="348" height="132" rx="10" class="blue"/><text x="446" y="187" class="heading" text-anchor="start">One live owner</text><text x="446" y="231" class="mono" text-anchor="start">refcount = 1</text><rect x="820" y="145" width="348" height="132" rx="10" class="orange"/><text x="840" y="187" class="heading" text-anchor="start">Warm registered page</text><text x="840" y="231" class="mono" text-anchor="start">refcount = 0</text><path d="M383 208 L417 208" class="arrow"/><path d="M777 208 L811 208" class="arrow"/><text x="400" y="121" class="small" text-anchor="middle">A finishes</text><text x="797" y="121" class="small" text-anchor="middle">B finishes</text><rect x="32" y="384" width="492" height="140" rx="10" class="green"/><text x="54" y="428" class="body" text-anchor="start">Matching request adopts the page</text>
+<text x="54" y="458" class="body" text-anchor="start">Remove from warm LRU; refcount → 1</text>
+<text x="54" y="488" class="body" text-anchor="start">Contents remain intact.</text><rect x="656" y="384" width="512" height="140" rx="10" class="gray"/><text x="680" y="428" class="body" text-anchor="start">Allocation pressure evicts the page</text>
+<text x="680" y="458" class="body" text-anchor="start">Remove hash identity; return ID to free list</text>
+<text x="680" y="488" class="body" text-anchor="start">A new owner may overwrite it.</text><path d="M898 280 L400 374" class="arrow"/><path d="M1080 280 L1010 374" class="arrow"/><rect x="32" y="570" width="1136" height="90" rx="10" class="white"/><text x="54" y="606" class="body" text-anchor="start">Available capacity = free pages + reclaimable warm pages</text>
+<text x="54" y="636" class="body" text-anchor="start">A live hit adds a reference. A warm hit removes one page from available capacity.</text>
+</svg>

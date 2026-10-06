@@ -1,0 +1,17 @@
+{% assign chapter_index = page.book_chapter | minus: 1 %}
+{% assign next_index = page.book_chapter %}
+{% assign previous_index = page.book_chapter | minus: 2 %}
+<nav class="tinyserve-book-nav" aria-label="Book chapters">
+  <p><a href="{{ '/series/tinyserve/' | relative_url }}">Book contents</a>
+  {% if page.book_chapter > 1 %}
+    {% assign previous_chapter = site.data.tinyserve_book.chapters[previous_index] %}
+    {% assign previous_post = site.posts | where: "slug", previous_chapter.slug | first %}
+    · <a rel="prev" href="{{ previous_post.url | relative_url }}">Previous: {{ previous_chapter.number }}. {{ previous_chapter.title | escape }}</a>
+  {% endif %}
+  {% if page.book_chapter < site.data.tinyserve_book.chapters.size %}
+    {% assign next_chapter = site.data.tinyserve_book.chapters[next_index] %}
+    {% assign next_post = site.posts | where: "slug", next_chapter.slug | first %}
+    · <a rel="next" href="{{ next_post.url | relative_url }}">Next: {{ next_chapter.number }}. {{ next_chapter.title | escape }}</a>
+  {% endif %}
+  </p>
+</nav>

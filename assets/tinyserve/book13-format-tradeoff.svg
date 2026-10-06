@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Exponent range and fraction precision compete for eight bits</title>
+<desc id="desc">E4M3 has one sign, four exponent, and three fraction bits. E5M2 moves one fraction bit into the exponent. At external scale one, E4M3 rounds 1.10 more closely, while E5M2 represents 1000 more closely. Scales move a codebook but do not add codes.</desc>
+<rect width="1200" height="640" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#172b43">
+<text x="40" y="48" font-size="28" font-weight="700">The same eight bits can buy different numerical behavior</text>
+<text x="40" y="80" font-size="18">S = sign · E = exponent field · F = fraction field · examples use external scale 1</text>
+<text x="40" y="145" font-size="24" font-weight="700">E4M3FN</text>
+<rect x="220" y="109" width="90" height="60" fill="#f4dbdd" stroke="#a8666c"/>
+<rect x="310" y="109" width="360" height="60" fill="#dceafb" stroke="#6088b7"/>
+<rect x="670" y="109" width="270" height="60" fill="#e2f2e8" stroke="#50826b"/>
+<text x="251" y="147" font-size="24">S</text><text x="370" y="147" font-size="24">E E E E</text><text x="731" y="147" font-size="24">F F F</text>
+<text x="970" y="144" font-size="20">Bias 7</text>
+<text x="40" y="235" font-size="24" font-weight="700">E5M2</text>
+<rect x="220" y="199" width="90" height="60" fill="#f4dbdd" stroke="#a8666c"/>
+<rect x="310" y="199" width="450" height="60" fill="#dceafb" stroke="#6088b7"/>
+<rect x="760" y="199" width="180" height="60" fill="#e2f2e8" stroke="#50826b"/>
+<text x="251" y="237" font-size="24">S</text><text x="381" y="237" font-size="24">E E E E E</text><text x="810" y="237" font-size="24">F F</text>
+<text x="970" y="234" font-size="20">Bias 15</text>
+<rect x="40" y="301" width="1120" height="218" rx="12" fill="#ffffff" stroke="#bbc7d6"/>
+<path d="M40 354 H1160 M40 407 H1160 M40 460 H1160" stroke="#d0d9e5"/>
+<text x="62" y="335" font-size="20" font-weight="700">At scale 1</text>
+<text x="460" y="335" font-size="20" font-weight="700">E4M3FN</text><text x="855" y="335" font-size="20" font-weight="700">E5M2</text>
+<text x="62" y="389" font-size="20">Gap near 1</text><text x="460" y="389" font-size="22">0.125</text><text x="855" y="389" font-size="22">0.25</text>
+<text x="62" y="442" font-size="20">Input 1.10 → reconstruction</text><text x="460" y="442" font-size="22">1.125 (error 0.025)</text><text x="855" y="442" font-size="22">1.0 (error 0.10)</text>
+<text x="62" y="495" font-size="20">Input 1000 → reconstruction</text><text x="460" y="495" font-size="22">448 (saturated)</text><text x="855" y="495" font-size="22">1024 (error 24)</text>
+<text x="40" y="565" font-size="20">One extra fraction bit improves resolution inside each normal exponent interval.</text>
+<text x="40" y="601" font-size="20">One extra exponent bit expands range. External scaling moves both gaps and endpoints.</text>
+</g></svg>

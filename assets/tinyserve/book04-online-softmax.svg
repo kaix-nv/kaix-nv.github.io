@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">Online softmax across two KV tiles</title><desc id="desc">Two partial summaries share maximum one. Adding their denominators and unnormalized numerators recovers the full four-key attention row. A general merge rescales both summaries to their common maximum.</desc>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0L8,3L0,6" fill="#48617a"/></marker></defs>
+<rect width="1200" height="640" rx="18" fill="#f5f8fc"/><g font-family="Arial,sans-serif" fill="#172b43"><text x="35" y="48" font-size="28" font-weight="700">Keep a summary, discard each score tile</text>
+<g fill="white" stroke="#adc2d4"><rect x="35" y="92" width="525" height="238" rx="12"/><rect x="640" y="92" width="525" height="238" rx="12"/></g>
+<g font-size="23" font-weight="700"><text x="60" y="130">Tile 0: keys 0 and 1</text><text x="665" y="130">Tile 1: keys 2 and 3</text></g>
+<g font-size="21"><text x="60" y="173">scores [1, 0]      values [1,0], [0,2]</text><text x="665" y="173">scores [1, −1]    values [2,1], [−1,1]</text><text x="60" y="217">m = 1</text><text x="665" y="217">m = 1</text><text x="60" y="255">ell = 1 + exp(−1) = 1.367879</text><text x="665" y="255">ell = 1 + exp(−2) = 1.135335</text><text x="60" y="293">z = [1, 0.735759]</text><text x="665" y="293">z = [1.864665, 1.135335]</text></g>
+<path d="M300 332L450 380M900 332L750 380" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="255" y="384" width="690" height="134" rx="12" fill="#e3f0e8" stroke="#99bba6"/><text x="280" y="419" font-size="22">Same maximum → add ell and z</text><text x="280" y="456" font-size="21">ell = 2.503215      z = [2.864665, 1.871094]</text><text x="280" y="495" font-size="24" font-weight="700">output = z / ell = [1.144394, 0.747476]</text>
+<text x="38" y="569" font-size="20">General merge: m′ = max(m0, m1); rescale each ell and z by exp(mi − m′).</text><text x="38" y="607" font-size="20">Normalize only after combining mass. Averaging local normalized outputs is incorrect.</text>
+</g></svg>

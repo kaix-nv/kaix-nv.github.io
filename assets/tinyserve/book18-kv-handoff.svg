@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 725" role="img" aria-labelledby="title desc">
+<title id="title">Transfer values and acknowledge ownership</title>
+<desc id="desc">The source prompt uses pages five and two. Destination pages nine and one receive the same six logical positions; page seven is reserved separately until decode reaches position eight. The destination acknowledges completed import before the source releases its pages.</desc>
+<defs><style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker></defs>
+<rect width="1200" height="725" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">Transfer values and acknowledge ownership</text>
+<text x="32" y="82" class="body" text-anchor="start">Six prompt tokens; four output tokens; illustrative page size four. Maximum cached length is nine.</text><rect x="32" y="119" width="506" height="187" rx="10" class="purple"/><text x="54" y="158" class="body" text-anchor="start">Prefill owner P</text>
+<text x="54" y="197" class="body" text-anchor="start">Prompt table: [5, 2]</text>
+<text x="54" y="236" class="body" text-anchor="start">Computed KV: logical positions 0–5</text>
+<text x="54" y="275" class="body" text-anchor="start">Y1 sampled, still uncached</text><rect x="664" y="119" width="504" height="187" rx="10" class="blue"/><text x="686" y="158" class="body" text-anchor="start">Decode owner D</text>
+<text x="686" y="197" class="body" text-anchor="start">Visible prompt table: [9, 1]</text>
+<text x="686" y="236" class="body" text-anchor="start">Future reservation: [7]</text>
+<text x="686" y="275" class="body" text-anchor="start">Own destination space before prefill</text><path d="M544 208 L654 208" class="arrow"/><text x="600" y="176" class="small" text-anchor="middle">valid KV</text><text x="600" y="251" class="small" text-anchor="middle">P → CPU → D</text><rect x="32" y="354" width="1136" height="141" rx="10" class="white"/><text x="54" y="391" class="body" text-anchor="start">Logical position 5: source page 2 offset 1 → destination page 1 offset 1</text>
+<text x="54" y="426" class="body" text-anchor="start">D synchronizes import and emits Y1, then acknowledges P.</text>
+<text x="54" y="461" class="body" text-anchor="start">P receives acknowledgement, frees its source pages, and reports release.</text><rect x="32" y="539" width="1136" height="149" rx="10" class="green"/><text x="54" y="577" class="body" text-anchor="start">Consume Y1 at position 6 → sample Y2; visible table [9, 1]</text>
+<text x="54" y="607" class="body" text-anchor="start">Consume Y2 at position 7 → sample Y3; visible table [9, 1]</text>
+<text x="54" y="637" class="body" text-anchor="start">Move reserved page 7 into table; consume Y3 at position 8 → sample Y4</text>
+<text x="54" y="667" class="body" text-anchor="start">Y4 remains uncached. Terminal cleanup waits for source release too.</text>
+</svg>

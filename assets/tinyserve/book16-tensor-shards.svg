@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 770" role="img" aria-labelledby="title desc">
+<title id="title">Tensor parallelism splits features inside every layer</title>
+<desc id="desc">Two ranks each begin with the same residual, project local attention heads, and produce full-width partial outputs. An all-reduce reconstructs attention output. A second split-and-sum pair handles MLP channels. KV heads are local while residuals remain replicated.</desc>
+<defs>
+<style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10Z" fill="#64748b"/>
+</marker>
+</defs>
+<rect width="1200" height="770" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">Tensor parallelism splits features inside every layer</text>
+<text x="32" y="82" class="body" text-anchor="start">Each rank owns complete head/channel slices. Full-width partial outputs are summed, not concatenated.</text>
+<rect x="32" y="116" width="528" height="95" rx="10" class="purple"/>
+<text x="52" y="151" class="heading" text-anchor="start">Rank 0: replicated residual [B, 1, 1024]</text>
+<text x="52" y="186" class="body" text-anchor="start">Q heads 0–7; KV heads 0–3</text>
+<rect x="32" y="246" width="528" height="90" rx="10" class="purple"/>
+<text x="52" y="281" class="heading" text-anchor="start">Local attention + output projection</text>
+<text x="52" y="317" class="body" text-anchor="start">Partial result [B, 1, 1024]</text>
+<path d="M292 214 L292 238" class="arrow"/>
+<rect x="32" y="480" width="528" height="94" rx="10" class="purple"/>
+<text x="52" y="516" class="heading" text-anchor="start">MLP channels 0–1535</text>
+<text x="52" y="552" class="body" text-anchor="start">Gate × up; down-projection partial</text>
+<rect x="640" y="116" width="528" height="95" rx="10" class="blue"/>
+<text x="660" y="151" class="heading" text-anchor="start">Rank 1: replicated residual [B, 1, 1024]</text>
+<text x="660" y="186" class="body" text-anchor="start">Q heads 8–15; KV heads 4–7</text>
+<rect x="640" y="246" width="528" height="90" rx="10" class="blue"/>
+<text x="660" y="281" class="heading" text-anchor="start">Local attention + output projection</text>
+<text x="660" y="317" class="body" text-anchor="start">Partial result [B, 1, 1024]</text>
+<path d="M900 214 L900 238" class="arrow"/>
+<rect x="640" y="480" width="528" height="94" rx="10" class="blue"/>
+<text x="660" y="516" class="heading" text-anchor="start">MLP channels 1536–3071</text>
+<text x="660" y="552" class="body" text-anchor="start">Gate × up; down-projection partial</text>
+<rect x="270" y="376" width="660" height="68" rx="10" class="orange"/>
+<text x="600" y="418" class="heading" text-anchor="middle">All-reduce SUM; add residual on both ranks</text>
+<path d="M292 339 L430 370" class="arrow"/>
+<path d="M902 339 L775 370" class="arrow"/>
+<path d="M430 446 L292 474" class="arrow"/>
+<path d="M775 446 L902 474" class="arrow"/>
+<rect x="270" y="618" width="660" height="68" rx="10" class="orange"/>
+<text x="600" y="661" class="heading" text-anchor="middle">All-reduce SUM; add residual → next layer</text>
+<path d="M292 577 L430 612" class="arrow"/>
+<path d="M902 577 L775 612" class="arrow"/>
+<text x="32" y="731" class="body" text-anchor="start">Two reductions per layer × 28 layers = 56 all-reduces per forward.</text>
+</svg>

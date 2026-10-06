@@ -1,20 +1,22 @@
 ---
 layout: post
-published: false
 math: true
-title: "Tinyserve, Chapter 1: From weights to the first token"
+title: 'Tinyserve, Chapter 1: From weights to the first token'
 date: 2026-10-06 00:00:00 -0700
-categories: [tinyserve, llm-serving]
-excerpt: "Trace a three-token prompt through checkpoint loading, a decoder block, next-token logits, and an uncached generation loop."
+categories:
+- tinyserve
+- llm-serving
+excerpt: How does a checkpoint become a generated token?
 book_chapter: 1
-source_revision: 0e5cba5d3c213b1c1986aa7d2fed09c3071b0508
+source_revision: 14b0c8dbb975350bbd730ac0c702eafce36eb95c
 source_document: docs/book/01-first-token.md
 code_revision: e20a34815498560f9226a9e057ade31b2b62743f
 ---
 
 {% include tinyserve-article-style.html %}
+{% include tinyserve-book-nav.html %}
 
-*Chapter 1 · Foundations and Measurement · Unpublished review draft*
+*Chapter 1 · Foundations and Measurement*
 
 A language model does not return a finished answer in one operation. It
 turns a token history into scores for the next token. A generation loop
@@ -375,7 +377,7 @@ target.
 ## Check the boundaries of the example
 
 The executable companion
-[test_book_first_token.py](https://github.com/kaix-nv/tinyserve/blob/0e5cba5d3c213b1c1986aa7d2fed09c3071b0508/tests/test_book_first_token.py) checks the
+[test_book_first_token.py](https://github.com/kaix-nv/tinyserve/blob/14b0c8dbb975350bbd730ac0c702eafce36eb95c/tests/test_book_first_token.py) checks the
 small model's shapes, output-weight tying at construction, final-row
 projection, greedy feedback, and causal independence of earlier logits.
 Its synthetic CPU model makes the example inspectable; passing these checks
@@ -402,10 +404,12 @@ the numerical contract must specify more than “the text looks similar.”
 This chapter describes the ordinary dense, uncached path at code snapshot
 `e20a348`. The linked source repository requires access; the worked example
 and code excerpts above are self-contained. The
-[book outline](https://github.com/kaix-nv/tinyserve/blob/0e5cba5d3c213b1c1986aa7d2fed09c3071b0508/docs/book-outline.md) shows where attention, caching, sampling,
+[book outline](/series/tinyserve/) shows where attention, caching, sampling,
 and scheduling are developed further.
 
 We now have the smallest complete generation path: configuration gives the
 structure, weights supply its learned values, tokenization gives the input
 IDs, a forward predicts the next token, and a loop turns those predictions
 into a response. The next question is how to measure the cost of doing so.
+
+{% include tinyserve-book-nav.html %}
