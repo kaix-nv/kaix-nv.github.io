@@ -20,14 +20,15 @@ for each sequence in a batch (decode)? And how many requests fit on one
 GPU?
 
 The short answer: a prefill costs about two FLOPs per parameter per
-token, plus attention, which grows with the square of the prompt, and
-it keeps the tensor cores busy. A decode step costs one read of the
-weights plus one read of every sequence's KV cache, and it keeps the
-memory bus busy. Adding sequences to a decode step is nearly free for
-the weights until the batch nears the GPU's ridge point, about 128
-sequences on the GPUs here. It is never free for the KV cache, which
-each sequence reads for itself. And the requests that fit are the
-memory left after the weights, divided by one request's cache.
+token, plus attention, which grows with the square of the prompt, and it
+keeps the tensor cores busy. A decode step costs one read of the weights
+plus one read of every sequence's KV cache, and it keeps the memory bus
+busy. Adding sequences to a decode step is nearly free for the weights
+until the batch nears the GPU's ridge point (where math, not memory,
+starts to set the time; chapter 2), about 128 sequences on the GPUs
+here. It is never free for the KV cache, which each sequence reads for
+itself. And the requests that fit are the memory left after the weights,
+divided by one request's cache.
 
 By the end of this chapter you will know:
 
@@ -82,10 +83,12 @@ def qwen3_8b() -> TransformerParams:
 ```
 
 The parameter count follows from these. Each layer has four attention
-projections (queries, keys, values and the output) and a SwiGLU
-feed-forward network of three matrices (gate, up and down). The model
-adds an embedding table and an LM head, each `vocab × hidden`. For a
-dense model, `attn_param_count` and `param_count` compute:
+projections (queries, keys, values and the output; keys and values may
+have fewer heads than queries, below) and a SwiGLU feed-forward network
+of three matrices (gate, up and down). The model adds an embedding
+table and an LM head (the output projection that scores every token in
+the vocabulary), each `vocab × hidden`. For a dense model,
+`attn_param_count` and `param_count` compute:
 
 ```
 attention  = hidden · (heads + 2 · kv_heads) · head_dim  +  heads · head_dim · hidden
@@ -159,9 +162,11 @@ the lines we explain:
     tokens = b_local * s                         # rows on this rank
 ```
 
-On one GPU the parallel degrees `tp`, `cp` and `dp` are 1 and `b_local`
-is the batch; `chunk` is 1 in an ordinary decode step (chapter 14's
-chunked prefill uses more). Two cases remain:
+On one GPU the parallel degrees `tp`, `cp` and `dp` (how many GPUs
+split the weights, each sequence's tokens and the batch; chapters 11
+and 12) are 1 and `b_local` is the batch; `chunk` is 1 in an ordinary
+decode step (chapter 14's chunked prefill, which feeds a prompt into
+the steps a chunk at a time, uses more). Two cases remain:
 
 - **Prefill** of a prompt of s tokens: `tokens = batch · s`. Attention
   is causal, so token i attends to the i tokens up to itself, `(s+1)/2`
@@ -181,14 +186,16 @@ a tensor, only as that length (below). The head adds one decision:
         head = g.Linear("lm_head", y_head, out_features=-(-p.vocab // tp))
 ```
 
-A serving engine needs logits only for the next token, so in prefill
-the LM head runs on one row per sequence. Training needs every position
-(`logits="all"`, chapter 13). A pass fuses attention's three operators
-into one FlashAttention-style kernel before pricing (`attn_fmha` below);
-chapter 7 prices it, and here we take its price as given.
+A serving engine needs logits only for the next token, so in prefill the
+LM head runs on one row per sequence. Training needs every position
+(`logits="all"`, chapter 13). A pass (a rewrite of the graph; chapter 5)
+fuses attention's three operators into one FlashAttention-style kernel
+before pricing (`attn_fmha` below); chapter 7 prices it, and here we
+take its price as given.
 
 Table 6.2 prices one prompt and one decode step on an A100 at its
-datasheet rates.
+datasheet rates. Its bound columns name what set each price: math,
+DRAM traffic or L2 traffic (chapter 5).
 
 ```
 Table 6.2  One Qwen3-8B layer op by op, and the head: A100 SXM, datasheet rates
@@ -213,15 +220,17 @@ Table 6.2  One Qwen3-8B layer op by op, and the head: A100 SXM, datasheet rates
   prefill with logits for every position: 122.0 ms (+7%)
 ```
 
-The two columns are the same ops on opposite sides of the roofline. In
-prefill the GEMMs are bound by math, or by chapter 3's L2 traffic, and
-the pass runs at 260 of the A100's 312 TFLOP/s. In decode every op is
-bound by memory. A GEMM's time is its weights over the bandwidth plus a
-launch: the gate-up projection's 201.5 MB take 98.8 µs at 2,039 GB/s,
-plus 3 µs. The small ops cost 3.0 µs each, their launch. The LM head
-costs the same 615 µs in both phases: in prefill it runs on one row, so
-reading its 1.25 GB of weights is its whole cost. Scoring every
-position would make this prefill 7% longer.
+The two columns are the same ops on opposite sides of the roofline (an
+op's time as the larger of its math time and its memory time;
+chapter 2). In prefill the GEMMs are bound by math, or by chapter 3's L2
+traffic, and the prefill runs at 260 of the A100's 312 TFLOP/s. In
+decode every op is bound by memory. A GEMM's time is its weights over
+the bandwidth plus a launch, the fixed cost of starting a kernel: the
+gate-up projection's 201.5 MB take 98.8 µs at 2,039 GB/s, plus 3 µs. The
+small ops cost 3.0 µs each, their launch. The LM head costs the same 615
+µs in both phases: in prefill it runs on one row, so reading its 1.25 GB
+of weights is its whole cost. Scoring every position would make this
+prefill 7% longer.
 
 A decode step, then, is bytes over bandwidth plus launches:
 
@@ -363,7 +372,8 @@ as much cache as weights.
 Table 6.5 prices Qwen3-8B decode steps at 1,024 tokens of context, by
 batch, on two GPUs: an A100 at its datasheet rates, and an RTX A6000 at
 the rates chapter 4 fits to it, with its kernels issued from a CUDA
-graph as a serving engine issues them.
+graph (launches recorded once and replayed as one; chapter 4) as a
+serving engine issues them.
 
 ```
 Table 6.5  Decode steps by batch: Qwen3-8B, context 1024
@@ -389,17 +399,20 @@ Table 6.5  Decode steps by batch: Qwen3-8B, context 1024
 ```
 
 Read the GEMM columns first. On the A100 the weight GEMMs cost 7.87 ms
-for one sequence and 8.01 ms for 64, 2% more for 64 times the tokens.
-By 128 they cost 19% more, as chapter 3's tile effects start to show:
-padded math and L2 traffic begin to outlast some GEMMs' weight read. At
-129 the GEMMs jump by 47%. One row past a 128-row tile, a kernel
-computes 256 rows or streams its operands through L2 far more: the math
-has caught up with the weight read. That is where the ridge point says
-it should, a little early (129 against 153) because tiles come in
-multiples of 128. On the A6000, whose fitted ridge point is 168, the
-GEMM column above 32 rows carries cuBLAS's measured row curve (chapter
-3), so its 32% jump at 129 is measured, not predicted: without the
-curve, the tile model moves only from 25.39 to 25.95 ms.
+for one sequence and 8.01 ms for 64, 2% more for 64 times the tokens. By
+128 they cost 19% more, as chapter 3's tile effects start to show (a
+kernel computes its output in fixed-size blocks, or tiles, and a partial
+tile costs a whole one): padded math and L2 traffic begin to outlast
+some GEMMs' weight read. At 129 the GEMMs jump by 47%. One row past a
+128-row tile, a kernel computes 256 rows or streams its operands through
+L2 far more: the math has caught up with the weight read. That is where
+the ridge point says it should, a little early (129 against 153) because
+tiles come in multiples of 128. On the A6000, whose fitted ridge point
+is 168, the GEMM column above 32 rows carries cuBLAS's measured row
+curve (a correction to the GEMM price, measured by row count;
+chapter 3), so its 32% jump at 129 is measured, not predicted: without
+the curve, the tile model (chapter 3's GEMM price alone) moves only from
+25.39 to 25.95 ms.
 
 Now read the attention columns. They grow from the first sequence,
 because every sequence reads its own cache. The table's crossing line
@@ -489,10 +502,11 @@ the pool the way vLLM allocates it.
 
 ## How close is it?
 
-The evidence is Qwen3-8B, bf16, served by vLLM on one RTX A6000 at
-eight cells: batches of 1, 8 and 32 sequences, prompts of 512, 2,048
-and 8,192 tokens (32 × 8,192 would not fit: Table 6.6). Every prompt
-is distinct random token ids, so the engine's prefix cache cannot reuse
+The evidence is Qwen3-8B, bf16, served by vLLM on one RTX A6000 at eight
+cells: batches of 1, 8 and 32 sequences, prompts of 512, 2,048 and 8,192
+tokens (32 × 8,192 would not fit: Table 6.6). Every prompt is distinct
+random token ids, so the engine's prefix cache (which skips the prefill
+of a prompt start it has already seen; chapter 17) cannot reuse
 anything; decoding is greedy, with CUDA graphs on. Two numbers per cell,
 both defined properly in chapter 14:
 
@@ -504,9 +518,13 @@ both defined properly in chapter 14:
   which the model prices as one step of `batch` sequences at the mean
   context, `prompt + 64`.
 
-The code follows the repository's test for this grid:
-`m.prefill_us(b * s, n_seqs=b)` and `m.decode_us(b, s + 64)`, from the
-`StepLatencyModel` of chapter 14, on the calibrated A6000.
+The code follows the repository's test for this grid: `m.prefill_us(b *
+s, n_seqs=b)` and `m.decode_us(b, s + 64)`, from the `StepLatencyModel`
+of chapter 14 (the class that prices a serving step), on the calibrated
+A6000 (its rates fitted to kernels timed on it; chapter 4). Each ratio
+is predicted ÷ measured, so above 1 the model reads high; a set of
+ratios is summarized by its range and its *typical error*, the geometric
+mean distance from 1 (chapter 3).
 
 ```
 Table 6.7  Qwen3-8B served by vLLM on one RTX A6000: model/measured, calibrated model
@@ -543,16 +561,17 @@ no decode cell has more than 32 rows. Prefill attention runs at 0.65 of
 the fitted math rate, a published FlashAttention figure, not a fitted
 one.
 
-So the TPOT column is held out, and so is TTFT at batch 1, with one
+So the TPOT column is held out (nothing in the model was fitted to it or
+designed with it in view), and so is TTFT at batch 1, with one
 qualification: TPOT's attention half rests on constants fitted to vLLM's
 decode kernel at batch 1–64 and context 256–8,192, which covers the
 grid's decode shapes. The five batched TTFT cells are in-sample: their
 error is how the per-sequence attention price (`n_seqs`) was found
 (field note below). One more caveat: this grid has been a test since it
-was measured, and every later change to the model had to keep
-it within 0.92–1.10 for TTFT and 0.93–1.07 for TPOT. The strongest
-evidence is the prediction committed before the measurement ran, which
-was recorded then and is not recomputed:
+was measured, and every later change to the model had to keep it within
+0.92–1.10 for TTFT and 0.93–1.07 for TPOT. The strongest evidence is the
+prediction committed before the measurement ran, which was recorded then
+and is not recomputed:
 
 ```
 Recorded  Predictions committed before the measurement, model/measured

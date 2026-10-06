@@ -16,7 +16,7 @@ and a phrase to find there, and checks them:
 
 ```
 Table B.1  Every term and symbol here, checked against the chapters it cites
-  glossary terms: 119; found in every chapter they cite: 119
+  glossary terms: 144; found in every chapter they cite: 144
   terms in Conventions (labels, tiers, typical error): 12; found: 12
   symbols (Table B.2): 27; found: 27
   this appendix's glossary lists the same terms, citing the same chapters: yes
@@ -142,9 +142,15 @@ tinyperf keeps it.
 - **Activations** (ch. 13). What the backward needs from the forward, 24
   bytes per hidden unit per token per layer; recomputation and sequence
   parallelism cut them.
+- **Active parameters** (ch. 9). The weights each token uses: in an MoE
+  model, the attention and other shared layers plus the k experts it
+  picks. A token's math costs what these cost; a step's weight reads
+  depend on the experts the whole batch touches.
 - **All-gather, all-to-all, reduce-scatter** (ch. 11). See Collective.
 - **All-reduce** (ch. 11). Leaves the element-wise sum of every GPU's
   buffer on every GPU.
+- **Arithmetic intensity** (ch. 2). FLOPs per byte moved. Below the
+  ridge point an operation is memory-bound, above it math-bound.
 - **Async scheduling** (ch. 16). vLLM plans step k + 1 while step k
   runs; the model admits an arrival during step k at step k + 2.
 - **Attention backend** (ch. 7). The engine's attention kernels
@@ -170,6 +176,8 @@ tinyperf keeps it.
 - **Collective** (ch. 11). A call all GPUs in a group make together
   (NCCL): all-reduce; all-gather, every piece to all; reduce-scatter,
   one piece's sum to each; all-to-all, a piece from each to each.
+- **Colocated** (ch. 20). Prefill and decode on the same GPU: each GPU a
+  full server, the baseline disaggregated serving is set against.
 - **Context parallelism** (ch. 12). `cp` groups each hold part of every
   sequence: s/cp tokens in prefill, 1/cp of the cache in decode.
 - **Control** (ch. 21). The same experiment with one thing changed on
@@ -177,6 +185,8 @@ tinyperf keeps it.
 - **Crossover** (ch. 2, 10). The fewest rows at which a weight GEMM
   turns math-bound: equal at every compute precision, 3.8 times lower
   with 4-bit weights.
+- **CTA** (ch. 3). Cooperative thread array, or thread block: the unit a
+  kernel's work is cut into. One CTA computes one tile on one SM.
 - **CUDA graph** (ch. 4). Kernel launches recorded once and replayed as
   one, about 3.5 µs a kernel; an engine records one per batch size.
 - **CUDA-graph padding** (ch. 9, 15). A step runs in the next captured
@@ -196,8 +206,15 @@ tinyperf keeps it.
 - **Disaggregated serving** (ch. 20). A prefill server computes each
   prompt's cache and ships it to a decode server; a proxy in front costs
   a hop per pass.
+- **DRAM** (ch. 2). The GPU's main memory: HBM (high-bandwidth memory)
+  on data-center GPUs, GDDR on the RTX A6000. The roofline's memory term
+  is DRAM bytes over its bandwidth.
 - **Eager** (ch. 4). PyTorch issuing each operation as Python reaches
   it: 12–25 µs per kernel, fitted.
+- **Engine preset** (ch. 14). `serving.VLLM`: vLLM 0.15.1's defaults
+  under vLLM's names (256 sequences, a 2,048-token budget, paged KV,
+  top-p sampling), priced at the calibrated tier with CUDA-graph
+  launches. The book's measured server is `VLLM.with_(max_num_seqs=64)`.
 - **Engine's clock** (ch. 15, 16). Steps timed by CUDA events on the
   engine's stream, period and contents included; a client's clock
   misreads long steps.
@@ -218,6 +235,9 @@ tinyperf keeps it.
   touch fewer (measured tables).
 - **Fitted end to end** (ch. 4, 20). A calibration field fitted to an
   engine's step times or TTFT, not to its own kernel: one to distrust.
+- **FP8, FP4** (ch. 10). 8- and 4-bit floating point. A precision recipe
+  assigns them to operators; tensor cores that support them run them at
+  higher peak rates than 16-bit formats.
 - **Fused attention** (ch. 7). FlashAttention keeps the scores on chip;
   one `FusedAttention` replaces QKᵀ, softmax and PV, at an efficiency of
   0.65.
@@ -228,12 +248,20 @@ tinyperf keeps it.
 - **Graph** (ch. 5). The intermediate representation: an ordered list of
   operators, each with a family, tensors (shape and dtype, no data) and
   attributes such as `count`.
+- **Greedy, top-p** (ch. 14, 15). Two ways the sampler picks the next
+  token: greedy takes the likeliest; top-p draws among the likeliest
+  tokens whose probabilities sum to p, which sorts every row of logits.
+  vLLM applies a checkpoint's generation config, often top-p, unless a
+  request says otherwise.
 - **Grouped GEMM** (ch. 9). A batched GEMM over the experts touched,
   each with its own rows: an MoE layer.
 - **Held answer** (ch. 20). On a prefill server that blocks its host, an
   answer waiting for the next forward to return (`host_sync_forward`).
 - **Hop latency** (ch. 11). One hand-off's fixed cost in a ring.
   Chapter 20's hop is a proxy's cost per pass.
+- **Hybrid model** (ch. 8). A model that mixes full-attention layers
+  with linear-attention layers, which keep a fixed-size state instead of
+  a KV cache.
 - **Instrument** (ch. 21). Any means of measuring, which can measure
   something else: a host loop, a client's clock, a profiler.
 - **Inter-token latency** (ch. 14). ITL: the gap between consecutive
@@ -260,6 +288,8 @@ tinyperf keeps it.
 - **Linear attention** (ch. 8). A fixed-size state instead of a cache;
   the gated delta rule updates it per token, and decode is a recurrent
   step.
+- **Little's law** (ch. 18). Requests in a system = arrival rate × the
+  time each spends there.
 - **LM head** (ch. 6). The vocab × hidden output projection; serving
   prefill runs it on one row per sequence.
 - **Lockstep** (ch. 12). Attention replicas step together, padded to the
@@ -268,6 +298,8 @@ tinyperf keeps it.
   rate: it unpacks the weights to bf16 inside the GEMM.
 - **Mean context** (ch. 7). Decode attention depends on a batch's
   contexts only through their mean, where the simulator prices it.
+- **Micro-batch** (ch. 12, 13). A slice of the batch that a pipeline
+  keeps in flight, so that its stages work on different slices at once.
 - **Mixed step** (ch. 7, 16). Prompt chunks beside decodes: one forward
   over the combined rows, each side's attention, FA2's re-read
   (`mixed_step_us`).
@@ -279,12 +311,21 @@ tinyperf keeps it.
   step.
 - **MXFP4** (ch. 9, 10). 4-bit weights, 32 per 8-bit scale: 0.53125
   bytes per weight.
+- **NCCL** (ch. 11). NVIDIA's collective communications library: the
+  all-reduces, all-gathers and point-to-point sends between GPUs.
 - **Node edge** (ch. 11). Where NVLink gives way to InfiniBand; a group
   spanning it all-reduces hierarchically.
+- **NVLink, InfiniBand** (ch. 2, 11). NVLink is NVIDIA's direct link
+  between the GPUs of a node; InfiniBand is the slower network (fabric)
+  between nodes. The validated pair has neither: its GPUs talk over
+  PCIe.
 - **Offloading** (ch. 17). Weights or cache kept in host memory and
   brought over PCIe every step (`host_bw_gbps`).
 - **Online, online table** (ch. 9, 22). Read off a server handling a
   stream of requests; the online table counts experts touched that way.
+- **Operator family** (ch. 5). An operator's kind, its `op_type` (a
+  GEMM, fused attention, a collective, a memory-bound op), which decides
+  the function that prices it.
 - **Overlap bracket** (ch. 11). Communication between the serial sum and
   perfect hiding; `comm_overlap` declares the fraction hidden.
 - **Paged KV** (ch. 14, 17). Admission against the 16-token blocks
@@ -320,8 +361,12 @@ tinyperf keeps it.
   dedicated prefill; decodes wait.
 - **Prefix cache** (ch. 17). Keeps a shared prefix's blocks; a hit
   prefills only the rest, as a chunk step.
+- **Price** (ch. 1). To predict the time of an operation, a step or a
+  run; a price is that predicted time.
 - **Queue amplification** (ch. 18). Past the knee the queue grows at
   λ − μ, which a step error ε changes by a fraction ε·μ/(λ − μ).
+- **Rank** (ch. 12, 13). One GPU of a parallel group, numbered within
+  it.
 - **Recomputation** (ch. 13, 17). Rerunning a layer's forward in the
   backward instead of storing its activations (13); re-prefilling a
   preempted request (17).
@@ -338,6 +383,11 @@ tinyperf keeps it.
   per byte: below it an operation is memory-bound, above it math-bound.
 - **Ring** (ch. 11). An all-reduce passed round n GPUs: 2(n − 1)/n ·
   B/link plus 2(n − 1) hops and a launch.
+- **RMSNorm, RoPE, SwiGLU** (ch. 5). Parts of the transformers modeled
+  here: RMSNorm divides each row by its root mean square; RoPE (rotary
+  position embeddings) rotates queries and keys by position; SwiGLU, the
+  feed-forward activation, multiplies the activated gate half of its
+  input by the up half.
 - **Roofline** (ch. 1, 2). `max(flops / peak, bytes / bandwidth)`: a
   floor for any kernel reading from DRAM.
 - **Row curve** (ch. 4, 15). `dense_gemm_row_factor`: cuBLAS over the
@@ -348,12 +398,19 @@ tinyperf keeps it.
   (14); the KV pool binding (17).
 - **Scheduler** (ch. 5, 14). tinyperf's `execute`, pricing each operator
   and adding (5); an engine's, choosing each step's requests (14).
+- **Seat queue** (ch. 18). The requests in an engine beyond its seats,
+  waiting for one.
 - **Seats** (ch. 18). The most requests an engine runs at once, vLLM's
   `max_num_seqs`.
+- **Serving engine** (ch. 1). The software that batches requests and
+  runs the model on the GPU: vLLM in this book.
 - **Sink** (ch. 7, 8). gpt-oss's learned extra softmax logit per head
   (7); the first tokens a window keeps (8).
 - **SLO** (ch. 14). Service-level objective: a latency target per
   request, such as TTFT ≤ 1 s and TPOT ≤ 100 ms.
+- **SM** (ch. 2). Streaming multiprocessor, one of a GPU's many
+  processors (84 on the RTX A6000); a GPU's peak rates are per-SM rates
+  times the SM count.
 - **Software stack** (ch. 4). How kernels are issued, eager or graph
   (`for_stack`); the launch cost belongs to it.
 - **Sparse and compressed attention** (ch. 8). Attention to the top k
@@ -367,6 +424,10 @@ tinyperf keeps it.
   the simulator prices.
 - **Step bias** (ch. 18). The model's step prices over the engine's
   clock; outside the band, it points at a missing mechanism.
+- **Step model** (ch. 1, 14). `StepLatencyModel`: prices a step from its
+  shape (the batch, its context, any prompt chunk) by building and
+  pricing its graph, and caches the prices; the serving simulator calls
+  it at every step.
 - **Step-price cache** (ch. 14). Step prices keyed by shape, contexts
   priced every 256 tokens and interpolated.
 - **Tensor parallelism** (ch. 11). `tp` GPUs each holding 1/tp of every
@@ -374,6 +435,9 @@ tinyperf keeps it.
 - **Tile** (ch. 3). A BM × BN output block computed by one thread block
   (CTA); tile quantization is the padding where a matrix's edge cuts
   one.
+- **Tile model** (ch. 3). Chapter 3's GEMM price: tiles and waves, L2
+  reuse, split-K and a launch cost, searched over the tiles a library
+  offers.
 - **Timed alone** (ch. 4). The calibration's rule: each field measured
   on its own kernel, in the engine's configuration, never fitted to the
   numbers it is checked against.
@@ -383,10 +447,18 @@ tinyperf keeps it.
   the experts a router picks (9), the logits a sampler keeps (15).
 - **TPOT** (ch. 1, 14). Time per output token: (last − first token
   time)/(n − 1); on a fixed batch, one decode step.
+- **Trace** (ch. 14). The requests a benchmark sent: each one's send
+  time, prompt length and output length. `recorded_trace` loads the ones
+  measured here; `bench_requests` replays one at a rate.
+- **Triton** (ch. 7). A Python-based language for GPU kernels; one of
+  vLLM's attention backends is written in it.
 - **TTFT** (ch. 1, 14). Time to first token, from sending a request,
   waiting included; on a fixed batch, until every prompt has one.
 - **Twin** (ch. 8). The same model with one attention design removed,
   priced beside it.
+- **Uniform routing** (ch. 9). Every expert equally likely to be picked
+  by every token: what a model gets when nobody has measured its
+  routing.
 - **Verify step** (ch. 19). The target's chunk step over k + 1
   positions: about one decode step below the ridge point.
 - **Wall** (app. A). A one-sequence decode step: no tighter TPOT target

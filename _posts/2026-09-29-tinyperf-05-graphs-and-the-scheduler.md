@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 5: Graphs and the scheduler"
 date: 2026-09-29 12:05:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/05-graphs-and-the-scheduler/
-excerpt: "Chapter 3 priced one GEMM. A language model runs hundreds of kernels to produce one token: written out operator by operator, a decode step of Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations, softmax, RoPE, activations, residual adds and an embedding lookup. How do you go from pricing one kernel to pricing a whole model, without running it?"
+excerpt: "Chapter 3 priced one GEMM. A language model runs hundreds of kernels to produce one token: written out operator by operator, a decode step of Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations, softmax, RoPE (rotary position embeddings), activations, residual adds and an embedding lookup. How do you go from pricing one kernel to pricing a whole model, without running it?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m3.html
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m4.html
@@ -15,9 +15,9 @@ redirect_from:
 Chapter 3 priced one GEMM. A language model runs hundreds of kernels to
 produce one token: written out operator by operator, a decode step of
 Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations,
-softmax, RoPE, activations, residual adds and an embedding lookup. How
-do you go from pricing one kernel to pricing a whole model, without
-running it?
+softmax, RoPE (rotary position embeddings), activations, residual adds
+and an embedding lookup. How do you go from pricing one kernel to
+pricing a whole model, without running it?
 
 Write the model down as a list of operators that carry shapes and data
 types but no data, price each with the cost model for its kind, and add
@@ -29,9 +29,12 @@ By the end of this chapter you will know:
 
 - how a workload is described as a graph of operators, and why a
   performance model wants one;
-- the operator families and how each is priced;
-- what the scheduler does, and the three assumptions hidden in adding up;
-- how to read the report, and especially its bound column;
+- the operator families (kinds of operator that share a cost model) and
+  how each is priced;
+- what the scheduler (the loop that prices each operator) does, and the
+  three assumptions hidden in adding up;
+- how to read the report, a row of cost per operator, and especially
+  its bound column, which names the limit that set each price;
 - how to check that a graph is complete before any GPU is involved.
 
 ## Describing a model without running it
@@ -79,7 +82,8 @@ Two choices keep the IR small. **Order is the only structure the graph
 records.** An operator can only consume tensors that already exist, so
 the order of appending is a valid order of running (a *topological
 order*), and the scheduler just walks the list. Each operator still
-holds its input tensors, so a pass can follow producer to consumer.
+holds its input tensors, so a pass (code that rewrites the graph;
+below) can follow producer to consumer.
 **A description can take shortcuts.** The attention matmuls take batch,
 M, N and K as attributes instead of a second input tensor, because that
 operand is the KV cache: state the step reads, not a tensor the graph
@@ -88,7 +92,8 @@ produced.
 Why an IR at all, rather than a function from a model to a time?
 
 - **One description, many pricings.** The same graph is priced on any
-  GPU, at any of chapter 4's tiers, without being rebuilt (Table 5.5).
+  GPU, at any of chapter 4's tiers (from datasheet peaks alone to
+  constants fitted to a real GPU), without being rebuilt (Table 5.5).
 - **Passes can rewrite it.** A *pass* is a function that changes a graph.
   Attention runs as one fused kernel, not three (chapter 7); a precision
   recipe runs some GEMMs in FP8 or FP4 (chapter 10); training appends a
@@ -111,12 +116,14 @@ made it new.](/assets/tinyperf-book/ch05-layer-graph.svg)
 each with its family, class and attributes, and the tensor each
 consumes. A solid tensor was produced by the operator above it, a link a
 pass can follow. A dashed one is a new tensor the builder made with only
-a shape. The thirteen operators of a decoder layer carry `count=32`.
-Chapter 6's Figure 6.1 draws the same layer as a transformer.*
+a shape. The thirteen operators of a decoder layer carry `count=32`:
+one record for all 32 layers. Chapter 6's Figure 6.1 draws the same
+layer as a transformer.*
 
 Every layer has the same shapes, so the builder emits one layer and gives
 each of its operators a `count` attribute of 32. Table 5.1 is the whole
-graph.
+graph. Its last row is the LM head, the GEMM that turns the final hidden
+state into a score for every token in the vocabulary.
 
 ```
 Table 5.1  The graph of a decode step: Llama-2-7B, batch 1, context 2048, fp16
@@ -169,12 +176,14 @@ several query heads share; chapter 6). It and `Linear` both go to
 chapter 3's `estimate_gemm`.
 
 **Memory-bound operations**, the `rw` (read-write) family: activations,
-residual adds, normalizations, softmax, rotary position embeddings (RoPE)
-and the embedding lookup. Their price is their traffic, and their math is
-ignored, for a reason. An RMSNorm does a handful of FLOPs per element and
-moves 4 bytes for it in fp16: about one FLOP per byte. Such operations
-run on the ordinary FP32 cores, and even there the ridge point (chapter
-2) is far above one:
+residual adds, normalizations, softmax, RoPE and the embedding lookup.
+Their price is their traffic, and their math is ignored, for a reason.
+An RMSNorm (the normalization these models use: each row divided by
+its root mean square) does a handful of FLOPs per element and moves 4 bytes
+for it in fp16: about one FLOP per byte. Such operations run on the
+ordinary FP32 cores of each SM (streaming multiprocessor), and even
+there the ridge point (the FLOPs per byte above which math, not memory,
+sets the time; chapter 2) is far above one:
 
 ```
 Worked example  Pricing memory-bound ops and a collective: A100, datasheet rates
@@ -193,13 +202,18 @@ lookup gathers.
 
 **Collectives** move data between GPUs and appear only when a model is
 split across them; chapter 11 prices them. The last line above is
-Llama-2-7B's decode step on two A100s: two small all-reduces per layer,
-priced almost entirely as latency and launch.
+Llama-2-7B's decode step on two A100s under tensor parallelism (tp=2:
+each GPU holds half of every weight matrix; chapter 11): two small
+all-reduces per layer (each leaves the sum of the GPUs' partial results
+on both), priced almost entirely as launch and hop latency, the fixed
+cost of each hand-off between GPUs.
 
 **Fused kernels.** `FusedAttention` (chapter 7) is what the
 attention-fusion pass makes of Figure 5.1's three attention operators, as
-FlashAttention does on the GPU. `LinearAttention` (chapter 8) prices the
-recurrent layers of hybrid models.
+FlashAttention (the fused attention kernel engines run) does on the GPU.
+`LinearAttention` (chapter 8) prices the recurrent layers of hybrid
+models, which keep a fixed-size state instead of a KV cache in some of
+their layers.
 
 ## The scheduler: dispatch and add
 
@@ -223,7 +237,8 @@ That is the whole algorithm, and it rests on three assumptions.
 3. **Every kernel pays its launch, in series:** chapter 3's per-kernel
    cost, 3 µs by default on every GPU in this chapter. Chapter 4 measures
    it for kernels issued one at a time and for kernels replayed from a
-   CUDA graph.
+   CUDA graph (a recording of many launches replayed as one, unrelated
+   to this chapter's graph).
 
 The scheduler also takes one of chapter 4's three tiers: speed of light,
 the projected model built so far, or constants fitted to a real GPU.
@@ -311,14 +326,16 @@ nothing beyond their launches. A prefill is the weight GEMMs' math, with
 ### Reading the bound column
 
 The bound column names the term that set an operator's price: `math`,
-`dram` or `l2`, chapter 3's three terms, or `nvlink` for a collective. It
-is the report's most useful column, because it turns a time into a
-direction. A DRAM-bound decode step gets faster with fewer bytes, such as
-smaller weights (chapter 10), not with more FLOPS.
+`dram` or `l2`, chapter 3's three terms, or `nvlink` (the link between
+GPUs) for a collective. It is the report's most useful column, because
+it turns a time into a direction. A DRAM-bound decode step gets faster
+with fewer bytes, such as smaller weights (chapter 10), not with more
+FLOPS.
 
 Read it with two cautions. It is the model's verdict, not a measurement:
 a memory-bound operator says `dram` by construction. And when two terms
-are close, the verdict is fragile:
+are close, the verdict is fragile. Here are the prefill GEMMs, each with
+its tile, the output block one CTA (thread block) computes (chapter 3):
 
 ```
 Worked example  The bound column up close: prefill GEMMs, one call each, A100
@@ -341,8 +358,9 @@ to a decision, look at the runner-up.
 ## One description, many pricings
 
 Table 5.5 prices the same two graphs on three GPUs, at the projected
-tier and at speed of light (every operator at its pure roofline, with no
-launch cost; chapter 4), and after the attention-fusion pass.
+tier and at speed of light (every operator at its pure roofline, the
+larger of its math time and its memory time, with no launch cost;
+chapter 4), and after the attention-fusion pass.
 
 ```
 Table 5.5  One graph, many pricings: Llama-2-7B, ms, datasheet rates
@@ -482,10 +500,12 @@ chapter 9's), shows the pattern of the whole builder:
 `tokens` is the step's rows, `h` the hidden width and `ffn_l` the
 feed-forward width on this GPU. An `Elementwise` keeps its input's
 shape, so the SwiGLU's output is `2·ffn_l` wide, where the real
-activation halves it. `ffn_down` needs an input `ffn_l` wide, so the
-builder replaces the SwiGLU's output with a new tensor of that shape: one
-of Figure 5.1's dashed tensors. The shortcut has a price, which "Where it
-breaks" counts. Chapter 6 walks through the rest of the builder.
+activation halves it: it multiplies the gate half of its input,
+activated, by the up half. `ffn_down` needs an input `ffn_l` wide, so
+the builder replaces the SwiGLU's output with a new tensor of that
+shape: one of Figure 5.1's dashed tensors. The shortcut has a price,
+which "Where it breaks" counts. Chapter 6 walks through the rest of the
+builder.
 
 ### The scheduler
 
@@ -511,8 +531,8 @@ class OpResult:
 ```
 
 `execute`, trimmed of its docstring, its type annotations and the
-constants a calibration carries for particular kernels (chapter 4 and
-later; comments ours):
+constants a calibration, one GPU's record of fitted constants, carries
+for particular kernels (chapter 4 and later; comments ours):
 
 ```python
 EXEC_MODELS = {"gemm": _exec_gemm, "rw": _exec_rw, "comm": _exec_comm,
@@ -553,9 +573,11 @@ def _exec_rw(op: Operator, ctx: ExecContext) -> OpResult:
 `_exec_gemm` is, at its core, one call,
 `estimate_gemm(device, op.m, op.n, op.k, dtype, batch=op.batch, out_dtype=op.out.dtype)`,
 whose result fills the row. It also carries branches for particular
-kernels: scale factors for mixture-of-experts and weight-only kernels
-(chapters 9 and 10), and measured corrections, among them the dense-GEMM
-row curve of a serving engine's decode step (chapter 15). They sit in
+kernels: scale factors for mixture-of-experts kernels (chapter 9) and
+weight-only kernels (4-bit weights, 16-bit math; chapter 10), and
+measured corrections, among them the row curve, cuBLAS's measured
+correction by row count for a serving engine's decode-step GEMMs
+(chapter 15). They sit in
 lines 210–252 of `scheduler.py`, and those chapters explain them.
 
 ## How do we know the graph is complete?
@@ -673,9 +695,10 @@ times the time to stream the weights.
    bandwidth when the previous operator's output fits in the usable L2
    (chapter 3's 80%). How much does a batch-1 decode step change? A
    prefill of 256 tokens? What happens to `count`?
-4. Check an MoE graph. Repeat Table 5.6 for Mixtral-8x7B (chapter 9).
-   Does the FLOPs row match its total or its active parameters? Which do
-   the weight bytes match at batch 1, and at batch 64?
+4. Check an MoE (mixture-of-experts) graph. Repeat Table 5.6 for
+   Mixtral-8x7B (chapter 9). Does the FLOPs row match its total or its
+   active parameters? Which do the weight bytes match at batch 1, and at
+   batch 64?
 
 ---
 

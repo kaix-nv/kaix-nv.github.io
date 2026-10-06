@@ -24,21 +24,26 @@ does it cost, and when does adding GPUs stop paying?
 The short answer: with tensor parallelism over `tp` GPUs, each GPU holds
 1/tp of every weight matrix, and two *all-reduces* per layer add up the
 GPUs' partial sums, each of `tokens × hidden` values at any tp. A
-ring all-reduce costs `2(n−1)/n · bytes / link bandwidth` plus a latency
-per hop. Decode's messages are small, so they pay mostly latency, and
-there a real link departs from the formula's straight line and must be
-measured. Adding GPUs stops paying when a GPU's computation, shrinking
-as 1/tp, no longer outweighs its communication, whose messages keep
-their size and whose latency grows with the group. In decode that alone
-ends the scaling; crossing a node's edge adds InfiniBand's lower rate,
-which is what ends it for prefill.
+ring all-reduce, which passes pieces of the buffer round the n GPUs in
+a ring, costs `2(n−1)/n · bytes / link bandwidth` plus a latency per hop
+(each hand-off from one GPU to the next). Decode's messages are small,
+so they pay mostly latency, and there a real link departs from the
+formula's straight line and must be measured. Adding GPUs stops paying
+when a GPU's computation, shrinking as 1/tp, no longer outweighs its
+communication, whose messages keep their size and whose latency grows
+with the group. In decode that alone ends the scaling; crossing a node's
+edge (from a server's NVLink, its fast GPU-to-GPU link, to the
+InfiniBand network between servers) adds InfiniBand's lower rate, which
+is what ends it for prefill.
 
 By the end of this chapter you will know:
 
 - how a layer is split so that it needs only two all-reduces;
-- the four collectives and the ring algorithm's cost;
+- the four collectives (calls that a group of GPUs makes together to
+  combine or exchange data) and the ring algorithm's cost;
 - why tensor parallelism stops paying, and what the node edge adds;
-- why small messages must be measured, inside a CUDA graph;
+- why small messages must be measured, inside a CUDA graph (kernel
+  launches recorded once and replayed as one; chapter 4);
 - how tinyperf brackets communication that overlaps computation;
 - how close the model gets to vLLM at tp=2.
 
@@ -74,13 +79,13 @@ each GPU's columns, and down is split by rows. So a layer costs two
 all-reduces, each of `tokens × hidden` values.
 
 The LM head is split by vocabulary: each GPU computes the logits of
-1/tp of it, and an *all-gather* concatenates them for the sampler. It
-runs once per step, but its message is large: Qwen3-8B's vocabulary is
-37 times its hidden size.
+1/tp of it, and an *all-gather* concatenates them for the sampler
+(which picks each next token; chapter 15). It runs once per step, but
+its message is large: Qwen3-8B's vocabulary is 37 times its hidden size.
 
 In the graph builder, tensor parallelism is per-GPU shapes plus
 explicit collectives. The lines from `build_llm_graph`, with the
-attention and MoE variants between them trimmed:
+attention and mixture-of-experts (MoE) variants between them trimmed:
 
 ```python
     nh_l = p.n_heads // tp                       # local query heads
@@ -177,10 +182,10 @@ buffer cheaper, and the latency term grows with n.
 Which bandwidth is "link"? NVIDIA quotes an H100's NVLink as 900 GB/s,
 450 GB/s each way added. A ring sends on one side while it receives on
 the other, so the formula takes one direction's 450 GB/s, as the H100
-device file does. NCCL's benchmarks report an *algorithm bandwidth*, B ÷
-t, and a *bus bandwidth*, which for an all-reduce multiplies it by
-2(n−1)/n to undo the ring's factor: compare the bus bandwidth with a
-link's per-direction rate.
+device file (the GPU's list of rates; chapter 2) does. NCCL's benchmarks
+report an *algorithm bandwidth*, B ÷ t, and a *bus bandwidth*, which for
+an all-reduce multiplies it by 2(n−1)/n to undo the ring's factor:
+compare the bus bandwidth with a link's per-direction rate.
 
 Here is the all-reduce in `comm_model.py`, docstring trimmed:
 
@@ -209,7 +214,8 @@ def ring_all_reduce_us(
     return (bw_term_s + lat_s) * 1e6 + device.kernel_launch_us
 ```
 
-`bandwidth_only` serves the speed-of-light tier (chapter 4). The other
+`bandwidth_only` serves the speed-of-light tier (chapter 4), which
+prices each operation at datasheet peaks with no fixed costs. The other
 collectives follow the same pattern.
 
 ```
@@ -331,8 +337,8 @@ GEMM, tile by tile. Whether an engine does either, and how well, depends
 on its kernels, not on the graph.
 
 So tinyperf reports a bracket. The upper end is the serial sum,
-`total_us`. The lower end assumes perfect hiding (`RunReport`, docstring
-trimmed):
+`total_us`. The lower end assumes perfect hiding (`RunReport`, the
+scheduler's report on a priced graph, chapter 5; docstring trimmed):
 
 ```python
     @property
@@ -373,10 +379,11 @@ hidden and 34% with everything hidden. At tp=32 a prefill's
 communication outlasts its computation, so even perfect hiding can't
 make 32 GPUs beat 16.
 
-What fraction is right? On the one pair measured for this book, near
-zero: the serial model lands within 7% of vLLM's prefill, where the
-"all hidden" end reads 0.67–0.72 (Table 11.7). NVLink with an engine
-that overlaps is unmeasured, so report both ends.
+What fraction is right? On the one pair measured for this book (two RTX
+A6000s, below), near zero: the serial model lands within 7% of vLLM's
+prefill, where the "all hidden" end reads 0.67–0.72, the model's time
+over the measured one (Table 11.7). NVLink with an engine that overlaps
+is unmeasured, so report both ends.
 
 ## Small messages on a real link
 
@@ -387,8 +394,10 @@ NVLink bridge. The model loads the pair as
 `Device.load("rtx_a6000_pcie_pair")`, the RTX A6000's device file with
 the link as measured: `nvlink_bw_gbps` 4.0, `nvlink_hop_latency_us` 8.0
 and `gpus_per_node` 2. The NVLink fields hold the PCIe link, which is
-why a collective's bound column reads `nvlink`. The 4.0 GB/s is a 64 MB all-reduce's rate in a
-first benchmark (`data/validation/nccl_rtx_a6000_pcie_2gpu.json`).
+why a collective's bound column (the report's verdict on what set an
+operator's time; chapter 5) reads `nvlink`. The 4.0 GB/s is a 64 MB
+all-reduce's rate in a first benchmark
+(`data/validation/nccl_rtx_a6000_pcie_2gpu.json`).
 
 > **Field note: the link that measured the interpreter.** The first
 > benchmark of this pair timed a Python loop of `all_reduce` calls.
@@ -441,9 +450,11 @@ protocol and channel count as messages grow (it has protocols tuned for
 small, medium and large messages); we have not profiled which it picks
 where.
 
-So for this pair the calibration carries the measured curve, and the
-scheduler reads it. `_curve_us` and the start of `_exec_comm`, with a
-docstring, a comment and two lines trimmed:
+So for this pair the calibration (chapter 4's record of a GPU's fitted
+constants and measurements, which the calibrated tier prices with)
+carries the measured curve, and the scheduler reads it. `_curve_us` and
+the start of `_exec_comm`, with a docstring, a comment and two lines
+trimmed:
 
 ```python
 def _curve_us(table, x: float) -> float:
@@ -484,7 +495,9 @@ run disables it.)
 
 **The decode step on the engine's clock.** The cleanest test is a
 decode step timed inside vLLM, with a batch of requests decoding
-together and nothing else in the step:
+together and nothing else in the step. The footer sums up the ratios by
+their typical error, `exp(mean |ln ratio|) − 1`, the geometric mean
+distance from 1 (chapter 3):
 
 ```
 Table 11.6  The tp=2 decode forward on the engine's clock: Qwen3-8B, two RTX A6000s, vLLM
@@ -506,9 +519,11 @@ the ring model reads 6–8% low from batch 8 to 32, in Table 11.5's gap.
 Nothing was fitted to these steps: the curve is a stand-alone
 benchmark, and the GEMM and attention constants come from single-GPU
 kernels (chapters 3, 4 and 7). But the curve was adopted to close this
-gap, so these rows are in-sample for the mechanism.
+gap, so these rows are in-sample for the mechanism, which was built
+with them in view, rather than held out, unseen by the model.
 
-**Fixed batches.** Chapter 6's grid of batches and prompts, at tp=2:
+**Fixed batches.** Chapter 6's grid of batches and prompts, at tp=2,
+timed as TTFT (time to first token) and TPOT (time per output token):
 
 ```
 Table 11.7  Qwen3-8B at tp=2 on two RTX A6000s under vLLM: fixed batches, model/measured,
@@ -547,10 +562,13 @@ all-reduces running a little faster than the benchmark's (not
 profiled).
 
 **Online.** Last, a server fed requests at random (Poisson arrivals,
-chapter 14), 1 to 4 per second. Trace H1 has 1,024-token prompts and
-128-token replies; H2 has 129–384-token prompts and 257–758-token
-replies, keeping decode all-reduces mid-size. The predictions were
-committed before either trace ran; the current model reproduces them:
+chapter 14), 1 to 4 per second. Of the two traces (the requests sent,
+with their sizes), H1 has 1,024-token prompts and 128-token replies; H2
+has 129–384-token prompts and 257–758-token replies, keeping decode
+all-reduces mid-size. The predictions were committed before either trace
+ran, with bars, the ratio ranges that would count as a pass; TTFT's bar
+applied below saturation, while requests arrive no faster than the
+server finishes them. The current model reproduces the predictions:
 
 ```
 Table 11.8  tp=2 online, predictions committed before the runs: Qwen3-8B, two RTX A6000s, vLLM, model/measured
@@ -586,10 +604,11 @@ the same curve.
   calibrated RTX A6000 pair at tp=2, even one with an NVLink bridge,
   gets this PCIe pair's prices.
 - **Topology and algorithm.** The model has one rate per level. Real
-  systems have NVSwitch or PCIe switches, rail-optimized fabrics,
-  rack-scale NVLink domains (`nvl_domain` sets one's size), and tree
-  algorithms whose latency grows with log n rather than n, which would
-  soften decode's limit; NCCL chooses by size and topology.
+  systems have NVSwitch (NVLink's switch chip) or PCIe switches,
+  rail-optimized fabrics (the same-numbered GPU of every node on one
+  switch), rack-scale NVLink domains (`nvl_domain` sets one's size), and
+  tree algorithms whose latency grows with log n rather than n, which
+  would soften decode's limit; NCCL chooses by size and topology.
 - **Overlap is declared, not derived,** and measured once, as near
   zero, on one pair.
 

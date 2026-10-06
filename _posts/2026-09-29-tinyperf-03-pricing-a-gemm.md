@@ -27,9 +27,13 @@ By the end of it you will know:
 
 - why the bytes a GEMM moves depend on the kernel, not just on the
   matrices;
-- the effects the model prices: tile and wave quantization, reuse
-  through the L2 cache, pipeline fill and launch cost;
-- how split-K rescues a GEMM that has too few tiles to fill the GPU;
+- the effects the model prices: work padded to whole tiles (the output
+  blocks a kernel computes) and to whole rounds of tiles across the
+  GPU, reuse through the L2 cache, a kernel's start-up before it runs at
+  rate, and a fixed cost per kernel;
+- how split-K, which divides the inner dimension of the multiply among
+  several thread blocks, rescues a GEMM that has too few tiles to fill
+  the GPU;
 - how close the result gets to cuBLAS on three GPUs, and where it still
   reads as low as 0.55 of the measured time.
 
@@ -69,8 +73,8 @@ Table 3.1  A 4096 x 4096 weight GEMM by rows, RTX A6000: the roofline at its bes
 ```
 
 Throughout the book a ratio like the last column is **predicted ÷
-measured**. Below 1, the model is too optimistic; above 1, too
-pessimistic.
+measured**. Below 1 the model reads low, too optimistic; above 1 it
+reads high, too pessimistic.
 
 At both ends the roofline is right. Up to 128 rows the GEMM's time is
 streaming its 33.5 MB of weights, and the roofline knows that. At 1,280
@@ -122,10 +126,11 @@ best       = min over tiles that fit in shared memory
 
 The `max` models the overlap in Figure 3.1. A pipelined kernel loads and
 computes at the same time, so the slowest of the three streams sets the
-pace: tensor-core math, traffic from DRAM (the GPU's main memory, HBM or
-GDDR), and traffic from the L2 cache into the SMs. The `min` models the
-library's choice, assuming it picks well. That assumption holds most of
-the time; the end of the chapter shows where it doesn't.
+pace: tensor-core math, traffic from DRAM (the GPU's main memory,
+high-bandwidth HBM or graphics GDDR), and traffic from the L2 cache into
+the SMs. The `min` models the library's choice, assuming it picks well.
+That assumption holds most of the time; the end of the chapter shows
+where it doesn't.
 
 The menu has twelve tiles, from 256×128 down to 16×64, with `BK = 64`.
 A tile is feasible only if its two slices, double-buffered, fit in one
@@ -204,8 +209,9 @@ score matrix, `Q · Kᵀ`, contracts over the head dimension, typically
 
 How many bytes does a GEMM pull from DRAM? There are two extremes. At
 best, each element of A and B is read once and C is written once. At
-worst, every CTA fetches its own panels of A and B from DRAM with no
-sharing at all. For an 8192³ fp16 GEMM:
+worst, every CTA fetches its own panels of A and B (the strips of rows
+and columns that cross its tile, Figure 3.1) from DRAM with no sharing
+at all. For an 8192³ fp16 GEMM:
 
 ```
 unique bytes (the best case):                       0.40 GB
@@ -291,9 +297,9 @@ short to amortize loading them.
 prologue and epilogue. On the GPU itself that is a few microseconds; the
 model's default is 3 µs. Measured from the host, it depends on how the
 kernels are issued: about 25 µs per call when PyTorch issues them one at
-a time on the A6000, and 3.5 µs when a CUDA graph replays them. Chapter
-4 fits this constant for each case. For a tiny GEMM it is the whole
-price.
+a time on the A6000, and 3.5 µs when a CUDA graph, a sequence of
+launches recorded once, replays them. Chapter 4 fits this constant for
+each case. For a tiny GEMM it is the whole price.
 
 ## The code
 
@@ -367,6 +373,7 @@ batched refinement above: how many independent problems share one wave.
 
 Table 3.2 runs the model on an A100 across the shapes you meet in
 practice. The model has no measured inputs here, only datasheet rates.
+Its bound column names the term that set each time: math, DRAM or L2.
 
 ```
 Table 3.2  One model, six regimes: A100 SXM, fp16, datasheet rates
@@ -488,8 +495,9 @@ Table 3.5  Typical error by row range: four GEMMs, 39 row counts, RTX A6000 in a
 Between 129 and 512 rows the measurement is typically 1.5 times the
 roofline's price, and the tile model cuts that error by about a third.
 That middle is where serving often lives: a decode batch of more than
-128 sequences, or a prefill chunk of a few hundred tokens. It is also
-where the tile model is still worst.
+128 sequences, or a prefill chunk (a slice of a long prompt, run in one
+forward pass) of a few hundred tokens. It is also where the tile model
+is still worst.
 
 ## Where it breaks
 
@@ -519,9 +527,10 @@ The general point is about the `min`. The model assumes the library
 picks the best tile from a generous menu and launches its tiles in the
 ideal order. A real library has a finite menu and a heuristic, and its
 choices leave edges like these. They can't be derived from first
-principles; they have to be measured. The calibrated tier in chapter 4
-stores a measured correction curve for exactly this, and chapter 15
-uses it to price decode steps.
+principles; they have to be measured. The calibrated tier, the model
+run on constants fitted to one GPU (chapter 4), stores a measured
+correction curve for exactly this, and chapter 15 uses it to price
+decode steps.
 
 Other things this model leaves out:
 

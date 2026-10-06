@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 2: A GPU as a handful of rates"
 date: 2026-09-29 12:02:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/02-a-gpu-as-a-handful-of-rates/
-excerpt: "A performance model can't simulate tens of billions of transistors. It stands for the GPU with a few numbers, and every price it gives is built from them. Which numbers, and what do they tell you before any detailed model exists?"
+excerpt: "A performance model can't simulate tens of billions of transistors. It stands for the GPU with a few numbers, and every price it gives (a predicted time) is built from them. Which numbers, and what do they tell you before any detailed model exists?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m1.html
 ---
@@ -12,9 +12,9 @@ redirect_from:
 *[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/device.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/device.py), `Device`, and [`tinyperf/datatypes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/datatypes.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch02_device.py`.*
 
 A performance model can't simulate tens of billions of transistors. It
-stands for the GPU with a few numbers, and every price it gives is built
-from them. Which numbers, and what do they tell you before any detailed
-model exists?
+stands for the GPU with a few numbers, and every price it gives (a
+predicted time) is built from them. Which numbers, and what do they
+tell you before any detailed model exists?
 
 The short answer: about a dozen rates, nearly all from a public
 datasheet. How many multiply-accumulates the GPU's tensor cores do per
@@ -28,10 +28,12 @@ than 1% of a GPU's math.
 By the end of this chapter you will know:
 
 - which fields describe a device, and what each one prices;
-- why the rates are stored per SM per clock, and what clock a
+- why the rates are stored per SM (streaming multiprocessor), one of
+  the GPU's many processors, and per clock, and what clock a
   datasheet's peak implies;
-- the roofline, arithmetic intensity and the ridge point, and where
-  prefill and decode sit against them;
+- the roofline, arithmetic intensity (FLOPs per byte moved) and the
+  ridge point (the intensity at which math and memory take equally
+  long), and where prefill and decode sit against them;
 - how to ask what-if questions of a device, and which operations each
   change helps;
 - what datasheet rates are worth on real GPUs: 0.72–0.77 of the peak
@@ -46,8 +48,8 @@ registers and a small fast memory. A *kernel*, one function launched on
 the GPU, divides its work among the SMs.
 
 The work that dominates an LLM is matrix multiplication, and it runs on
-each SM's **tensor cores**: units that multiply small matrix tiles in a
-single instruction. Their rate is counted in **multiply-accumulates
+each SM's **tensor cores**: units that multiply small blocks of matrices
+in a single instruction. Their rate is counted in **multiply-accumulates
 (MACs)** per clock. One MAC is a multiply and an add, so it counts as two
 floating-point operations (FLOPs). An H100 SM has four tensor cores
 (NVIDIA's H100 whitepaper) that together do 2,048 fp16 MACs per clock,
@@ -55,23 +57,26 @@ floating-point operations (FLOPs). An H100 SM has four tensor cores
 
 Data lives at three levels:
 
-- **DRAM**, the GPU's main memory: HBM stacks on datacenter parts,
-  GDDR chips on workstation cards. It holds the weights and the KV cache,
-  and it is the slowest level.
+- **DRAM**, the GPU's main memory: stacks of HBM (high-bandwidth
+  memory) on datacenter parts, GDDR graphics-memory chips on workstation
+  cards. It holds the weights and the KV cache (the keys and values of
+  past tokens that attention rereads; chapter 6), and it is the slowest
+  level.
 - The **L2 cache**, 6 to 126 MB on the GPUs in this chapter, shared by
   all SMs. Everything read from DRAM passes through it.
 - **Shared memory**, 100 to 228 KB per SM, managed by the kernel
-  itself. A GEMM kernel stages the tiles it is working on here.
+  itself. A GEMM kernel stages the tiles it is working on here (blocks
+  of its matrices; chapter 3).
 
 ![An H100 SXM drawn as rates: 132 SMs, each with four tensor cores and
 shared memory, above an L2 cache and HBM DRAM, with NVLink to other
 GPUs.](/assets/tinyperf-book/ch02-gpu.svg)
 
-*Figure 2.1. An H100 SXM as its device file describes it. The model
-doesn't know how the SMs are wired. It knows how many there are, how
-fast each multiplies, how big and fast each memory level is, and what a
-kernel launch costs. The bottom lines multiply these into the two
-numbers the rest of the chapter uses.*
+*Figure 2.1. An H100 SXM as tinyperf describes it. The model doesn't
+know how the SMs are wired. It knows how many there are, how fast each
+multiplies, how big and fast each memory level is, and what a kernel
+launch costs. The bottom lines multiply these into the two numbers the
+rest of the chapter uses.*
 
 ## The device file
 
@@ -117,12 +122,15 @@ decides which tiles a GEMM kernel can use (chapter 3).
 µs (Table 2.7), far above that default; chapter 4 fits the cost of a
 PyTorch call.
 
-**Collectives.** NVLink inside a node, InfiniBand between nodes: they
-price what a model split across GPUs exchanges (chapter 11).
+**Collectives.** NVLink, NVIDIA's direct link between the GPUs of a
+node, and InfiniBand, the network between nodes: they price the
+collectives, the exchanges a group of GPUs sharing a model make together
+(chapter 11).
 **Memory capacity** is not a time, but it decides whether the weights
 and the KV cache fit (chapter 6). A few more fields serve special cases:
-the host link for offloading (chapter 17), and power and price for
-energy and cost (Appendix A).
+the host link for offloading, keeping weights or cache in the CPU's
+memory (chapter 17), and power and price for energy and cost
+(Appendix A).
 
 Notice what's missing. There is no rate for arithmetic off the tensor
 cores. Softmax, normalization and activation functions run on the SMs'
@@ -319,8 +327,9 @@ levels off, and it never exceeds `K·N / (K + N)`, 2,048 for a
 
 - **Decode** runs one row per sequence: 1 FLOP per byte for a single
   sequence, about B for a batch of B.
-- **Prefill** runs one row per prompt token: about T for a few hundred
-  tokens, but only a third of T (1,365) at 4,096 tokens on this weight.
+- **Prefill** runs one row per prompt token: about T for a prompt of T
+  tokens up to a few hundred, but only a third of T (1,365) at 4,096
+  tokens on this weight.
 - **Decode attention**, each new token attending over its sequence's
   cached keys and values, is different. Each sequence reads its own KV
   cache, so batching adds bytes as fast as FLOPs. With grouped-query
@@ -356,9 +365,10 @@ Table 2.5  The arithmetic intensity of LLM work, fp16, and the most of peak math
 
 Decoding one sequence can use at most 0.3% of an H100's math. Even 64
 sequences use at most about a fifth of it. At 256 sequences the GEMM is
-math-bound on the two Ampere GPUs, whose ridges are lowest, and still
-just memory-bound on the H100 and B200. Decode attention stays at 1–3%
-no matter the batch. Prefill is math-bound everywhere from 512 tokens.
+math-bound on the two Ampere GPUs (the A6000 and A100, NVIDIA's
+generation before the H100), whose ridges are lowest, and still just
+memory-bound on the H100 and B200. Decode attention stays at 1–3% no
+matter the batch. Prefill is math-bound everywhere from 512 tokens.
 
 ![Log-log roofline of four GPUs at fp16, with five operations of a
 Qwen3-8B layer marked on every roof.](/assets/tinyperf-book/ch02-roofline.svg)
@@ -524,10 +534,11 @@ Table 2.7  What the datasheet rates are worth: fp16 GEMMs through cuBLAS, one ca
 
 **Math.** The best GEMM on each GPU reaches 0.72–0.77 of the derived
 peak, so a roofline at datasheet rates would price these GEMMs at about
-three quarters of their measured time. Chapter 3's tile model explains
-little of that for large GEMMs (Table 3.2 puts an 8192³ GEMM on an A100
-at 98.9% of peak). The rest is not explained here; on the A6000 it is
-consistent with a power-limited clock (below; not profiled).
+three quarters of their measured time. Chapter 3's tile model, which
+prices how a kernel cuts a GEMM into blocks, explains little of that
+for large GEMMs (Table 3.2 puts an 8192³ GEMM on an A100 at 98.9% of
+peak). The rest is not explained here; on the A6000 it is consistent
+with a power-limited clock (below; not profiled).
 
 **Memory.** A one-row GEMM against an 8192 × 8192 weight is a decode
 step's shape: it streams 134 MB and does almost no math. The A6000 moves

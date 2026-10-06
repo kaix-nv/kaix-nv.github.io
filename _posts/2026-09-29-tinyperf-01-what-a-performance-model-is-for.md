@@ -31,8 +31,8 @@ By the end of this chapter you will know:
   cycle;
 - how tinyperf, the model this book builds, is put together, and which
   chapter builds each piece;
-- how to price a real model in a few lines, and how close it comes to a
-  real server;
+- how to price a real model (predict its times) in a few lines, and how
+  close it comes to a real server;
 - the rules this book uses to say how far to trust a number.
 
 ## Four questions
@@ -42,9 +42,9 @@ instance you haven't rented, a chip still being designed: the model
 turns its datasheet into time.
 
 **Which configuration?** Which GPU, how many, how the model is split
-across them, the batch size, the precision, the serving engine's
-settings. Five options on each of these six axes make 15,625
-configurations.
+across them, the batch size, the precision, the settings of the serving
+engine (the software that batches requests and runs the model). Five
+options on each of these six axes make 15,625 configurations.
 
 **What if?** What if the GPU had twice the memory bandwidth? An
 architect asks this about a chip that doesn't exist; no measurement can
@@ -52,7 +52,8 @@ answer it.
 
 **How much load can a server take?** How many requests per second
 before its latency target breaks? That depends on queues, so it takes a
-simulation of the serving engine in which every step has a price.
+simulation of the serving engine in which every step, one forward pass
+of the model over a batch, has a price.
 
 Why milliseconds? Measuring takes the hardware and time on it: each
 point of Table 1.4, below, is 240 requests, four minutes of a GPU at one
@@ -60,8 +61,8 @@ request per second. The second question needs thousands of answers. The
 fourth needs thousands of priced steps per answer (that same point
 simulates 7,777 engine steps), swept over rates and configurations.
 Only a price in milliseconds makes that practical: tinyperf computes
-the sixteen numbers of Table 1.1, graphs included, in tens of
-milliseconds on one CPU core.
+the sixteen numbers of Table 1.1, starting from the model's
+configuration, in tens of milliseconds on one CPU core.
 
 ## Three ways to get a number
 
@@ -86,8 +87,8 @@ the few configurations worth measuring.
 ## Rates and counts
 
 The simplest analytical model is the *roofline* (chapter 2). An
-operation is limited either by math or by memory traffic, whichever
-takes longer:
+operation is limited either by math or by traffic to the GPU's main
+memory (DRAM), whichever takes longer:
 
 ```
 time = max(flops / peak_flops, bytes / memory_bandwidth)
@@ -99,31 +100,39 @@ token for each sequence in a batch, a *decode step*, reads every weight
 once, except the input embedding table: its lookup reads only the rows
 of the batch's tokens.
 
+Throughout the book a ratio is **predicted ÷ measured**, and we say a
+prediction *reads* its ratio: above 1 it reads high, below 1 it reads
+low.
+
 ```
 Worked example  A decode step on the back of an envelope: Qwen3-8B on an RTX A6000
   8.19 billion parameters at 2 bytes; a decode step reads all but the input embedding table: 15.1 GB
-  15.1 GB / 768 GB/s = 19.7 ms per step; measured at batch 1: 23.9-25.8 ms, so the envelope reads 0.77-0.83
+  15.1 GB / 768 GB/s = 19.7 ms per step; measured at batch 1: 23.9-25.8 ms, so the estimate reads 0.77-0.83
 ```
 
-One datasheet number gets within a quarter of a real serving engine.
-The rest of the book is about the other quarter, and cases where the
-envelope is further off. Real kernels divide their work into
-tiles and waves (the blocks a GEMM is cut into, and the rounds they run
-in; chapter 3), reuse data through caches, pay a cost to launch, and run
-below the datasheet's peaks. Kernel by kernel, the roofline can read
-under half the measured time: 0.45 for one GEMM in chapter 3, even with
-this GPU's best measured rates. A model that prices the wrong mechanism
-can be off by more still (Table 1.5).
+One datasheet number gets within a quarter of a real serving engine. The
+rest of the book is about the other quarter, and cases where the
+estimate is further off. Real kernels divide their work into tiles and
+waves (the blocks a matrix multiply, or GEMM, is cut into, and the
+rounds they run in; chapter 3), reuse data through caches, pay a cost to
+launch, and run below the datasheet's peaks. Kernel by kernel, the
+roofline can read under half the measured time: 0.45 for one GEMM in
+chapter 3, even with this GPU's best measured rates. A model that prices
+the wrong mechanism can be off by more still (Table 1.5).
 
 The craft is adding the effects that matter one at a time, each a
 mechanism with a formula (tile quantization, which pays for whole tiles
-at a matrix's ragged edge; cache reuse; a fused attention kernel; the
-experts an MoE step touches), and checking each against a measurement
-before adding the next. Constants stay few and physical. The core of the
-*calibration*, a few constants fitted to kernels timed on the real GPU
-(chapter 4), is four scalars, such as the fraction of the tensor cores'
-peak that the best GEMMs sustain. Where a kernel's behavior can't be
-derived, the model carries a measured table and says so.
+at a matrix's ragged edge; cache reuse; a fused attention kernel, one
+kernel for all of attention that keeps the scores on chip; the experts
+a step touches in a mixture-of-experts (MoE) model, where each token
+uses a few of many feed-forward blocks), and checking each against a
+measurement before adding the next. Constants stay few and physical.
+The core of the *calibration*, a few constants fitted to kernels timed
+on the real GPU (chapter 4), is four scalars, such as the fraction of
+the peak of the tensor cores (the GPU's matrix-multiply units; see
+chapter 2) that the best GEMMs sustain. Where a kernel's
+behavior can't be derived, the model carries a measured table and says
+so.
 
 ## The map
 
@@ -135,9 +144,9 @@ module files of each layer and the chapters that build them, beside a
 calibration column and a validation column.](/assets/tinyperf-book/ch01-map.svg)
 
 *Figure 1.1. tinyperf, layer by layer. The five blue layers price one
-step, one forward pass of the model over a batch; the two orange layers
-use many step prices. Calibration attaches fitted constants to the lower
-layers. Validation checks every layer against measurements.*
+step; the two orange layers use many step prices. Calibration attaches
+fitted constants to the lower layers. Validation checks every layer
+against measurements.*
 
 Read it from the bottom. The device is a GPU as a dozen rates and
 sizes, most from its datasheet. Kernel cost models turn one operation's
@@ -176,25 +185,28 @@ tpot_ms = model.decode_us(8, 2048 + 64) / 1e3          # one decode step of the 
 
 `qwen3_8b()` is the configuration from the released checkpoint: 36
 layers, hidden size 4,096, 32 query heads sharing 8 key-value heads.
-`Methodology.CALIBRATED` selects the *calibrated tier*, the full
-mechanism with the calibration's constants. The two numbers are the two
-an LLM server's user feels:
+`Methodology.CALIBRATED` selects the *calibrated tier*: the full
+mechanism with the calibration's constants. It is one of three tiers,
+ways the model can price, which Table 1.2 sets side by side. The two
+numbers are the two an LLM server's user feels:
 
 - **TTFT**, time to first token: from sending a request to its first
   output token, dominated by the *prefill*, one pass over the prompt;
 - **TPOT**, time per output token: the mean gap between the later
   tokens. In a batch that decodes together, it is one decode step.
 
-Chapter 14 is their home. Here they are measured through vLLM's offline
-batch API, with no server in front: b prompts go to the engine together,
-TTFT is the time until all b have their first token, and TPOT is the
-mean of the 128 decode steps that follow. Those steps see contexts from
-about s to s + 128 tokens, so the model prices one step at the mean,
-s + 64.
+Chapter 14 is their home. Here they are measured through the offline
+batch API of vLLM, a widely used open-source serving engine, with no
+server in front: b prompts go to the engine together, TTFT is the time
+until all b have their first token, and TPOT is the mean of the 128
+decode steps that follow. Those steps see contexts from about s to
+s + 128 tokens, so the model prices one step at the mean, s + 64.
 
-Inside, `StepLatencyModel` runs the whole map for each step shape. Here
-is the function that does it, with the builder's MoE, prefix-cache and
-pipeline-stage arguments and two more optional passes trimmed:
+Inside, `StepLatencyModel`, the object that prices steps, runs the
+whole map for each step shape. Here is the function that does it,
+trimmed of two more optional passes and of the builder's arguments for
+MoE models, for a prompt prefix already in the engine's cache and for a
+model whose layers are split across GPUs (chapters 9, 17 and 12):
 
 ```python
     def _graph_report(self, phase, batch, seq, chunk=1, shared=0, **stage):
@@ -207,20 +219,19 @@ pipeline-stage arguments and two more optional passes trimmed:
         return execute(g, self.device, methodology=self.methodology, calibration=self.calibration)
 ```
 
-The builder emits one step's graph, any parallel layout baked into its
-shapes (chapters 6 and 12). Passes fuse attention into the kernel an
-engine runs (chapter 7) and change precision (chapter 10). `execute`
-prices the graph at the chosen tier (chapters 4 and 5). A cache keyed
-by step shape lets the serving simulator price thousands of steps
-(chapter 14).
+The builder emits one step's graph, any parallel layout (how the model
+is split across GPUs) baked into its shapes (chapters 6 and 12). Passes
+fuse attention into the kernel an engine runs (chapter 7) and change
+precision (chapter 10). `execute` prices the graph at the chosen tier
+(chapters 4 and 5). A cache keyed by step shape lets the serving
+simulator price thousands of steps (chapter 14).
 
 ## How close is it?
 
-We compare with vLLM, a widely used serving engine, running Qwen3-8B in
-bf16 on one RTX A6000 over a grid of batch sizes and prompt lengths
-(`data/validation/vllm_qwen3_8b_rtx_a6000.json`). Throughout the book a
-ratio is **predicted ÷ measured**: above 1 the model reads high, below 1
-it reads low. And every number says what kind it is:
+We compare with vLLM running Qwen3-8B in bf16 on one RTX A6000 over a
+grid of batch sizes and prompt lengths
+(`data/validation/vllm_qwen3_8b_rtx_a6000.json`). Ratios are
+predicted ÷ measured, as above. And every number says what kind it is:
 
 - *held out*: nothing in the model was fitted to it, and no mechanism
   was designed with it in view;
@@ -231,6 +242,10 @@ it reads low. And every number says what kind it is:
   recorded and held out.
 
 A number with no measurement behind it is a *projection*.
+
+Table 1.1 sums up each column of ratios by its range and its **typical
+error**: their geometric mean distance from 1 in either direction,
+`exp(mean |ln ratio|) − 1`.
 
 ```
 Table 1.1  Qwen3-8B served by vLLM on one RTX A6000: the calibrated tier against measurement (in-sample)
@@ -246,18 +261,17 @@ Table 1.1  Qwen3-8B served by vLLM on one RTX A6000: the calibrated tier against
   TTFT 0.97-1.05, typical error 1.9%; TPOT 0.96-1.01, typical error 1.4%
 ```
 
-The **typical error** of a set of ratios is their geometric mean
-distance from 1 in either direction, `exp(mean |ln ratio|) − 1`. Every TTFT is within
-5%, from 80 ms to 10.4 s. TPOT is within 1.3% up to batch 8, and at
-batch 32 reads 2.0% and 4.2% low.
+Every TTFT is within 5%, from 80 ms to 10.4 s. TPOT is within 1.3% up
+to batch 8, and at batch 32 reads 2.0% and 4.2% low.
 
 Nothing in the model was fitted to these times: its constants come from
-kernels timed on their own (cuBLAS GEMMs, launch costs, the engine's
-decode-attention kernel, this model's layer GEMMs by row count). But a
-mechanism was designed with this grid in view. It exposed a flaw in how
-the model priced a batch of prompts (Table 1.5), and every change since
-has had to keep it inside fixed bounds. So Table 1.1 is in-sample, for
-one dense model on one GPU and one engine.
+kernels timed on their own (GEMMs from cuBLAS, NVIDIA's matrix-multiply
+library; launch costs; the engine's decode-attention kernel; this
+model's layer GEMMs by row count). But a mechanism was designed with
+this grid in view. It exposed a flaw in how the model priced a batch of
+prompts (Table 1.5), and every change since has had to keep it inside
+fixed bounds. So Table 1.1 is in-sample, for one dense model on one GPU
+and one engine.
 
 How much of the agreement is mechanism and how much fitted constants?
 Table 1.2 prices the same grid at the model's three tiers: the *speed of
@@ -274,17 +288,21 @@ Table 1.2  The same eight cells at the model's three tiers: model/measured
 ```
 
 Summed over a whole model, the roofline reads only 17–34% low: most of
-the time goes to large kernels deep inside one regime. Much of the rest
-is the datasheet itself: this GPU's best GEMMs sustain 0.75 of the
-tensor cores' peak, and the roofline's TTFT reads 0.66–0.75. The
-mechanism closes part of the gap, the measured rates most of the rest.
+the time goes to large kernels deep inside one regime, clearly limited
+by math or clearly by memory. Much of the rest is the datasheet itself:
+this GPU's best GEMMs sustain 0.75 of the tensor cores' peak, and the
+roofline's TTFT reads 0.66–0.75. The mechanism closes part of the gap,
+the measured rates most of the rest.
 
 ## Asking it questions
 
 Table 1.3 asks the architect's what-if at the projected tier, which uses
-only the device file and so works for any device you can write down.
-Its times read 10–23% low on this GPU (Table 1.2), so compare the rows
-with each other, not with a stopwatch.
+only the device file (the GPU's dozen rates, mostly from its datasheet;
+chapter 2) and so works for any device you can write down. Its times
+read 10–23% low on this GPU (Table 1.2), so compare the rows with each
+other, not with a stopwatch. The last column names what limits the
+prefill's first feed-forward network (FFN) GEMM: math, or the bandwidth
+of the L2, the on-chip cache that all DRAM traffic passes through.
 
 ```
 Table 1.3  What if? Qwen3-8B on an RTX A6000 with one rate doubled, projected tier
@@ -401,7 +419,7 @@ can't:
   server tips over, it moves it between 2,442 and 3,862 ms, either side
   of the measured 2,693. Near capacity the answer depends on which
   request lands in which step, and small errors grow. Chapter 18 turns
-  this into prediction intervals.
+  this into prediction intervals, a range of answers instead of one.
 - **A library's choices you haven't measured.** Kernel libraries pick
   kernels by heuristics a model can't derive. Chapter 3 measures a GEMM
   that takes 73% longer at 129 rows than at 128, consistent with cuBLAS
@@ -410,9 +428,11 @@ can't:
 - **Anything never measured.** Which experts an MoE router picks depends
   on the text. Without a measurement the model assumes uniform routing,
   which reads 28–44% high on one model's decode steps from batch 8 up
-  (chapter 9). The acceptance rate of speculative decoding is an input
-  you supply (chapter 19). A GPU without public rates can't be
-  described at all.
+  (chapter 9). In speculative decoding a cheap draft model proposes
+  tokens and the served model checks several in one step; how often it
+  accepts them,
+  the acceptance rate, is an input you supply (chapter 19). A GPU
+  without public rates can't be described at all.
 
 ## What you built
 

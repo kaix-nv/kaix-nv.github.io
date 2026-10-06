@@ -25,20 +25,23 @@ match a real GPU without turning it into a curve fit? And how do you
 know you haven't?
 
 The short answer: keep the mechanism and fit only a few constants, each
-with a physical meaning: the tensor cores' sustained rate, the memory
-bandwidth a kernel gets, the L2 bandwidth and the cost of a launch. Test
-them on shapes they were not fitted to, measure them a second way, and
-read the errors that remain. And report the fitted prediction beside
-the unfitted ones: the spread is the error bar.
+with a physical meaning: the tensor cores' sustained rate, the DRAM
+(main memory) bandwidth a kernel gets, the bandwidth of the L2 (the
+on-chip cache) and the cost of a launch. Test them on shapes they were
+not fitted to, measure them a second way, and read the errors that
+remain. And report the fitted prediction beside the unfitted ones: the
+spread is the error bar.
 
 By the end of this chapter you will know:
 
-- the three tiers (speed of light, projected, calibrated) and why
-  tinyperf reports them side by side;
+- the three tiers (speed of light, projected, calibrated), three ways
+  to price that go from datasheet rates alone to constants fitted to a
+  real GPU, and why tinyperf reports them side by side;
 - how four constants are fitted on three GPUs, and three ways to check
   they are not just a curve fit;
 - what the errors left after a fit say about the model;
-- why launch cost belongs to the software stack, and what a CUDA graph
+- why launch cost belongs to the software stack (how kernels are
+  issued), and what a CUDA graph (launches recorded once, then replayed)
   changes;
 - how the calibrated tier grows into measured per-kernel tables, and
   the rule that keeps it honest.
@@ -149,6 +152,11 @@ writes when its stream reaches it, so the time between the two is what
 the GPU saw: the kernel, plus any wait for the host to issue it. The
 timings are warm: repeated calls find their inputs in L2 where they fit.
 
+Table 4.1 compares PROJ with these timings as ratios, predicted ÷
+measured: a ratio of 0.8 reads 20% low. It sums up a set of ratios by
+their range and by their typical error, `exp(mean |ln ratio|) − 1`, the
+geometric mean distance from 1 (chapter 3).
+
 ```
 Table 4.1  The model on datasheet rates (PROJ) against cuBLAS: RTX A6000, 27 fp16 GEMMs
   regime                    shapes  measured us  model/measured
@@ -246,7 +254,7 @@ square and tall GEMMs.
 halves of 14 and 13, so each half spans every regime. Fit on one half
 with the unmodified `fit`, measure the other, then swap. The halves are
 held out from the fit, not from the mechanism: chapter 3's L2 rule came
-from one of these shapes' residuals.
+from the error left on one of these shapes.
 
 ```
 Table 4.3  Fit on half the shapes, test on the other half: held out from the fit, not from the mechanism
@@ -355,7 +363,10 @@ launch cost dominates (Table 4.4).
 ## Clocks and power
 
 Chapter 3's field note left the A6000's largest GEMM at 0.71 of its
-measurement and put the gap down to the clocks this GPU sustains.
+measurement and put the gap down to the clocks this GPU sustains. The
+worked example below starts from the datasheet peak: streaming
+multiprocessors (SMs) × multiply-accumulates (MACs) per SM per clock ×
+2 FLOPs per MAC × clock (chapter 2).
 
 ```
 Worked example  The 8192^3 fp16 GEMM on the RTX A6000: clocks and power
@@ -477,10 +488,13 @@ measurement (next section), but that bounds it only loosely:
 
 ## The ladder on a whole model
 
-Table 4.8 adds the eager rung to chapter 1's Table 1.2, the same eight
-cells of Qwen3-8B served by vLLM. Decode is priced at the prompt length
+Table 4.8 adds the eager rung to chapter 1's Table 1.2, which climbs
+the tiers like a ladder on the same eight cells of Qwen3-8B served by
+vLLM. Prefill sets the TTFT (time to first token), and a decode step
+the TPOT (time per output token). Decode is priced at the prompt length
 plus 64, the mean context over the 128 tokens each request generated
-after the first.
+after the first. The cells are in-sample: a mechanism was designed with
+them in view (below).
 
 ```
 Table 4.8  The ladder on a whole model: Qwen3-8B bf16 on one RTX A6000, against vLLM (in-sample)
@@ -507,17 +521,23 @@ constants came from cuBLAS GEMMs, and the per-kernel tables it uses
 here came from kernels timed alone. But this grid was in view while the
 model was built: its batched prefills are where the model learned to
 price attention per prompt in a batch, not over one concatenated
-sequence (chapter 6). So the numbers are *in-sample* (chapter 21 draws
+sequence (chapter 6). So the numbers are in-sample (chapter 21 draws
 that line). The measured times also include work outside the model's
-operations, such as the engine's sampler; chapters 14 and 15 add it.
+operations, such as the engine's sampler, which picks each next token;
+chapters 14 and 15 add it.
 
 ## Beyond four constants
 
 A served model runs kernels that do things no first-principles model
 derives: cuBLAS's tile edges, a decode-attention kernel's fixed cost per
-call, an expert kernel that switches block size, NCCL changing protocol
-with message size. For each, the calibrated tier stores a measurement.
-Table 4.9's first row is chapter 3's row curve (Figure 3.4).
+call, a mixture-of-experts kernel that switches block size, NCCL
+(NVIDIA's library for exchanges between GPUs) changing protocol with
+message size. For each, the calibrated tier stores a measurement.
+Table 4.9's first row is the row curve, a measured correction to the
+tile model by row count for the edges of chapter 3's Figure 3.4. Most
+rows price mechanisms of later chapters, named in the chapter column:
+MXFP4 is a 4-bit weight format (chapter 10), and the pair is two RTX
+A6000s linked over PCIe (chapter 11).
 
 ```
 Table 4.9  Beyond four constants: the other fields of the RTX A6000's calibration
@@ -560,11 +580,12 @@ Two fields are not kernel prices: a request's overhead on an idle
 server, and the model's measured error band. Four fields break the rule,
 and the table says so: they were fitted end to end, to an engine's step
 times or TTFT, with some cells held out. The B200's file adds three
-more, fitted on a hybrid model's prefill (chapter 8). These are the
-fields to distrust. A constant fitted to an end-to-end number absorbs
-everything the model gets wrong about it, in every prediction it
-touches. Chapter 22 follows one, `weight_only_math_efficiency`, through
-the three mechanisms it was hiding.
+more, fitted on the prefill of a hybrid model, which mixes attention
+layers with linear-attention ones (chapter 8). These are the fields to
+distrust. A constant fitted to an end-to-end number absorbs everything
+the model gets wrong about it, in every prediction it touches. Chapter
+22 follows one, `weight_only_math_efficiency`, through the three
+mechanisms it was hiding.
 
 > **Field note: three zeros.** Three fields in Table 4.9 are zero. Each
 > was once fitted to a serving engine's measurements and brought the

@@ -22,26 +22,27 @@ the reply without ever seeing a prompt. Should prefill and decode run on
 separate GPUs? When does splitting them win, which latency target does
 it serve, and what does moving the cache cost?
 
-The short answer: splitting serves TPOT. The decode GPU is never
-interrupted, so the time between tokens is set by the decode batch alone
-and its tail stays close to its mean. Everything else costs: the cache
-crosses a link (hidden here, because it is sent layer by layer during
-the prefill), each request passes two servers and pays an extra step,
-saving the cache adds work to each prefill step, and the prompts get one
-GPU instead of two. On two RTX A6000s serving Qwen3-8B, a colocated pair
-wins TTFT at every load and throughput at high load (below 4 requests
-per second both serve the offered load, a tie); one prefill plus one
-decode GPU (1P1D) wins TPOT at every load. Which sustains more load
-depends on the service-level objective (SLO). The numbers committed
-before the runs order the two designs as measured in all 16 TTFT and
-TPOT comparisons.
+The short answer: splitting serves TPOT (time per output token). The
+decode GPU is never interrupted, so the time between tokens is set by
+the decode batch alone and its tail stays close to its mean. Everything
+else costs: the cache crosses a link (hidden here, because it is sent
+layer by layer during the prefill), each request passes two servers and
+pays an extra step, saving the cache adds work to each prefill step,
+and the prompts get one GPU instead of two. On two RTX A6000s serving
+Qwen3-8B, a colocated pair (each GPU a full server doing both) wins TTFT
+(time to first token) at every load and throughput at high load (below
+4 requests per second both serve the offered load, a tie); one prefill
+plus one decode GPU (1P1D) wins TPOT at every load. Which sustains more
+load depends on the service-level objective (SLO). The numbers
+committed before the runs order the two designs as measured in all 16
+TTFT and TPOT comparisons.
 
 By the end of this chapter you will know:
 
 - what a disaggregated deployment does with a request, and what each
   part costs;
-- how tinyperf builds one from two copies of chapter 14's simulator and
-  a priced link;
+- how tinyperf, the model this book builds, assembles one from two
+  copies of chapter 14's simulator and a priced link;
 - what saving the cache adds to a prefill step, and how a server whose
   host waits for it holds finished answers for a step;
 - how close the model is on two GPUs, and how to choose a split on more.
@@ -63,7 +64,8 @@ producer*) it *saves* and sends each layer's KV; on the decode server it
 receives it. The decode server gets the cache of all but the last
 prompt token, so its first step computes one token and samples the
 first output. With one GPU per role the deployment is *1P1D*; in
-general, xPyD. Figure 20.1 follows four requests through both designs.
+general, xPyD (x prefill GPUs, y decode GPUs). Figure 20.1 follows four
+requests through both designs.
 
 ![Four requests on two GPUs, colocated and
 disaggregated.](/assets/tinyperf-book/ch20-timeline.svg)
@@ -72,8 +74,9 @@ disaggregated.](/assets/tinyperf-book/ch20-timeline.svg)
 In the pair, r2's prompt lands on GPU 0 while r0 decodes, and r0's next
 token waits for the whole step. In 1P1D the decode GPU runs only short
 steps; the 26.9 ms before its first step is the prefill server's 25 ms
-per-request overhead plus the 1.86 ms hop through the proxy. Two
-answers are held for a step, explained below.*
+per-request overhead (its time outside the GPU steps) plus the 1.86 ms
+hop through the proxy. Two answers are held for a step, explained
+below.*
 
 ```
 Worked example  Figure 20.1's four requests: 1024 tokens in, 20 out, arriving at 0, 100, 420 and 560 ms, model
@@ -92,8 +95,10 @@ later: 296–436 ms against 179–229.
 ## What splitting costs
 
 With *hop* the proxy's cost per pass, *overhead* a server's per-request
-overhead outside its steps (25 ms, chapters 14 and 16) and *wait* the
-queueing, including async scheduling's extra step (chapter 16):
+overhead outside its steps (25 ms, chapters 14 and 16), *wait* the
+queueing, including async scheduling's extra step (vLLM plans each step
+while the previous one runs; chapter 16), and *tp* the tensor-parallel
+degree (GPUs sharing every weight matrix; chapter 11):
 
 ```
 TTFT, colocated  =  hop + overhead + wait + prefill step
@@ -118,7 +123,9 @@ The hop was measured as direct against proxied requests (notes in
 `data/validation/predictions_qwen3_8b_rtx_a6000_pd_before_measurement.txt`).
 The transfer is missing because it hides. It is the cache's size over
 the link; with tensor parallelism each rank ships its shard over its own
-link:
+link. The H100 prefill below is priced from datasheet rates alone (a
+projection: nothing measured); the pair's is calibrated, priced with
+constants fitted to this GPU (chapter 4):
 
 ```
 Table 20.1  Moving one prompt's KV cache: the transfer on three links, and the prefill it can hide behind
@@ -144,11 +151,15 @@ against 20.2. Llama-3-70B does about 4 times the math per cached byte
 (tp=4 divides both alike): 1.7 ms against 61.6. A latent cache is
 negligible.
 
-The pair's 6.55 GB/s is a send inside a CUDA graph. The one-GPU device
-file lacks it (Where it breaks), so every run here loads the pair's own,
-`Device.load("rtx_a6000_pcie_pair")`: `p2p_bw_gbps` 6.55 beside chapter
-11's 4.0 GB/s ring. Each GPU's server is chapter 14's
-`VLLM.with_(max_num_seqs=64)`. On the connector's own clock:
+The pair's 6.55 GB/s is a send by NCCL (NVIDIA's collective
+communications library) inside a CUDA graph (launches recorded once and
+replayed; chapter 4). The one-GPU device file (the GPU's rates in
+`data/devices/`; chapter 2) lacks it (Where it breaks), so every run
+here loads the pair's own, `Device.load("rtx_a6000_pcie_pair")`:
+`p2p_bw_gbps` 6.55 beside chapter 11's 4.0 GB/s ring (the link rate of
+its all-reduce model). Each GPU's server is chapter 14's engine preset
+(the simulator set up as vLLM runs), `VLLM.with_(max_num_seqs=64)`. On
+the connector's own clock, as recorded during the runs:
 
 ```
 Recorded  The KV transfer on the connector's own clock: 1P1D, 1024-token prompts, 1 and 3 req/s, medians, ms
@@ -170,10 +181,10 @@ the sends still hide is unmeasured.
 
 ## The model: two engines and a link
 
-`simulate_disagg` builds the deployment from chapter 14's `simulate`.
-Trimmed below: the docstring, most of the signature, the two step
-models (`lat_p`, `lat_d`), the settings both pools share (`common`),
-and the bookkeeping that copies results back:
+`simulate_disagg` builds the deployment from chapter 14's serving
+simulator, `simulate`. Trimmed below: the docstring, most of the
+signature, the two step models (`lat_p`, `lat_d`), the settings both
+pools share (`common`), and the bookkeeping that copies results back:
 
 ```python
 def simulate_disagg(p, device, requests, prefill_workers=2, ..., prefill_host_sync=False, ...):
@@ -249,9 +260,10 @@ def kv_transfer_us(p, device, prompt_tokens, recipe=None, link="fabric", tp=1) -
 The colocated baseline, `simulate_replicas`, runs n independent
 `simulate`s, each on every n-th request, and adds the hop. Both
 functions take `simulate`'s arguments, not the preset's: the script
-passes the server's 64 sequences and 2,048-token budget as `max_batch`
-and `chunk_tokens`. Round-robin
-matters: each GPU sees every other arrival of a Poisson stream, so its
+passes the server's 64 sequences and 2,048-token budget (the most
+tokens one step may carry) as `max_batch` and `chunk_tokens`.
+Round-robin matters: each GPU sees every other arrival of a Poisson
+stream (random arrivals at a fixed average rate; chapter 14), so its
 gaps are sums of two exponential gaps, with 0.71 of the spread and
 fewer bursts. A random split would leave each GPU a Poisson stream:
 
@@ -273,8 +285,10 @@ At every layer, for each prompt the step finishes, the connector
 gathers the layer's KV blocks and queues them for a send thread. The
 gathers cost more than the sends. `tools/measure_prefill_step.py` sends
 k prompts at once behind a 2,048-token prompt, so they share one step,
-and times the forward on the engine's clock (chapter 16), on a plain
-server and on a pair's prefill server, same GPU:
+and times the forward on the engine's clock (the engine's own GPU
+timing of each step; chapters 15 and 16), on a plain server and on a
+pair's prefill server, same GPU. The two cells marked held out were
+left out of the fit:
 
 ```
 Table 20.3  The KV producer's step, fitted: the same prompts on a plain server and on a 1P1D prefill server,
@@ -359,13 +373,15 @@ after the previous one ends, and moves each delivery (the end of
 From here the evidence is Qwen3-8B in bf16 on two RTX A6000s under vLLM
 0.15.1, both designs behind one proxy (`tools/pd_proxy.py`): a server
 per GPU, round-robin; or prefill on GPU 0 and decode on GPU 1. `vllm
-bench serve` sent 240 requests of 1,024 random tokens in and 128 out,
-Poisson at 1–8 per second, to servers of at most 64 sequences, a
-2,048-token budget and top-p sampling. The model is
-`test_pd_silicon_envelope`'s set-up in `tests/test_core.py`, on the
-benchmark's own trace. The proxy logged each prefill answer in re-runs
-at 1, 3 and 5 requests per second, with async scheduling on as deployed
-and, as a control, off on the prefill server alone:
+bench serve`, vLLM's benchmark client, sent 240 requests of 1,024
+random tokens in and 128 out, Poisson at 1–8 per second, to servers of
+at most 64 sequences, a 2,048-token budget and top-p sampling. The
+model is the set-up of `test_pd_silicon_envelope` in
+`tests/test_core.py` (a test that pins the model to these
+measurements), on the benchmark's own trace. The proxy logged each
+prefill answer in re-runs at 1, 3 and 5 requests per second, with async
+scheduling on as deployed and, as a control, off on the prefill server
+alone:
 
 ```
 Table 20.4  The prefill server's answer on the proxy's clock, 1P1D at the sweep's own arrivals, ms:
@@ -498,8 +514,8 @@ Table 20.7  The KV producer, held out: 1P1D on two new traces, the predictions c
 ```
 
 Eight of nine cells meet the committed criteria. The miss, 0.78 at the
-knee of the 1,024-token shape, was named in advance by the committed
-file
+knee (the load where TTFT turns sharply upward; chapter 18) of the
+1,024-token shape, was named in advance by the committed file
 (`predictions_qwen3_8b_rtx_a6000_kv_producer_before_measurement.txt` in
 `data/validation`): under sustained load, steps carrying two such
 prompts had run 2–3% above the fitted cost, and near a knee a few
@@ -578,9 +594,9 @@ only at the right ratio.
    Predict with the model what happens to Table 20.4 and to 1P1D's TTFT
    at 3–5 requests per second, then measure it.
 3. **The SLO frontier.** For eight GPUs and your own workload, find the
-   P:D ratio that maximizes goodput (chapter 14) when each request must
-   see TTFT ≤ 1 s and TPOT ≤ 40 ms. How does it move as prompts
-   lengthen?
+   P:D ratio that maximizes goodput (throughput from the requests that
+   meet the SLO; chapter 14) when each request must see TTFT ≤ 1 s and
+   TPOT ≤ 40 ms. How does it move as prompts lengthen?
 4. **tp in a pool.** Serve Llama-3-70B as 1P1D with tp=4 per pool on
    H100s over InfiniBand, pricing the transfer by the shard each rank
    actually holds. When does the transfer stop hiding?

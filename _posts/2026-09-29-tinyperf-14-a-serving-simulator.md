@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 14: A serving simulator"
 date: 2026-09-29 12:14:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/14-a-serving-simulator/
-excerpt: "Every price so far has been one step. A server never runs one step. Requests arrive when their users send them, join a batch that is already running and leave when their replies end, and a request's latency is its wait for a place plus the steps it shared with everyone else. Chapter 1's Table 1.4 showed the effect: on one RTX A6000 serving Qwen3-8B, the p95 time to first token was 0.77 s at 3 requests per second and 2.7 s at 4. How do you turn priced steps into TTFT and TPOT under load?"
+excerpt: "Every price so far has been one step, one forward pass of the model over a batch. A server never runs one step. Requests arrive when their users send them, join a batch that is already running and leave when their replies end, and a request's latency is its wait for a place plus the steps it shared with everyone else. Chapter 1's Table 1.4 showed the effect: on one RTX A6000 serving Qwen3-8B, the p95 time to first token (TTFT) was 0.77 s at 3 requests per second and 2.7 s at 4. How do you turn priced steps into TTFT and TPOT (time per output token) under load?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/21/building-tinyperf-m13.html
   - /tinyperf/perf-modeling/2026/08/28/building-tinyperf-m18.html
@@ -14,33 +14,38 @@ redirect_from:
 
 *[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` and `StepLatencyModel`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) at a later commit, `EngineConfig` and `VLLM`; and [`tools/bench_trace.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/bench_trace.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch14_serving.py`.*
 
-Every price so far has been one step. A server never runs one step.
-Requests arrive when their users send them, join a batch that is
-already running and leave when their replies end, and a request's
-latency is its wait for a place plus the steps it shared with everyone
-else. Chapter 1's Table 1.4 showed the effect: on one RTX A6000 serving
-Qwen3-8B, the p95 time to first token was 0.77 s at 3 requests per
-second and 2.7 s at 4. How do you turn priced steps into TTFT and TPOT
-under load?
+Every price so far has been one step, one forward pass of the model
+over a batch. A server never runs one step. Requests arrive when their
+users send them, join a batch that is already running and leave when
+their replies end, and a request's latency is its wait for a place plus
+the steps it shared with everyone else. Chapter 1's Table 1.4 showed
+the effect: on one RTX A6000 serving Qwen3-8B, the p95 time to first
+token (TTFT) was 0.77 s at 3 requests per second and 2.7 s at 4. How do
+you turn priced steps into TTFT and TPOT (time per output token) under
+load?
 
 The short answer: play the server forward. An event loop admits
 requests, composes each step as the engine's scheduler does, asks the
-step model for its price, advances a clock by it and records when each
-request gets its tokens. The step model caches its prices, so thousands
-of steps cost hundreds of graphs. Replayed on the arrivals a benchmark
-actually sent, it predicted a vLLM server's TPOT with a typical error
-of 2% and its TTFT of 5–7%, before the runs. It is furthest off where a
-run tips into saturation, requests arriving faster than the GPU can
-finish them.
+step model (the earlier chapters' price of one step) for its price,
+advances a clock by it and records when each request gets its tokens.
+The step model caches its prices, so thousands of steps cost hundreds of
+graphs (chapter 5's lists of operators to price). Replayed on the
+arrivals a benchmark actually sent, it predicted, before the runs, a
+vLLM server's TPOT with a typical error of 2% and its TTFT of 5–7%
+(typical error: the geometric-mean distance of predicted ÷ measured from
+1; chapter 3). It is furthest off where a run tips into saturation,
+requests arriving faster than the GPU can finish them.
 
 By the end of this chapter you will know:
 
-- what TTFT, TPOT, inter-token latency, throughput, goodput and an SLO
-  measure, and why they need a simulation;
+- the measures a server is judged by, from TTFT and TPOT to latency
+  targets, and why they need a simulation;
 - the simulator's event loop, from arrival to report;
 - how a cache of step prices makes thousands of steps cheap, and why
-  its context buckets are safe;
-- its scheduling policies: admission, chunked prefill, the chunk step;
+  pricing contexts only every 256 tokens is safe;
+- its scheduling policies: when to admit a request, how to feed a
+  prompt in chunks beside the decodes, and how to price a step that
+  adds several tokens to one sequence;
 - how to replay a benchmark's own arrivals, and why it matters;
 - how one preset, `serving.VLLM`, sets every knob the way the engine
   runs it;
@@ -107,15 +112,18 @@ step, advance the clock, update the requests; pricing calls a step-price
 cache; with no request left, a report.](/assets/tinyperf-book/ch14-event-loop.svg)
 
 *Figure 14.2. The event loop. Each turn is one engine step. Only boxes 4
-and 5 price anything; admission knows the GPU only through its KV
-pool.*
+and 5 price anything; admission knows the GPU only through its KV pool,
+the memory set aside for the cache (chapter 17).*
 
-The real function is about 450 lines, with paged memory, prefix caching
-and disaggregation (prefill and decode on separate servers; chapter 20)
-woven through nested helper functions. Here is the loop with chunked
-prefill, as **pseudocode**, admitting by reservation, the simpler of
-its two policies (on this chapter's benchmarks both admit alike; Table
-14.3):
+The real function is about 450 lines, with paged memory (the cache in
+fixed-size blocks), prefix caching (reusing the cache of a prompt's
+shared start; both chapter 17) and disaggregation (prefill and decode
+on separate servers; chapter 20) woven through nested helper functions.
+Here is the loop with chunked prefill, as **pseudocode**, admitting by
+reservation (holding room for each request's prompt plus its longest
+allowed reply),
+the simpler of its two policies (on this chapter's benchmarks both
+admit alike; Table 14.3):
 
 ```python
 # Pseudocode of simulate(): chunked prefill, admission by reservation.
@@ -153,10 +161,13 @@ while any request is still to arrive, queued, prefilling or running:
 add the per-request overhead to every TTFT and finish time (chapter 16)
 ```
 
-Box 4's details belong to later chapters: CUDA-graph padding
-(`padded_batch`: the engine replays the graph captured for the next size
-up), the mean context and the sampler to chapter 15, the price of a step
-carrying prompt chunks to chapter 16. With
+Box 4's details belong to later chapters. Chapter 15 covers CUDA-graph
+padding (`padded_batch`: the engine replays the kernel launches it
+recorded for the next batch size up), the mean context (the batch's
+average, at which attention is priced) and the sampler (which picks
+each next token: the likeliest under greedy decoding, a random draw
+among the likeliest under top-p); chapter 16 covers the price of a step
+carrying prompt chunks. With
 `chunk_tokens=None` the loop runs the older *prefill-first* policy: a
 step that admits requests is a dedicated prefill of their prompts,
 `lat.prefill_us(tokens, n_seqs=len(admit))`, and the running decodes
@@ -164,8 +175,9 @@ wait for it.
 
 Three pieces of the real code carry the loop. The scheduler plans each
 request with `max_gen`, the cap the client asked for, while `gen` is how
-long the reply turns out to be (the fields for preemption, prefix
-caching and disaggregation, and a default for `max_gen`, trimmed):
+long the reply turns out to be (the fields for prefix caching,
+disaggregation and preemption, and a default for `max_gen`, trimmed;
+preemption evicts a running request when memory runs out):
 
 ```python
 @dataclass
@@ -185,8 +197,8 @@ class Request:
         return (self.finish_us - (self.arrival_us + self.ttft_us)) / max(1, self.gen - 1)
 ```
 
-The step price, in the chunked branch (a comment and a branch for MoE
-routing by reply position, chapter 9, trimmed):
+The step price, in the chunked branch, with a comment and a branch for
+mixture-of-experts (MoE) routing by reply position (chapter 9) trimmed:
 
 ```python
             new_tokens = sum(c for _, c in chunked)
@@ -234,9 +246,9 @@ Worked example  One request on an idle server: Qwen3-8B, RTX A6000, top-p sampli
 ```
 
 The 25 ms per-request overhead was fitted to these two probes with an
-earlier step model; the 128-token probe now reads 7 ms high. It is the
-server's path outside the GPU steps (chapter 16). Everything else under
-load comes from the loop.
+earlier step model; the 128-token probe now reads 7 ms high (the model
+above the measurement). It is the server's path outside the GPU steps
+(chapter 16). Everything else under load comes from the loop.
 
 ## Thousands of steps, hundreds of graphs
 
@@ -245,11 +257,11 @@ Pricing a step means building its graph and running `execute` (chapter
 takes 15,059 steps (Table 14.1, the runs of Table 1.4) with 7,898
 *distinct shapes*: distinct sets of arguments to the step model, what an
 exact model would have to price. The batch's mean context grows by about
-a token per step, so shapes rarely repeat. `StepLatencyModel` keeps
-every price in a dictionary keyed by the step's shape, and prices
-contexts only at multiples of 256 tokens, interpolating between
-neighbouring buckets (type annotations, the docstring and the lines
-computing the MoE arguments trimmed):
+a token per step, so shapes rarely repeat. `StepLatencyModel`, the step
+model's class, keeps every price in a dictionary keyed by the step's
+shape, and prices contexts only at multiples of 256 tokens,
+interpolating between neighbouring buckets (type annotations, the
+docstring and the lines computing the MoE arguments trimmed):
 
 ```python
 KV_BUCKET = 256      # decode kv lengths are bucketed for the latency memo
@@ -271,12 +283,13 @@ KV_BUCKET = 256      # decode kv lengths are bucketed for the latency memo
         return us
 ```
 
-`_traverse_us` builds and prices the graph, one per pipeline stage when
-there are several. A mixed step is cached in three parts: the work
-proportional to tokens at its exact row count (a GEMM's cost is not
-monotone in its rows, chapter 3), the chunk's attention with its
-context rounded up to a bucket, and the decodes' attention,
-interpolated.
+`_traverse_us` builds and prices the graph, one per pipeline stage (a
+block of consecutive layers on its own GPUs; chapter 12) when there are
+several. A mixed step (decodes beside a prompt chunk; chapter 16) is
+cached in three parts: the work proportional to tokens at its exact row
+count (a GEMM's cost is not monotone in its rows, chapter 3), the
+chunk's attention with its context rounded up to a bucket, and the
+decodes' attention, interpolated.
 
 ```
 Table 14.1  The step-price cache over one load sweep: Qwen3-8B, RTX A6000, 240 requests of 1024 tokens in, 128 out
@@ -299,7 +312,10 @@ Why is interpolation safe? A decode step's price is the weight GEMMs,
 which don't depend on the context, plus attention: bytes proportional
 to the context over a rate, plus a fixed cost per call (chapter 7).
 That is a straight line in the context, and interpolation on a straight
-line is exact. Where the price bends, it isn't:
+line is exact. Where the price bends, it isn't. Table 14.2 prices the
+first three rows at the calibrated tier (constants fitted to that GPU's
+measurements; chapter 4) and the two sparse-attention models at the
+projected tier (datasheet rates):
 
 ```
 Table 14.2  What bucketing costs: decode steps interpolated between 256-token buckets, against exact prices
@@ -396,8 +412,9 @@ a mixed step, the uncached part of a prompt whose prefix is cached
 For a what-if with no benchmark behind it, `poisson_requests(n, rate,
 prompt, gen, seed)` draws exponential gaps. To predict a measured run,
 the simulator needs the arrivals the benchmark actually sent. vLLM's
-`vllm bench serve` is deterministic in its seed, so
-`tools/bench_trace.py` rebuilds its trace with the same calls (numpy):
+load generator, `vllm bench serve`, is deterministic in its seed, so
+`tools/bench_trace.py` rebuilds its trace (each request's send time,
+prompt length and output length) with the same calls (numpy):
 
 ```python
 def bench_trace(num_prompts, input_len, output_len, range_ratio=0.0, seed=0, burstiness=1.0, num_special=0):
@@ -425,7 +442,8 @@ def bench_requests(trace: dict, rate_per_s: float) -> list:
 ```
 
 The rebuilt traces match what the engine's logs recorded for two
-sweeps, request for request:
+sweeps, request for request (a *recorded* result: stored when measured,
+not recomputed by the script):
 
 ```
 Recorded  The rebuilt traces against the requests two measured sweeps actually sent
@@ -450,11 +468,12 @@ same process span 456 to 1,625 ms (chapter 18).
 > **Field note: three predictions.** Each cell of Table 14.8's first
 > three sweeps had three predictions written before its run: the mean
 > over eight other Poisson samples, which read 0.71–1.26 on the median
-> TTFT; the older step model on each run's own trace, 0.84–1.26; and
-> the model with three fixes found in earlier runs' step logs, among
-> them attention on a padded step's real rows only (chapter 15),
-> 0.97–1.10 (Table 14.8). Comparing with the wrong sample of arrivals
-> and a wrong step price were separate errors, each with its own fix.
+> TTFT (as predicted ÷ measured); the older step model on each run's own
+> trace, 0.84–1.26; and the model with three fixes found in earlier
+> runs' step logs, among them attention on a padded step's real rows
+> only (chapter 15), 0.97–1.10 (Table 14.8). Comparing with the wrong
+> sample of arrivals and a wrong step price were separate errors, each
+> with its own fix.
 
 ## The shape of a load curve
 
@@ -503,16 +522,18 @@ falls and why it is so sharp.
 
 A prediction is of one server, and the settings that make it that
 server are spread over several chapters: the step model's tier and
-launch cost (chapter 4), its attention backend (chapter 7) and sampler
-(chapter 15); the scheduler's seats, token budget and KV allocator
-(this chapter and chapter 17); planning each step while the previous
-one runs (chapter 16); and the CUDA-graph sizes both use (chapter 15).
+launch cost (chapter 4), its attention backend (which library's
+attention kernels; chapter 7) and sampler (chapter 15); the scheduler's
+seats (the most requests it runs at once, `max_num_seqs`), token budget
+and KV allocator (reservation or paging; this chapter and chapter 17);
+planning each step while the previous one runs (chapter 16); and the
+CUDA-graph sizes both use (chapter 15).
 `simulate`'s own defaults are the function's history, not an engine's:
 the projected tier, the greedy sampler, prefill-first, reservation, 64
 sequences. Miss one and the simulator prices a server nobody ran. Here
 is the benchmark of Table 14.6 under three set-ups, beside what vLLM
-measured (in-sample; the measurements are described in the next
-section):
+measured (in-sample: used to build the serving mechanisms; the
+measurements are described in the next section):
 
 ```
 Worked example  One benchmark, three set-ups: Qwen3-8B, RTX A6000, 240 requests of 1024 in, 128 out; TTFT p50 / p95 and mean TPOT, ms
@@ -561,13 +582,15 @@ VLLM = EngineConfig()
 ```
 
 `VLLM.step_model` builds the model of the engine's steps, with any
-other argument the step model takes (`tp`, a precision `recipe`).
-`VLLM.simulate` passes each scheduler setting to this chapter's
-`simulate` under that function's name (`max_num_seqs` is `max_batch`,
-`max_num_batched_tokens` is `chunk_tokens`, `block_size` is
-`page_tokens`), builds the step model unless it is given one, and
-passes any other argument on: a trace, `step_scale`, `tp`. `with_`
-changes settings and keeps the rest.
+other argument the step model takes (`tp`, chapter 11's count of
+tensor-parallel GPUs; a precision `recipe`, chapter 10's dtype for each
+operator). `VLLM.simulate` passes each scheduler setting to this
+chapter's `simulate` under that function's name (`max_num_seqs` is
+`max_batch`, `max_num_batched_tokens` is `chunk_tokens`, `block_size`
+is `page_tokens`), builds the step model unless it is given one, and
+passes any other argument on: a trace, `step_scale` (a factor on every
+step's time; chapter 18), `tp`. `with_` changes settings and keeps the
+rest.
 
 The defaults are vLLM 0.15.1's on the RTX A6000 it was measured on:
 256 sequences and a 2,048-token budget. Every server in this book's
@@ -630,12 +653,13 @@ there (chapter 18).
 > its parts, and the server's path outside the steps had no cost.
 > Chapter 16 tells both stories.
 
-**Held out.** Five later sweeps had their predictions committed before
-they ran. Three probe the scheduler near saturation: the same workload
-on two new seeds, and long prompts of varied length. The current model
-still gives the predictions as written. For these three the engine also
-logged its steps, so the table compares the simulator's schedule with
-the engine's: the number of steps, and the mean decodes in each.
+**Held out.** Five later sweeps, to which nothing in the model was
+fitted, had their predictions committed before they ran. Three probe
+the scheduler near saturation: the same workload on two new seeds, and
+long prompts of varied length. The current model still gives the
+predictions as written. For these three the engine also logged its
+steps, so the table compares the simulator's schedule with the
+engine's: the number of steps, and the mean decodes in each.
 `simulate(..., trace=steps)` records each step's start, end, decodes and
 chunks.
 

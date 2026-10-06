@@ -20,27 +20,29 @@ does between steps that no kernel shows.
 
 The short answer: a mixed step is one forward pass over the combined
 rows. The weights stream once for decodes and chunk together; every GEMM
-runs at the combined row count, with cuBLAS's row curve and tile edges;
-the LM head runs only on the rows that sample; each side runs its own
-attention; and on FlashAttention-2 the decode rows read their cache once
-per query head. Neither the larger of the two parts nor their sum is
-right. Between steps the GPU doesn't wait, but requests do: the engine
-plans each step while the one before it runs, so a request that arrives
-during step k usually misses step k+1 (the model assumes it always does
-and admits it at k+2), and each request spends about 25 ms outside the
-steps.
+runs at the combined row count, with cuBLAS's measured jumps as rows
+grow (chapter 15); the LM head runs only on the rows that sample; each
+side runs its own attention; and on FlashAttention-2 the decode rows
+read their cache once per query head. Neither the larger of the two
+parts nor their sum is right. Between steps the GPU doesn't wait, but
+requests do: the engine plans each step while the one before it runs
+(async scheduling), so a request that arrives during step k usually
+misses step k+1 (the model assumes it always does and admits it at
+k+2), and each request spends about 25 ms outside the steps.
 
 By the end of this chapter you will know:
 
 - how to compose a mixed step from its parts, and why the combined rows,
   not the two parts, set its price;
-- how the token budget shared by decodes and chunks shapes each step;
+- how the cap on tokens per step, shared by decodes and chunks, shapes
+  each step;
 - what happens between steps: async scheduling, a per-request overhead,
   and a host that waits for its GPU;
 - how to time one step inside a running server, and why the client's
   clock misreads it;
-- how close the model gets: 36 steps within 0.97–1.07 of the engine's
-  clock, and an attention backend that halves a step.
+- how close the model gets: 36 steps within 0.97–1.07 of their times
+  measured inside the server, and how a change of attention kernels
+  halves a step.
 
 ## Two prices that don't work
 
@@ -94,13 +96,14 @@ model's forward once. Follow chapter 6's layer through that batch:
   Each decode row attends to its own cache: chapter 7's decode kernel at
   the batch's mean context.
 - **The re-read.** Beside a chunk, FA2's decode rows lose their GQA
-  packing (chapter 7): each row's cache is read once per query head,
-  less what the L2 catches. FlashInfer and vLLM's Triton kernel keep the
-  packing and pay nothing.
+  packing (grouped-query attention's single read of each KV head for
+  its whole group of query heads; chapter 7): each row's cache is read
+  once per query head, less what the L2 catches. FlashInfer and vLLM's
+  Triton kernel keep the packing and pay nothing.
 - **The LM head at the rows that sample.** vLLM samples one row per
   decoding sequence and one per chunk (a partial prompt's token is
   discarded). A chunk's other rows never reach the head.
-- **The sampler** on those rows (chapter 15). On this stack a step lasts
+- **The sampler** on those rows (chapter 15). On this server a step lasts
   its forward plus its sampler to within 0.2 ms; the engine's clock
   finds no gap between steps (the provenance note in
   `data/calibration/rtx_a6000.json`).
@@ -184,7 +187,9 @@ re-read now stand.
 `tok` prices the graph of a decode step with
 `decode_batch + chunk_seqs * chunk_new` rows and keeps everything but
 attention and the LM head: the per-token work at the combined rows, to
-which the calibrated scheduler applies the row curve (chapters 3 and 4).
+which the calibrated scheduler (tinyperf's operator-by-operator
+pricing, on constants fitted to this GPU) applies the row curve
+(chapters 3 and 4).
 `head` prices the same graph at the rows that sample and keeps only the
 LM head. `att_c` builds the chunks as sequences that each advance
 `chunk_new` tokens past a prefix of `chunk_kv`, and keeps their
@@ -213,8 +218,9 @@ The split into parts is `_parts` (docstring trimmed):
 `_graph_report` builds the decode graph and returns chapter 5's report,
 one row per operation; `_parts` sorts the rows into attention, the LM
 head and the rest. A prefix is rounded up to a multiple of 256 tokens,
-the step-price cache's bucket (chapter 14). `decodes` tells an MoE's
-expert kernels how many of the rows are decodes (chapter 9).
+the step-price cache's bucket (chapter 14). `decodes` tells a
+mixture-of-experts (MoE) model's expert kernels how many of the rows
+are decodes (chapter 9).
 
 The branch at the top of `mixed_step_us` is older. With pipeline stages
 (chapter 12), overlapped collectives (chapter 11), offloading or a
@@ -266,8 +272,9 @@ its re-read.
 A step with no decodes, such as a burst of new prompts on a quiet
 server, is the same forward with nothing beside the chunks: 292.1 ms for
 2,048 tokens, where the chunk graph charges 316.6 (4.1 ms of it from a
-256-token minimum prefix). The engine's step logs, where both mechanisms
-were found (in-sample; recorded when measured):
+256-token minimum prefix). The engine's step logs from two online sweeps
+(a server fed a stream of requests), where both mechanisms were found
+(in-sample; recorded when measured):
 
 ```
 Recorded  The engine's step logs from two online sweeps of Qwen3-8B on vLLM, RTX A6000, as recorded
@@ -309,7 +316,7 @@ the previous step began:
 ```
 
 Table 16.4 follows one arrival through the model's steps, with the
-budget at work:
+budget at work, to its TTFT (time to first token; chapter 14):
 
 ```
 Table 16.4  A 4,000-token prompt arrives at 3,000.0 ms beside 40 decoding sequences: the model's steps
@@ -337,8 +344,8 @@ same either way.*
 The prompt arrives 3.3 ms into step k, waits 55.0 ms, and is read in two
 chunks, 2,048 − 40 = 2,008 tokens and then the rest. The second chunk
 costs more because its queries attend to the first chunk's 2,008 tokens.
-Planning each step just before it runs would save one decode step, 29.2
-ms of TTFT (time to first token, chapter 14).
+Planning each step just before it runs would save one decode step,
+29.2 ms of TTFT.
 
 **The per-request overhead.** The model adds `online_overhead_us` to
 every request's TTFT and end-to-end time, and to no step. It stands for
@@ -397,10 +404,12 @@ blocks until the GPU finishes, both halves of the rule change. The plan
 for k+1 is made after step k ends, so an arrival during k joins k+1. And
 with async scheduling the thread launches step k+1 before it processes
 step k's tokens; if that launch blocks until k+1 finishes, k's tokens
-leave only when k+1 ends. vLLM's P2P NCCL KV connector on a
-disaggregated prefill server (one GPU prefills and ships the KV cache to
-another that decodes; chapter 20) does this: it synchronizes on every
-layer. `simulate(host_sync_forward=True)` models it:
+leave only when k+1 ends. A disaggregated prefill server (one GPU
+prefills and ships the KV cache to another that decodes; chapter 20)
+does this when it runs vLLM's P2P NCCL KV connector, the plug-in that
+sends the cache peer to peer through NCCL, NVIDIA's collective library:
+it synchronizes on every layer.
+`simulate(host_sync_forward=True)` models it:
 
 ```
 Worked example  A forward that blocks the host: two 1,024-token prompts, the second 50 ms after the first
@@ -467,6 +476,8 @@ model was fitted to these steps: the re-read, the row curve and the
 decode attention come from their kernels timed alone (chapters 3 and 7).
 The model was committed before the grid ran, so the grid is held out;
 since then it has been a test that every change to the model must pass.
+The footer sums up each set of ratios by its typical error, their
+geometric-mean distance from 1 (chapter 3).
 
 ```
 Table 16.8  The mixed step on the engine's clock: Qwen3-8B, FlashAttention-2, RTX A6000 (held out)
@@ -535,7 +546,8 @@ chapter 7's Table 7.8. The model prices both backends' steps within
 0.96–1.07 (held out: the FlashInfer run was predicted before it ran),
 and the measurement repeats: FA2's grid, run twice, agrees within
 0.99–1.03. A step that halves (Table 16.2) changes the queue behind it;
-chapter 18 follows the backend to the knee.
+chapter 18 follows the backend to the knee, the load where TTFT turns
+sharply upward.
 
 ## Where it breaks
 
