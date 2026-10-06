@@ -1,20 +1,22 @@
 ---
 layout: post
-published: false
 math: true
-title: "Tinyserve, Chapter 10: Scheduling prefill and decode"
+title: 'Tinyserve, Chapter 10: Scheduling prefill and decode'
 date: 2026-10-06 00:00:00 -0700
-categories: [tinyserve, llm-serving]
-excerpt: "Follow four requests through continuous batching, a shared prompt budget, and packed execution—with each iteration traced to the code."
+categories:
+- tinyserve
+- llm-serving
+excerpt: Who runs next and how much prompt work can run before decoders progress?
 book_chapter: 10
-source_revision: 09a32506bc0044ec22bf6500e39c4017b2a31490
+source_revision: 14b0c8dbb975350bbd730ac0c702eafce36eb95c
 source_document: docs/book/10-scheduling.md
 code_revision: e20a34815498560f9226a9e057ade31b2b62743f
 ---
 
 {% include tinyserve-article-style.html %}
+{% include tinyserve-book-nav.html %}
 
-*Chapter 10 · The Serving Runtime · Unpublished review draft*
+*Chapter 10 · The Serving Runtime*
 
 Two requests are streaming tokens. A third arrives with a long prompt. The
 server must process that prompt before it can answer, but a whole-prompt
@@ -167,7 +169,7 @@ Iteration 4 decodes A and C and processes D's last prompt token. A and C
 retire, while D emits D1 and becomes a decoder for iteration 5. No artificial
 padding request keeps the batch at its original size.
 
-The test [test_book_scheduling.py](https://github.com/kaix-nv/tinyserve/blob/09a32506bc0044ec22bf6500e39c4017b2a31490/tests/test_book_scheduling.py) executes
+The test [test_book_scheduling.py](https://github.com/kaix-nv/tinyserve/blob/14b0c8dbb975350bbd730ac0c702eafce36eb95c/tests/test_book_scheduling.py) executes
 this example against a small real CPU model in both layouts. It checks
 events, retirement, cached cursors, model-call shapes, packed metadata, and
 cache reclamation. That is executable documentation of this trace, not a
@@ -385,7 +387,7 @@ has repeated overlap and benefits in this experiment. GPU clock locks had
 been reset, but clocks were not fixed. These small-sample paired results
 are not a universal speedup claim. The sanitized
 [measurement record](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/docs/benchmarks/m12-post-reset-performance-a6000-2026-10-05.json)
-and [qualification report](/tinyserve/llm-serving/2026/10/05/building-tinyserve-m12.html) retain the scope.
+and [qualification report](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/docs/m12-mixed-prefill-decode.md) retain the scope.
 
 There is an important counterexample: in the separate Qwen3-8B standard
 suite, mixed eager execution did not consistently beat separate eager
@@ -433,3 +435,5 @@ token range, and execution maps that range onto model operations. Continuous
 batching changes membership, chunking bounds prompt work, and packing changes
 the representation of that work. Keeping those decisions separate makes
 both the code and its performance results easier to reason about.
+
+{% include tinyserve-book-nav.html %}

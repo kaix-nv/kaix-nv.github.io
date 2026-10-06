@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 685" role="img" aria-labelledby="title desc">
+<title id="title">Engine events and network delivery have different owners</title>
+<desc id="desc">HTTP tasks send commands to one model-owning worker. Its token events become decoded text in independent bounded outboxes. Sampling time, end-of-step return, and client receipt are distinct latency boundaries.</desc>
+<defs><style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker></defs>
+<rect width="1200" height="685" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">Engine events and network delivery have different owners</text>
+<rect x="32" y="116" width="270" height="190" rx="10" class="blue"/><text x="54" y="155" class="body" text-anchor="start">HTTP tasks</text>
+<text x="54" y="191" class="body" text-anchor="start">Validate requests</text>
+<text x="54" y="227" class="body" text-anchor="start">Own socket writes</text>
+<text x="54" y="263" class="body" text-anchor="start">Notice disconnects</text><rect x="416" y="116" width="354" height="190" rx="10" class="purple"/><text x="438" y="155" class="body" text-anchor="start">One engine worker</text>
+<text x="438" y="191" class="body" text-anchor="start">Owns model + session</text>
+<text x="438" y="227" class="body" text-anchor="start">Runs step() serially</text>
+<text x="438" y="263" class="body" text-anchor="start">Decodes token bytes</text><rect x="878" y="116" width="290" height="190" rx="10" class="green"/><text x="900" y="155" class="body" text-anchor="start">Per-request outboxes</text>
+<text x="900" y="191" class="body" text-anchor="start">Bounded text queue</text>
+<text x="900" y="227" class="body" text-anchor="start">Separate terminal slot</text>
+<text x="900" y="263" class="body" text-anchor="start">Overflow → cancellation</text><path d="M310 161 L406 161" class="arrow"/><text x="358" y="143" class="small" text-anchor="middle">commands</text><path d="M779 220 L868 220" class="arrow"/><text x="823" y="204" class="small" text-anchor="middle">text</text><path d="M886 339 L304 339" class="arrow"/><text x="593" y="368" class="body" text-anchor="middle">Independent HTTP writers drain each request's queue</text><text x="32" y="426" class="heading" text-anchor="start">Three timing boundaries</text><rect x="32" y="454" width="336" height="108" rx="10" class="white"/><text x="50" y="489" class="heading" text-anchor="start">Token sampled</text><text x="50" y="530" class="small" text-anchor="start">Internal event timestamp</text><rect x="432" y="454" width="336" height="108" rx="10" class="white"/><text x="450" y="489" class="heading" text-anchor="start">step() returns</text><text x="450" y="530" class="small" text-anchor="start">All iteration forwards complete</text><rect x="832" y="454" width="336" height="108" rx="10" class="white"/><text x="850" y="489" class="heading" text-anchor="start">Client receives text</text><text x="850" y="530" class="small" text-anchor="start">Queueing + network included</text><path d="M373 504 L423 504" class="arrow"/><path d="M773 504 L823 504" class="arrow"/><text x="32" y="616" class="body" text-anchor="start">A token sampled during decode can wait behind prefill before step() returns.</text>
+<text x="32" y="646" class="body" text-anchor="start">One token may yield zero or several text characters; byte decoding persists per request.</text>
+</svg>

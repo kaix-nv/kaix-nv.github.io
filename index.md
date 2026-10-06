@@ -21,12 +21,14 @@ what the model had seen before it was measured.
 
 ### [Building tinyserve: an LLM serving engine](/series/tinyserve/)
 
-A minimal, complete modern LLM serving engine, one milestone at a time.
-Each milestone begins with a measured limitation, adds one serving
-technique, proves the outputs stay correct and measures the result.
+A book in 18 chapters: follow a token through model architecture, attention
+and MoE, cache ownership, scheduling, GPU execution, quantization, and
+distributed serving. Concrete examples connect the implementation to its
+correctness and performance limits.
 
-[Start with M0]({% post_url 2026-07-14-building-tinyserve-m0 %}) ·
-[All posts](/series/tinyserve/) ·
+[Start with chapter 1]({% post_url 2026-10-06-tinyserve-01-first-token %}) ·
+[Contents](/series/tinyserve/) ·
+[Milestone archive](/series/tinyserve/milestones/) ·
 [Source code](https://github.com/kaix-nv/tinyserve)
 
 ## Latest notes
@@ -34,6 +36,7 @@ technique, proves the outputs stay correct and measures the result.
 {% assign date_format = site.minima.date_format | default: "%b %-d, %Y" -%}
 {%- assign shown = 0 -%}
 {%- assign book_listed = false -%}
+{%- assign tinyserve_book_listed = false -%}
 <ul class="post-list">
 {%- for post in site.posts -%}
   {%- if shown >= 6 %}{% break %}{% endif -%}
@@ -45,6 +48,16 @@ technique, proves the outputs stay correct and measures the result.
     <p>The milestone posts, rewritten as a book: each chapter asks one question, builds the mechanism that answers it, shows the code and the evidence, and says where it breaks. Links to the old posts lead to the chapters that replace them.</p>
   </li>
       {%- assign book_listed = true -%}
+      {%- assign shown = shown | plus: 1 -%}
+    {%- endunless -%}
+  {%- elsif post.categories contains "tinyserve" -%}
+    {%- unless tinyserve_book_listed %}
+  <li>
+    <span class="post-meta">{{ post.date | date: date_format }}</span>
+    <h3><a class="post-link" href="{{ '/series/tinyserve/' | relative_url }}">Building tinyserve, the book: 18 chapters</a></h3>
+    <p>From the first token to distributed serving: model architecture, runtime ownership, and execution optimization, explained through concrete examples, figures, and bounded evidence.</p>
+  </li>
+      {%- assign tinyserve_book_listed = true -%}
       {%- assign shown = shown | plus: 1 -%}
     {%- endunless -%}
   {%- else %}

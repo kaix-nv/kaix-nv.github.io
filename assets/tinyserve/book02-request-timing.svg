@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+<title id="title">Request latency depends on the observer and the timing boundary</title>
+<desc id="desc">Illustrative timeline: the request arrives at 0 ms, model work starts at 30 ms, the first internal token is sampled at 82 ms, and the client receives tokens at 90, 110, 137, and 160 ms. Client TTFT is 90 ms, not the 52 ms of work before sampling. Inter-token gaps of 20, 27, and 23 ms give average TPOT of 23.33 ms. Four tokens over 160 ms equals 25 tokens per second. Internal sampling timestamps are not network receipt timestamps.</desc>
+<defs><style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:27px;font-weight:700}.head{font-size:21px;font-weight:700}.body{font-size:18px}.small{font-size:16px;fill:#475569}.line{fill:none;stroke:#64748b;stroke-width:2}.dash{stroke:#94a3b8;stroke-width:1.5;stroke-dasharray:6 5}</style></defs>
+<rect width="1200" height="750" rx="18" fill="#f8fafc"/>
+<text x="32" y="46" class="title">Choose the observer before computing latency</text>
+<text x="32" y="80" class="body">All timestamps below are illustrative, in milliseconds after request arrival.</text>
+<text x="32" y="139" class="head">Server</text>
+<rect x="140" y="162" width="180" height="65" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+<text x="230" y="188" text-anchor="middle" class="body">Queue / admission</text>
+<text x="230" y="212" text-anchor="middle" class="small">0–30</text>
+<rect x="320" y="162" width="312" height="65" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+<text x="476" y="188" text-anchor="middle" class="body">Prompt work and first sample</text>
+<text x="476" y="212" text-anchor="middle" class="small">30–82</text>
+<circle cx="632" cy="252" r="8" fill="#2563eb"/>
+<path d="M632 227V244" class="line"/>
+<text x="653" y="258" class="body">First internal token sampled: 82</text>
+<path d="M140 231V484" class="dash"/>
+<path d="M680 328V485" class="dash"/><path d="M800 328V421" class="dash"/>
+<path d="M962 328V421" class="dash"/><path d="M1100 328V485" class="dash"/>
+<text x="32" y="326" class="head">Client</text>
+<path d="M140 356H1130" class="line"/>
+<circle cx="680" cy="356" r="9" fill="#10b981"/><circle cx="800" cy="356" r="9" fill="#10b981"/>
+<circle cx="962" cy="356" r="9" fill="#10b981"/><circle cx="1100" cy="356" r="9" fill="#10b981"/>
+<text x="680" y="318" text-anchor="middle" class="head">90</text><text x="800" y="318" text-anchor="middle" class="head">110</text>
+<text x="962" y="318" text-anchor="middle" class="head">137</text><text x="1100" y="318" text-anchor="middle" class="head">160</text>
+<text x="140" y="388" text-anchor="middle" class="small">arrival: 0</text>
+<text x="680" y="388" text-anchor="middle" class="small">token 1</text><text x="800" y="388" text-anchor="middle" class="small">token 2</text>
+<text x="962" y="388" text-anchor="middle" class="small">token 3</text><text x="1100" y="388" text-anchor="middle" class="small">token 4</text>
+<path d="M680 407V418H800V407M800 407V418H962V407M962 407V418H1100V407" class="line"/>
+<text x="740" y="444" text-anchor="middle" class="body">20 ms</text><text x="881" y="444" text-anchor="middle" class="body">27 ms</text><text x="1031" y="444" text-anchor="middle" class="body">23 ms</text>
+<path d="M140 472V484H680V472" stroke="#2563eb" stroke-width="2" fill="none"/>
+<text x="410" y="511" text-anchor="middle" class="head">Client TTFT = 90 ms</text>
+<rect x="32" y="548" width="1136" height="123" rx="12" fill="#fff" stroke="#cbd5e1"/>
+<text x="53" y="580" class="body">Total request time = 160 ms. Four output tokens / 0.160 s = 25 tokens/s.</text>
+<text x="53" y="616" class="body">TPOT after first token = (160 − 90) / 3 = 23.33 ms. This is a different denominator.</text>
+<text x="53" y="650" class="small">The 52 ms from model start to internal sampling is neither client TTFT nor total request latency.</text>
+<text x="32" y="714" class="small">Observe network receipt separately: a synchronous engine step can return token events later than their internal timestamps.</text>
+</svg>

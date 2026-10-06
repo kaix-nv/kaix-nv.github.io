@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 765" role="img" aria-labelledby="title desc">
+<title id="title">KV shards contribute to one global softmax</title>
+<desc id="desc">Two ranks summarize disjoint key shards with maxima, denominators, and weighted numerators. Rescaling to a shared maximum and summing yields numerator seventy-five and denominator two point five, giving thirty. Averaging local softmax outputs would be incorrect.</desc>
+<defs><style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker></defs>
+<rect width="1200" height="765" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">KV shards contribute to one global softmax</text>
+<text x="32" y="82" class="body" text-anchor="start">One query; scalar values for clarity. The already-scaled scores have exponentials [1, 2, 3, 4].</text><rect x="32" y="115" width="536" height="207" rx="10" class="purple"/><text x="54" y="156" class="body" text-anchor="start">Rank 0 owns keys 0 and 1</text>
+<text x="54" y="199" class="body" text-anchor="start">Scores: [0, ln 2]     Values: [10, 20]</text>
+<text x="54" y="242" class="body" text-anchor="start">Local m₀ = ln 2</text>
+<text x="54" y="285" class="body" text-anchor="start">Local d₀ = 1.5; n₀ = 25</text><rect x="632" y="115" width="536" height="207" rx="10" class="blue"/><text x="654" y="156" class="body" text-anchor="start">Rank 1 owns keys 2 and 3</text>
+<text x="654" y="199" class="body" text-anchor="start">Scores: [ln 3, ln 4]  Values: [30, 40]</text>
+<text x="654" y="242" class="body" text-anchor="start">Local m₁ = ln 4</text>
+<text x="654" y="285" class="body" text-anchor="start">Local d₁ = 1.75; n₁ = 62.5</text><path d="M300 325 L440 369" class="arrow"/><path d="M900 325 L760 369" class="arrow"/><rect x="240" y="378" width="720" height="69" rx="10" class="orange"/><text x="600" y="422" class="heading" text-anchor="middle">Global maximum m = ln 4</text><rect x="32" y="490" width="536" height="99" rx="10" class="purple"/><text x="54" y="527" class="body" text-anchor="start">Rescale by exp(m₀ − m) = 0.5</text>
+<text x="54" y="557" class="body" text-anchor="start">Contribution: denominator 0.75; numerator 12.5</text><rect x="632" y="490" width="536" height="99" rx="10" class="blue"/><text x="654" y="527" class="body" text-anchor="start">Rescale by exp(m₁ − m) = 1</text>
+<text x="654" y="557" class="body" text-anchor="start">Contribution: denominator 1.75; numerator 62.5</text><path d="M440 450 L300 480" class="arrow"/><path d="M760 450 L900 480" class="arrow"/><rect x="178" y="641" width="844" height="90" rx="10" class="green"/><text x="600" y="677" class="heading" text-anchor="middle">SUM: denominator 2.5; numerator 75 → output 30</text><text x="600" y="712" class="small" text-anchor="middle">Equivalent code: MAX first, form statistics using global m, then SUM.</text><path d="M300 592 L440 631" class="arrow"/><path d="M900 592 L760 631" class="arrow"/>
+</svg>

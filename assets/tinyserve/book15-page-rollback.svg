@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+<title id="title">A speculative suffix rolls back across a page boundary</title>
+<desc id="desc">After verification, page five holds positions zero through three, page two holds positions four through seven, and page four holds position eight. Committing seven cached positions retains pages five and two, frees page four, and hides page two's final rejected slot. The next append overwrites that slot with pending correction eight.</desc>
+<rect width="1200" height="720" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#172b43">
+<text x="40" y="48" font-size="28" font-weight="700">Rollback keeps the prefix, hides a tail, and frees whole pages</text>
+<text x="40" y="80" font-size="18">Four-token pages · labels inside cells are logical positions and token roles</text>
+<text x="40" y="133" font-size="22" font-weight="700">After verification</text>
+<text x="40" y="165" font-size="20">length 9</text><text x="40" y="195" font-size="18">table [5, 2, 4]</text>
+<text x="282" y="132" font-size="18">Physical page 5</text><text x="591" y="132" font-size="18">Physical page 2</text><text x="900" y="132" font-size="18">Physical page 4</text>
+<rect x="280" y="145" width="280" height="81" rx="7" fill="#e8f0fd" stroke="#6088b7"/>
+<text x="301" y="178" font-size="20">positions 0–3</text><text x="301" y="209" font-size="18">committed prefix</text>
+<rect x="589" y="145" width="210" height="81" rx="7" fill="#e2f2e8" stroke="#50826b"/>
+<text x="601" y="178" font-size="18">4: old · 5: token 4</text><text x="601" y="209" font-size="18">6: accepted token 7</text>
+<rect x="799" y="145" width="70" height="81" fill="#f8dfe1" stroke="#a8666c"/>
+<text x="811" y="176" font-size="18">pos 7</text><text x="811" y="208" font-size="18">9</text>
+<rect x="898" y="145" width="280" height="81" rx="7" fill="#f8dfe1" stroke="#a8666c"/>
+<text x="919" y="178" font-size="20">position 8: token 2</text><text x="919" y="209" font-size="18">remaining three slots invalid</text>
+<path d="M40 254 H1178" stroke="#d0d9e5"/>
+<text x="40" y="304" font-size="22" font-weight="700">Commit length 7</text>
+<text x="40" y="338" font-size="20">keep ceil(7/4) = 2</text><text x="40" y="369" font-size="18">table [5, 2]</text>
+<rect x="280" y="294" width="280" height="81" rx="7" fill="#e8f0fd" stroke="#6088b7"/>
+<text x="301" y="327" font-size="20">positions 0–3</text><text x="301" y="358" font-size="18">retained, no copy</text>
+<rect x="589" y="294" width="210" height="81" rx="7" fill="#e2f2e8" stroke="#50826b"/>
+<text x="601" y="327" font-size="18">positions 4–6</text><text x="601" y="358" font-size="18">retained, no copy</text>
+<rect x="799" y="294" width="70" height="81" fill="#edf0f3" stroke="#7d8793" stroke-dasharray="5 4"/>
+<text x="809" y="327" font-size="16">stale 9</text><text x="810" y="358" font-size="16">hidden</text>
+<rect x="898" y="294" width="280" height="81" rx="7" fill="#edf0f3" stroke="#7d8793" stroke-dasharray="6 5"/>
+<text x="919" y="327" font-size="20">Page 4 → free list</text><text x="919" y="358" font-size="18">no longer request-owned</text>
+<path d="M40 406 H1178" stroke="#d0d9e5"/>
+<text x="40" y="456" font-size="22" font-weight="700">Next append</text><text x="40" y="490" font-size="20">pending correction 8</text><text x="40" y="521" font-size="18">writes position 7</text>
+<rect x="280" y="446" width="280" height="81" rx="7" fill="#e8f0fd" stroke="#6088b7"/>
+<text x="301" y="479" font-size="20">positions 0–3</text><text x="301" y="510" font-size="18">unchanged</text>
+<rect x="589" y="446" width="210" height="81" rx="7" fill="#e2f2e8" stroke="#50826b"/>
+<text x="601" y="479" font-size="18">positions 4–6</text><text x="601" y="510" font-size="18">unchanged</text>
+<rect x="799" y="446" width="70" height="81" fill="#fff3d9" stroke="#b39241"/>
+<text x="811" y="478" font-size="18">pos 7</text><text x="811" y="510" font-size="18">8</text>
+<text x="40" y="589" font-size="22">Physical slot = table[7 // 4] × 4 + 7 % 4 = 2 × 4 + 3 = 11</text>
+<text x="40" y="632" font-size="20">The draft has its own pool. It temporarily reaches length 8, then also truncates to 7.</text>
+<text x="40" y="676" font-size="20">Changing the valid length must also invalidate any old attention plan that still references page 4.</text>
+</g></svg>

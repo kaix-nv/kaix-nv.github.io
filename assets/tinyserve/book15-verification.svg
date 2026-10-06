@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-labelledby="title desc">
+<title id="title">Target verification accepts only a matching proposal prefix</title>
+<desc id="desc">Five tokens are cached and token four is pending. The draft proposes seven, nine, two. The target consumes four, seven, nine, two at positions five through eight and predicts seven, eight, thirteen, eleven. Seven matches; nine fails. Emit seven and correction eight, discard later predictions, and leave eight pending.</desc>
+<rect width="1200" height="660" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#172b43">
+<text x="40" y="48" font-size="28" font-weight="700">Each verification row predicts the next token</text>
+<text x="40" y="81" font-size="18">Five cached tokens · pending token 4 · draft proposals [7, 9, 2]</text>
+<rect x="40" y="116" width="1120" height="297" rx="12" fill="#ffffff" stroke="#bbc7d6"/>
+<path d="M40 169 H1160 M40 235 H1160 M40 293 H1160 M40 351 H1160" stroke="#d0d9e5"/>
+<text x="62" y="151" font-size="20" font-weight="700">Target input</text>
+<text x="292" y="151" font-size="20" font-weight="700">Position</text>
+<text x="466" y="151" font-size="20" font-weight="700">Predicts</text>
+<text x="664" y="151" font-size="20" font-weight="700">Comparison and decision</text>
+<text x="62" y="209" font-size="22">pending 4</text><text x="292" y="209" font-size="22">5</text><text x="466" y="209" font-size="22">7</text><text x="664" y="209" font-size="22" fill="#27694e">7 = draft 7 → accept</text>
+<text x="62" y="272" font-size="22">draft 7</text><text x="292" y="272" font-size="22">6</text><text x="466" y="272" font-size="22">8</text><text x="664" y="272" font-size="22" fill="#973c43">8 ≠ draft 9 → correct and stop</text>
+<text x="62" y="330" font-size="22">draft 9</text><text x="292" y="330" font-size="22">7</text><text x="466" y="330" font-size="22">13</text><text x="664" y="330" font-size="21">Discard: history includes rejected 9</text>
+<text x="62" y="389" font-size="22">draft 2</text><text x="292" y="389" font-size="22">8</text><text x="466" y="389" font-size="22">11</text><text x="664" y="389" font-size="21">Discard: history includes rejected 9</text>
+<rect x="40" y="449" width="545" height="106" rx="12" fill="#e2f2e8" stroke="#50826b"/>
+<text x="62" y="485" font-size="22" font-weight="700">Emitted this round: [7, 8]</text>
+<text x="62" y="524" font-size="20">7 is accepted; 8 is the target correction.</text>
+<rect x="615" y="449" width="545" height="106" rx="12" fill="#fff3d9" stroke="#b39241"/>
+<text x="637" y="485" font-size="22" font-weight="700">Next pending token: 8</text>
+<text x="637" y="524" font-size="20">Cache retains old prefix + 4 + 7 = 7 tokens.</text>
+<text x="40" y="601" font-size="20">If every proposal matches, the last target row provides a bonus token instead of a correction.</text>
+<text x="40" y="633" font-size="18">EOS and output limits can end the round before a bonus is emitted.</text>
+</g></svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc" xml:space="preserve">
+<title id="title">Dense, windowed, and selected-block reads over eight tokens</title><desc id="desc">For the query at position seven, dense attention reads all eight positions; a two-token window reads six and seven; selected blocks read zero, one, six, and seven. Renormalization changes the resulting scalar value.</desc>
+<style>text { white-space: pre; }</style>
+<rect width="1200" height="630" rx="18" fill="#f5f8fc"/><g font-family="Arial,sans-serif" fill="#172b43"><text x="35" y="48" font-size="28" font-weight="700">Which history does query 7 read?</text>
+<g font-size="21" font-family="monospace"><text x="320" y="108">0    1    2    3    4    5    6    7</text><text x="35" y="151">Scaled score</text><text x="320" y="151">0    2    0   −1    1    0    2    1</text><text x="35" y="192">Value</text><text x="320" y="192">1    4    2   −1    3    0    5    2</text></g>
+<g fill="white" stroke="#bbcada"><rect x="35" y="219" width="1130" height="88" rx="10"/><rect x="35" y="323" width="1130" height="88" rx="10"/><rect x="35" y="427" width="1130" height="88" rx="10"/></g>
+<g font-size="22" font-weight="700"><text x="55" y="256">Dense</text><text x="55" y="360">Window width 2</text><text x="55" y="464">Blocks 0 and 3</text></g>
+<g font-family="monospace" font-size="21" fill="#2c6887"><text x="320" y="258">●    ●    ●    ●    ●    ●    ●    ●</text><text x="320" y="362">·    ·    ·    ·    ·    ·    ●    ●</text><text x="320" y="466">●    ●    ·    ·    ·    ·    ●    ●</text></g>
+<g font-size="18"><text x="55" y="287">8 reads</text><text x="55" y="391">2 reads</text><text x="55" y="495">4 reads</text></g>
+<g font-size="21" font-weight="700"><text x="980" y="264">3.507891</text><text x="980" y="368">4.193176</text><text x="980" y="472">3.943367</text></g>
+<text x="977" y="204" font-size="19">Output</text><text x="35" y="559" font-size="21">Two-token selection blocks: [0,1] [2,3] [4,5] [6,7]</text><text x="35" y="600" font-size="20">Every row uses its own denominator. Keeping high scores does not make the outputs identical.</text>
+</g></svg>

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+<title id="title">One weight row through INT8 quantization</title>
+<desc id="desc">The row maximum chooses scale one over 127. Dividing, rounding, and clipping produces eight integer codes. Persistent storage contains the codes plus a scale. Reconstruction multiplies the codes by that scale but cannot recover rounding loss.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 Z" fill="#52657a"/></marker></defs>
+<rect width="1200" height="600" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#172b43">
+<text x="40" y="48" font-size="28" font-weight="700">One row, one scale, eight stored codes</text>
+<text x="40" y="80" font-size="18">Symmetric INT8 · nearest-even rounding · code −128 intentionally unused</text>
+<rect x="40" y="115" width="1120" height="95" rx="12" fill="#e8f0fd" stroke="#6088b7"/>
+<text x="62" y="148" font-size="20" font-weight="700">Original weight row W</text>
+<text x="62" y="183" font-size="24" font-family="monospace">[−1.00, −0.60, −0.20, 0, 0.25, 0.50, 0.75, 1.00]</text>
+<path d="M280 214 V264" stroke="#52657a" stroke-width="3" marker-end="url(#arrow)"/>
+<text x="312" y="246" font-size="20">amax = 1 → scale s = 1/127</text>
+<rect x="40" y="277" width="810" height="110" rx="12" fill="#e6f4ec" stroke="#50826b"/>
+<text x="62" y="311" font-size="20" font-weight="700">Codes q = clip(round(W / s), −127, 127)</text>
+<text x="62" y="355" font-size="24" font-family="monospace">[−127, −76, −25, 0, 32, 64, 95, 127]</text>
+<rect x="880" y="277" width="280" height="110" rx="12" fill="#fff3d9" stroke="#b39241"/>
+<text x="904" y="314" font-size="20" font-weight="700">Scale stored separately</text>
+<text x="904" y="350" font-size="22">s ≈ 0.007874016</text>
+<path d="M280 392 V435" stroke="#52657a" stroke-width="3" marker-end="url(#arrow)"/>
+<text x="312" y="422" font-size="20">Decode a code, then multiply by s</text>
+<rect x="40" y="449" width="1120" height="107" rx="12" fill="#eef0f7" stroke="#7d82a1"/>
+<text x="62" y="485" font-size="20" font-weight="700">Second value: −76 × (1/127) ≈ −0.598425</text>
+<text x="62" y="523" font-size="20">Its original value was −0.600000. Dequantization preserves the approximation.</text>
+</g></svg>

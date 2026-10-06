@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 710" role="img" aria-labelledby="title desc">
+<title id="title">More token rows reuse the same projection weights</title>
+<desc id="desc">A BF16 projection maps 1024 input features to 4096 output features using 8 MiB of weights. One token row requires 8.39 million FLOPs and 8.399 million modeled bytes, about 1 FLOP per byte. A group of 128 rows requires 1.074 billion FLOPs and 9.699 million bytes, about 110.7 FLOPs per byte. On a hypothetical 100 TFLOP/s, 1 TB/s device, resource lower bounds change from a memory-dominated 8.399 microseconds to a compute-dominated 10.737 microseconds. These are calculations under a read-once model, not measured latencies.</desc>
+<defs><style>text{font-family:system-ui,sans-serif;fill:#0f172a}.title{font-size:27px;font-weight:700}.head{font-size:22px;font-weight:700}.body{font-size:19px}.small{font-size:16px;fill:#475569}.mono{font-family:ui-monospace,monospace;font-size:19px}</style></defs>
+<rect width="1200" height="710" rx="18" fill="#f8fafc"/>
+<text x="32" y="47" class="title">More rows reuse the same weight matrix</text>
+<text x="32" y="81" class="body">Y = XWᵀ · input width 1024 · output width 4096 · BF16 storage · multiply-add = 2 FLOPs</text>
+<rect x="32" y="107" width="1136" height="73" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+<text x="600" y="137" text-anchor="middle" class="head">W [4096, 1024] is 8 MiB in either case</text>
+<text x="600" y="164" text-anchor="middle" class="small">Traffic model: read weights and inputs once; write outputs once. Real DRAM traffic may differ.</text>
+<rect x="32" y="205" width="548" height="343" rx="12" fill="#fff" stroke="#2563eb"/>
+<rect x="620" y="205" width="548" height="343" rx="12" fill="#fff" stroke="#ea580c"/>
+<text x="58" y="244" class="head">One token row</text>
+<text x="646" y="244" class="head">128 token rows</text>
+<text x="58" y="286" class="mono">[1, 1024] → [1, 4096]</text>
+<text x="646" y="286" class="mono">[128, 1024] → [128, 4096]</text>
+<text x="58" y="330" class="body">8.39 million FLOPs</text>
+<text x="646" y="330" class="body">1.074 billion FLOPs</text>
+<text x="58" y="370" class="body">8.399 million modeled bytes</text>
+<text x="646" y="370" class="body">9.699 million modeled bytes</text>
+<text x="58" y="410" class="head">Intensity ≈ 1.00 FLOP/byte</text>
+<text x="646" y="410" class="head">Intensity ≈ 110.7 FLOP/byte</text>
+<text x="58" y="460" class="body">Compute lower bound: 0.084 μs</text>
+<text x="646" y="460" class="body">Compute lower bound: 10.737 μs</text>
+<text x="58" y="498" class="body">Traffic lower bound: 8.399 μs</text>
+<text x="646" y="498" class="body">Traffic lower bound: 9.699 μs</text>
+<text x="32" y="592" class="body">Illustrative rates: 100 TFLOP/s compute and 1 TB/s bandwidth. Crossover = 100 FLOP/byte.</text>
+<text x="32" y="630" class="body">The larger resource time is a lower bound, not a prediction of observed execution time.</text>
+<text x="32" y="671" class="small">Not an A6000 specification or measurement. Launch costs, cache behavior, tiling, and utilization remain outside this model.</text>
+</svg>

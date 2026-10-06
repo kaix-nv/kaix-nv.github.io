@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+<title id="title">Four tokens become eight expert assignments</title><desc id="desc">Each token chooses two experts. Assignments are grouped by expert while preserving original assignment IDs. Expert outputs scatter back to token and slot coordinates, then combine with route weights.</desc>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0L8,3L0,6" fill="#48617a"/></marker></defs>
+<rect width="1200" height="760" rx="18" fill="#f5f8fc"/><g font-family="Arial,sans-serif" fill="#172b43"><text x="35" y="48" font-size="28" font-weight="700">Carry assignment identity through expert execution</text>
+<rect x="35" y="91" width="420" height="282" rx="12" fill="white" stroke="#b6c8d7"/><text x="57" y="132" font-size="23" font-weight="700">Token → (expert, weight)</text>
+<g font-family="monospace" font-size="21"><text x="57" y="185">0 → (2,0.6), (5,0.4)</text><text x="57" y="234">1 → (2,0.8), (7,0.2)</text><text x="57" y="283">2 → (5,0.3), (7,0.7)</text><text x="57" y="332">3 → (2,0.5), (5,0.5)</text></g>
+<path d="M460 230h119" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="605" y="91" width="560" height="282" rx="12" fill="#e5edf7" stroke="#adc0d6"/><text x="629" y="132" font-size="23" font-weight="700">Grouped assignment IDs</text>
+<g font-family="monospace" font-size="21"><text x="629" y="185">Expert 2: [0,2,6] → tokens [0,1,3]</text><text x="629" y="234">Expert 5: [1,4,7] → tokens [0,2,3]</text><text x="629" y="283">Expert 7: [3,5]   → tokens [1,2]</text></g><text x="629" y="334" font-size="19">Each group reuses one expert's weight matrices.</text>
+<path d="M890 377v49" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="35" y="439" width="1130" height="151" rx="12" fill="white" stroke="#b6c8d7"/><text x="57" y="478" font-size="23" font-weight="700">Scatter to original assignment a</text><text x="57" y="519" font-size="22">token = a // 2          slot = a % 2          example: a = 6 → token 3, slot 0</text><text x="57" y="558" font-size="21">Result shape [4,2,D] retains both expert results until weighted reduction.</text>
+<path d="M590 594v39" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="145" y="645" width="910" height="79" rx="12" fill="#e2f0e7" stroke="#9fbeaa"/><text x="168" y="680" font-size="22" font-weight="700">Token 0: 0.6 × [2,0] + 0.4 × [0,4] = [1.2,1.6]</text><text x="168" y="710" font-size="18">Then apply the model's remaining normalization, projection, shared branch, and residual.</text>
+</g></svg>

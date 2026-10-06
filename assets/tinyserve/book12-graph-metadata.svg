@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Shared pages save storage but still require per-request metadata</title>
+  <desc id="desc">Three requests share physical pages 0 through 3 and own private pages 4, 5 and 6. Seven physical pages fit in a pool of eight. Their fifteen page references plus one graph dummy row reference exceed the twelve entries captured for the batch-four graph. The engine falls back to eager execution.</desc>
+  <rect width="1200" height="720" fill="#f8fafc"/>
+  <g font-family="Arial, sans-serif" fill="#172a42">
+    <text x="40" y="48" font-size="28" font-weight="700">Physical capacity and graph metadata capacity are different</text>
+    <text x="40" y="83" font-size="18">An illustrative pool with 8 usable pages, 3 live requests, and a batch-4 graph bucket.</text>
+    <rect x="35" y="112" width="1130" height="177" rx="12" fill="#e7f4ef"/>
+    <text x="60" y="148" font-size="22" font-weight="700">Physical KV pool: 7 of 8 pages occupied</text>
+    <g stroke="#247552" stroke-width="2" fill="#bee5d4"><rect x="60" y="170" width="115" height="54" rx="7"/><rect x="195" y="170" width="115" height="54" rx="7"/><rect x="330" y="170" width="115" height="54" rx="7"/><rect x="465" y="170" width="115" height="54" rx="7"/></g>
+    <g stroke="#3465a4" stroke-width="2" fill="#d0e1fb"><rect x="600" y="170" width="115" height="54" rx="7"/><rect x="735" y="170" width="115" height="54" rx="7"/><rect x="870" y="170" width="115" height="54" rx="7"/></g>
+    <rect x="1005" y="170" width="115" height="54" rx="7" fill="#fff" stroke="#64748b" stroke-width="2" stroke-dasharray="5 4"/>
+    <g font-size="22" text-anchor="middle"><text x="117" y="205">0</text><text x="252" y="205">1</text><text x="387" y="205">2</text><text x="522" y="205">3</text><text x="657" y="205">4</text><text x="792" y="205">5</text><text x="927" y="205">6</text><text x="1062" y="205">free</text></g>
+    <text x="60" y="258" font-size="18">0–3: shared immutable prefix</text><text x="600" y="258" font-size="18">4–6: private tails, one per request</text>
+    <rect x="35" y="311" width="1130" height="215" rx="12" fill="#eaf1fb"/>
+    <text x="60" y="348" font-size="22" font-weight="700">Flattened page-table metadata counts each request's references</text>
+    <g font-family="monospace" font-size="23"><text x="65" y="393">A: [0, 1, 2, 3, 4]</text><text x="65" y="435">B: [0, 1, 2, 3, 5]</text><text x="65" y="477">C: [0, 1, 2, 3, 6]</text></g>
+    <text x="520" y="392" font-size="21">3 × 5 = 15 real page references</text>
+    <text x="520" y="435" font-size="21">+ 1 scratch-page reference for the dummy row</text>
+    <text x="520" y="478" font-size="23" font-weight="700">= 16 metadata entries needed</text>
+    <rect x="35" y="548" width="1130" height="129" rx="12" fill="#fff2df" stroke="#a76412" stroke-width="2"/>
+    <text x="60" y="586" font-size="22">Captured index buffer: num_blocks + bucket_size = 8 + 4 = 12 entries</text>
+    <text x="60" y="627" font-size="25" font-weight="700">16 &gt; 12 → GraphRunner.fits() rejects replay → eager fallback</text>
+    <text x="60" y="659" font-size="17">Scratch KV is separate from the usable pool; physical KV storage is not exhausted.</text>
+  </g>
+</svg>

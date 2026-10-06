@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+<title id="title">Selected weights and indexed expert execution</title><desc id="desc">Expert-major BF16 weights feed either a short-input selected-weight gather or a long-input indexed grouped path. Both return token-by-route outputs before common weighted reduction. The indexed path uses activation and result temporaries rather than repeated weight matrices.</desc>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0L8,3L0,6" fill="#48617a"/></marker></defs>
+<rect width="1200" height="760" rx="18" fill="#f5f8fc"/><g font-family="Arial,sans-serif" fill="#172b43"><text x="35" y="48" font-size="28" font-weight="700">Packed storage supports two execution geometries</text>
+<rect x="210" y="84" width="780" height="88" rx="12" fill="white" stroke="#b0c3d5"/><text x="237" y="120" font-size="23" font-weight="700">Expert-major weights: w1,w3 [E,I,D]; w2 [E,D,I]</text><text x="237" y="153" font-size="19">Packed once on CPU; original separate modules removed before GPU transfer</text>
+<path d="M420 176L305 222M780 176L895 222" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<g fill="white" stroke="#b0c3d5"><rect x="35" y="234" width="535" height="328" rx="12"/><rect x="630" y="234" width="535" height="328" rx="12"/></g>
+<text x="57" y="273" font-size="23" font-weight="700">Short input: selected weights</text><text x="652" y="273" font-size="23" font-weight="700">Long input: indexed grouped kernels</text>
+<g font-size="21"><text x="57" y="319">Gather by expert IDs [N,K]</text><text x="57" y="362">Weight temporary [N,K,I,D]</text><text x="57" y="405">Three batched contractions</text><text x="57" y="448">Expert results [N,K,D]</text><text x="652" y="319">Sort assignment IDs by expert</text><text x="652" y="362">Build row and tile offsets on GPU</text><text x="652" y="405">Up + activation → [NK,I]</text><text x="652" y="448">Down + scatter → [N,K,D]</text></g>
+<text x="57" y="502" font-size="19">Fixture: 2 MiB selected weights per token</text><text x="57" y="534" font-size="19">64 MiB guard → at most 32 rows</text><text x="652" y="502" font-size="19">Read weights by expert; reuse within row tiles</text><text x="652" y="534" font-size="19">Two expert launches plus scheduling operations</text>
+<path d="M303 566L460 608M897 566L740 608" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="220" y="620" width="760" height="88" rx="12" fill="#e3f0e8" stroke="#9abca6"/><text x="245" y="654" font-size="22" font-weight="700">Common weighted sum over K routes → [N,D]</text><text x="245" y="686" font-size="19">Routed norm/up projection + shared experts restore residual width H</text>
+<text x="35" y="744" font-size="18">Native long path is restricted to measured Kimi shapes; unsupported shapes use the grouped oracle.</text>
+</g></svg>

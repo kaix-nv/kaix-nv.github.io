@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-labelledby="title desc">
+<title id="title">Dispatch expert routes and restore token identity</title>
+<desc id="desc">Four tokens choose two experts each. Source ranks pack by expert owner, exchange route activations, and run only locally owned experts. Reverse dispatch and permutation inversion recover weighted outputs, then a final gather restores the replicated residual.</desc>
+<defs><style>
+text{font-family:system-ui,sans-serif;fill:#0f172a}
+.title{font-size:28px;font-weight:700}.heading{font-size:22px;font-weight:700}
+.body{font-size:20px}.small{font-size:17px;fill:#475569}.mono{font-size:21px;font-family:ui-monospace,monospace}
+.blue{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.purple{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}
+.green{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.orange{fill:#ffedd5;stroke:#ea580c;stroke-width:2}
+.gray{fill:#e2e8f0;stroke:#94a3b8;stroke-width:2}.white{fill:#fff;stroke:#cbd5e1;stroke-width:2}
+.arrow{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+</style><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker></defs>
+<rect width="1200" height="750" rx="16" fill="#f8fafc"/>
+<text x="32" y="44" class="title" text-anchor="start">Dispatch expert routes and restore token identity</text>
+<text x="32" y="82" class="body" text-anchor="start">Top-2 routing gives eight routes. Source ownership prevents duplicate dispatch from replicated inputs.</text><rect x="32" y="116" width="536" height="182" rx="10" class="purple"/><text x="54" y="153" class="body" text-anchor="start">Source rank 0</text>
+<text x="54" y="190" class="body" text-anchor="start">t0 → E0 (0.75), E2 (0.25)</text>
+<text x="54" y="227" class="body" text-anchor="start">t1 → E1 (0.40), E2 (0.60)</text>
+<text x="54" y="264" class="body" text-anchor="start">Packed: t0/E0, t1/E1, t0/E2, t1/E2</text><rect x="632" y="116" width="536" height="182" rx="10" class="blue"/><text x="654" y="153" class="body" text-anchor="start">Source rank 1</text>
+<text x="654" y="190" class="body" text-anchor="start">t2 → E0 (0.20), E3 (0.80)</text>
+<text x="654" y="227" class="body" text-anchor="start">t3 → E2 (0.50), E3 (0.50)</text>
+<text x="654" y="264" class="body" text-anchor="start">Packed: t2/E0, t3/E2, t2/E3, t3/E3</text><path d="M300 301 L300 365" class="arrow"/><path d="M900 301 L900 365" class="arrow"/><text x="600" y="340" class="heading" text-anchor="middle">Count exchange + variable all-to-all</text><rect x="32" y="376" width="536" height="145" rx="10" class="purple"/><text x="54" y="414" class="body" text-anchor="start">Expert owner rank 0</text>
+<text x="54" y="451" class="body" text-anchor="start">E0 computes t0 and t2</text>
+<text x="54" y="488" class="body" text-anchor="start">E1 computes t1</text><rect x="632" y="376" width="536" height="145" rx="10" class="blue"/><text x="654" y="414" class="body" text-anchor="start">Expert owner rank 1</text>
+<text x="654" y="451" class="body" text-anchor="start">E2 computes t0, t1, and t3</text>
+<text x="654" y="488" class="body" text-anchor="start">E3 computes t2 and t3</text><path d="M300 524 L300 584" class="arrow"/><path d="M900 524 L900 584" class="arrow"/><text x="600" y="559" class="heading" text-anchor="middle">Reverse all-to-all + inverse permutation</text><rect x="32" y="595" width="1136" height="118" rx="10" class="green"/><text x="54" y="632" class="body" text-anchor="start">Source combines each token's two returned routes using its retained weights.</text>
+<text x="54" y="662" class="body" text-anchor="start">Example t0: 0.75 × [2, 0] + 0.25 × [0, 4] = [1.5, 1]</text>
+<text x="54" y="692" class="body" text-anchor="start">Final token gather restores [t0, t1, t2, t3] on both ranks.</text>
+</svg>

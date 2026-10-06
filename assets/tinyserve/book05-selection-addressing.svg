@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="690" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc" xml:space="preserve">
+<title id="title">From sparse selection to physical KV addresses</title><desc id="desc">Two-token selection blocks zero and three expand to logical positions zero, one, six, seven. Four-token cache pages with table nine, two map those positions to physical slots 36, 37, 10, 11. Unselected KV remains available to later queries.</desc>
+<style>text { white-space: pre; }</style>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0L8,3L0,6" fill="#48617a"/></marker></defs>
+<rect width="1200" height="690" rx="18" fill="#f5f8fc"/><g font-family="Arial,sans-serif" fill="#172b43"><text x="35" y="48" font-size="28" font-weight="700">Selection and address translation use different units</text>
+<rect x="35" y="89" width="475" height="102" rx="12" fill="#e6edf8" stroke="#adc2d4"/><text x="58" y="127" font-size="22" font-weight="700">Select logical blocks [0, 3]</text><text x="58" y="165" font-size="20">Selection block width = 2 tokens</text>
+<path d="M512 140h112" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="650" y="89" width="515" height="102" rx="12" fill="white" stroke="#adc2d4"/><text x="673" y="127" font-size="22" font-weight="700">Expand logical positions [0, 1, 6, 7]</text><text x="673" y="165" font-size="20">Deduplicate overlaps; retain causal positions</text>
+<path d="M900 194v61" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="35" y="270" width="1130" height="154" rx="12" fill="white" stroke="#adc2d4"/><text x="58" y="307" font-size="22" font-weight="700">Request page table [9, 2]; cache page width = 4 tokens</text>
+<g font-family="monospace" font-size="21"><text x="58" y="350">position p          0       1       6       7</text><text x="58" y="389">physical slot      36      37      10      11</text></g><text x="727" y="355" font-size="20">slot = 4 × table[p // 4]</text><text x="792" y="390" font-size="20">+ p % 4</text>
+<path d="M590 427v53" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
+<rect x="200" y="493" width="800" height="82" rx="12" fill="#e3f0e8" stroke="#9dbba7"/><text x="225" y="529" font-size="22" font-weight="700">Load selected K/V and normalize across their union</text><text x="225" y="557" font-size="18">Stored position-6 key stays position 6, even if packed into temporary row 2.</text>
+<text x="35" y="622" font-size="21">Unselected blocks remain resident if future queries may select them.</text><text x="35" y="657" font-size="20">Background design only: no qualified Tinyserve sparse-attention backend at e20a348.</text>
+</g></svg>
