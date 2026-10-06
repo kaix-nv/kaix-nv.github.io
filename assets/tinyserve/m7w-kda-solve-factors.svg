@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">M7w prepares KDA solve transforms once and reuses them across eight value tiles</title>
+  <desc id="desc">The old kernel repeats a serial triangular solve for every 16-channel value tile. M7w solves identity columns in parallel to build output and state transforms, then applies those transforms to all eight value tiles while carrying recurrent state through chunks in order.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfcfe; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 18; }
+      .old { fill: #fff1f2; stroke: #fb7185; stroke-width: 2; rx: 10; }
+      .prep { fill: #eff6ff; stroke: #60a5fa; stroke-width: 2; rx: 10; }
+      .share { fill: #ecfdf5; stroke: #34d399; stroke-width: 2; rx: 10; }
+      .apply { fill: #f5f3ff; stroke: #a78bfa; stroke-width: 2; rx: 10; }
+      .state { fill: #fff7ed; stroke: #fb923c; stroke-width: 2; rx: 10; }
+      .metric { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 8; }
+      .title { font: 700 27px system-ui, sans-serif; fill: #0f172a; }
+      .section { font: 700 20px system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px system-ui, sans-serif; fill: #334155; }
+      .small { font: 12px system-ui, sans-serif; fill: #475569; }
+      .mono { font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; fill: #1e293b; }
+      .bad { font: 700 14px system-ui, sans-serif; fill: #be123c; }
+      .good { font: 700 14px system-ui, sans-serif; fill: #047857; }
+      .arrow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+      .causal { fill: none; stroke: #ea580c; stroke-width: 3; marker-end: url(#orange-arrow); }
+      .fan { fill: none; stroke: #8b5cf6; stroke-width: 1.8; marker-end: url(#purple-arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="orange-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ea580c"/>
+    </marker>
+    <marker id="purple-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1400" height="820"/>
+  <text x="42" y="45" class="title">M7w: move the repeated solve across the value-tile boundary</text>
+  <text x="42" y="72" class="body">Real Kimi-K3 chunk: C=64, K=128, V=128 = eight Vt=16 tiles</text>
+
+  <rect x="34" y="96" width="1332" height="220" class="panel"/>
+  <text x="58" y="128" class="section">Before: the same causal dependency is walked eight times</text>
+
+  <rect x="62" y="158" width="145" height="112" class="old"/>
+  <text x="83" y="187" class="head">value tile 0</text>
+  <text x="78" y="215" class="mono">R₀ [64,16]</text>
+  <text x="78" y="242" class="mono">solve L X₀=R₀</text>
+  <rect x="224" y="158" width="145" height="112" class="old"/>
+  <text x="245" y="187" class="head">value tile 1</text>
+  <text x="240" y="215" class="mono">R₁ [64,16]</text>
+  <text x="240" y="242" class="mono">solve L X₁=R₁</text>
+  <text x="389" y="220" class="title">…</text>
+  <rect x="438" y="158" width="145" height="112" class="old"/>
+  <text x="459" y="187" class="head">value tile 7</text>
+  <text x="454" y="215" class="mono">R₇ [64,16]</text>
+  <text x="454" y="242" class="mono">solve L X₇=R₇</text>
+  <path d="M 207 214 L 224 214" class="arrow"/>
+  <path d="M 369 214 L 385 214" class="arrow"/>
+  <path d="M 419 214 L 438 214" class="arrow"/>
+
+  <rect x="625" y="149" width="300" height="130" class="metric"/>
+  <text x="646" y="178" class="head" style="font-size:14px">Repeated work per [head, chunk]</text>
+  <text x="646" y="207" class="mono">8 tiles × 64 serial rows</text>
+  <text x="646" y="234" class="body">L is shared, but forward substitution</text>
+  <text x="646" y="255" class="body" style="font-size:13px">still lives inside every value-tile program.</text>
+
+  <rect x="960" y="149" width="370" height="130" class="metric"/>
+  <text x="981" y="178" class="head">T2048 row-tail profile</text>
+  <text x="981" y="207" class="mono">64 blocks · 255 regs/thread</text>
+  <text x="981" y="234" class="mono">8.95M local instructions</text>
+  <text x="981" y="260" class="bad">Serial solve is replicated across V</text>
+
+  <rect x="34" y="340" width="1332" height="430" class="panel"/>
+  <text x="58" y="374" class="section">After: prepare chunk-local transforms, then reuse them across V</text>
+
+  <text x="66" y="398" class="head"><tspan x="66">1 · Parallel preparation</tspan><tspan x="66" dy="20"> for every [batch, head, chunk]</tspan></text>
+  <rect x="62" y="431" width="166" height="112" class="prep"/>
+  <text x="83" y="461" class="head" style="font-size:14px">four column tiles</text>
+  <text x="80" y="490" class="mono">L Z = I</text>
+  <text x="80" y="517" class="small">4 programs × 16 columns</text>
+
+  <rect x="270" y="420" width="225" height="132" class="share"/>
+  <text x="292" y="451" class="head" style="font-size:14px">shared output transform</text>
+  <text x="291" y="483" class="mono">A = P Z  [64,64]</text>
+  <text x="291" y="516" class="head" style="font-size:14px">shared state transform</text>
+  <text x="291" y="541" class="mono">U = Kdᵀ Z [128,64]</text>
+  <path d="M 228 487 L 270 487" class="arrow"/>
+
+  <text x="548" y="410" class="head">2 · Eight value-tile programs apply the same A and U</text>
+  <rect x="544" y="431" width="144" height="112" class="apply"/>
+  <text x="567" y="460" class="head">value tile 0</text>
+  <text x="560" y="487" class="mono">A R₀ → O₀</text>
+  <text x="560" y="514" class="mono">U R₀ → S₀</text>
+  <rect x="709" y="431" width="144" height="112" class="apply"/>
+  <text x="732" y="460" class="head">value tile 1</text>
+  <text x="725" y="487" class="mono">A R₁ → O₁</text>
+  <text x="725" y="514" class="mono">U R₁ → S₁</text>
+  <text x="873" y="495" class="title">…</text>
+  <rect x="921" y="431" width="144" height="112" class="apply"/>
+  <text x="944" y="460" class="head">value tile 7</text>
+  <text x="937" y="487" class="mono">A R₇ → O₇</text>
+  <text x="937" y="514" class="mono">U R₇ → S₇</text>
+  <path d="M 495 466 C 515 466, 522 466, 544 466" class="fan"/>
+  <path d="M 495 482 C 585 482, 615 466, 709 466" class="fan"/>
+  <path d="M 495 500 C 700 500, 760 466, 921 466" class="fan"/>
+
+  <rect x="1100" y="420" width="230" height="132" class="metric"/>
+  <text x="1120" y="450" class="head">T2048 candidate</text>
+  <text x="1120" y="478" class="mono">prep 1,024 blocks</text>
+  <text x="1120" y="504" class="mono">apply 64 blocks</text>
+  <text x="1120" y="531" class="good">3.21× tail under NCU</text>
+
+  <text x="66" y="597" class="head">3 · Causality remains only in the state hand-off between chunks</text>
+  <rect x="64" y="621" width="182" height="78" class="state"/>
+  <text x="87" y="651" class="head">chunk 0 apply</text>
+  <text x="84" y="678" class="mono">S₀ → outputs → S₁</text>
+  <rect x="302" y="621" width="182" height="78" class="state"/>
+  <text x="325" y="651" class="head">chunk 1 apply</text>
+  <text x="322" y="678" class="mono">S₁ → outputs → S₂</text>
+  <rect x="540" y="621" width="182" height="78" class="state"/>
+  <text x="563" y="651" class="head">chunk 2 apply</text>
+  <text x="560" y="678" class="mono">S₂ → outputs → S₃</text>
+  <text x="743" y="670" class="title">…</text>
+  <rect x="802" y="621" width="182" height="78" class="state"/>
+  <text x="817" y="651" class="head">chunk N−1 apply</text>
+  <text x="822" y="678" class="mono">Sₙ₋₁ → outputs → Sₙ</text>
+  <path d="M 246 660 L 302 660" class="causal"/>
+  <path d="M 484 660 L 540 660" class="causal"/>
+  <path d="M 722 660 L 744 660" class="causal"/>
+  <path d="M 779 660 L 802 660" class="causal"/>
+
+  <rect x="1030" y="607" width="300" height="106" class="metric"/>
+  <text x="1050" y="638" class="head" style="font-size:14px">What changed—and what did not</text>
+  <text x="1050" y="665" class="body" style="font-size:13px">Chunk-local solves move before the loop.</text>
+  <text x="1050" y="689" class="body" style="font-size:13px">State still advances chunk 0 → 1 → … → N.</text>
+
+  <text x="42" y="803" class="small">Exact FP32 equations; factors are used only by the measured C64, K=V=128 inference path.</text>
+</svg>

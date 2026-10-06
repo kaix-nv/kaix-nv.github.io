@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7n promotes KDA's inner token chunk from 32 to 64</title>
+  <desc id="desc">One 2048-token scheduler forward enters KDA. With chunk size 32, each layer runs 64 inner iterations and carries state between them. With chunk size 64, it runs 32 larger iterations. Pair work grows while dispatch falls. A paired latency table shows neutral 32-token latency and increasingly lower latency through 2048 tokens.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.scheduler{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.c32{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.c64{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.state{fill:#fef3c7;stroke:#d97706;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.good{font:700 15px system-ui,sans-serif;fill:#15803d}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrowhead)}
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="50" class="title">M7n: halve KDA's loop trips with a measured inner chunk</text>
+  <text x="48" y="80" class="small">Scheduler fairness is unchanged; only the algebra inside one selected prefill forward changes.</text>
+
+  <rect x="48" y="108" width="1104" height="112" rx="16" class="panel"/>
+  <text x="72" y="143" class="head">Scheduler view</text>
+  <rect x="220" y="132" width="890" height="54" rx="10" class="scheduler"/>
+  <text x="665" y="154" text-anchor="middle" class="label">one complete 2,048-token prompt → one model forward</text>
+  <text x="665" y="176" text-anchor="middle" class="tiny">the scheduler prefill budget is held constant</text>
+  <path d="M665 186 V246" class="arrow"/>
+
+  <rect x="48" y="248" width="1104" height="278" rx="16" class="panel"/>
+  <text x="72" y="284" class="head">KDA view inside every linear-attention layer</text>
+
+  <text x="72" y="337" class="label">C=32</text>
+  <rect x="145" y="310" width="76" height="58" rx="8" class="state"/><text x="183" y="344" text-anchor="middle" class="tiny">S0</text>
+  <path d="M221 339 H252" class="arrow"/>
+  <rect x="254" y="305" width="174" height="68" rx="9" class="c32"/><text x="341" y="333" text-anchor="middle" class="label">32 tokens</text><text x="341" y="355" text-anchor="middle" class="tiny">32×32 pairs</text>
+  <path d="M428 339 H459" class="arrow"/>
+  <rect x="461" y="310" width="76" height="58" rx="8" class="state"/><text x="499" y="344" text-anchor="middle" class="tiny">S1</text>
+  <path d="M537 339 H568" class="arrow"/>
+  <rect x="570" y="305" width="174" height="68" rx="9" class="c32"/><text x="657" y="333" text-anchor="middle" class="label">32 tokens</text><text x="657" y="355" text-anchor="middle" class="tiny">32×32 pairs</text>
+  <text x="782" y="344" class="label">… 64 loop trips</text>
+  <text x="1018" y="344" text-anchor="middle" class="tiny">65,536 pair entries / tile</text>
+
+  <text x="72" y="443" class="label">C=64</text>
+  <rect x="145" y="416" width="76" height="58" rx="8" class="state"/><text x="183" y="450" text-anchor="middle" class="tiny">S0</text>
+  <path d="M221 445 H252" class="arrow"/>
+  <rect x="254" y="406" width="284" height="78" rx="9" class="c64"/><text x="396" y="438" text-anchor="middle" class="label">64 tokens</text><text x="396" y="462" text-anchor="middle" class="tiny">64×64 pairs · more work per trip</text>
+  <path d="M538 445 H569" class="arrow"/>
+  <rect x="571" y="416" width="76" height="58" rx="8" class="state"/><text x="609" y="450" text-anchor="middle" class="tiny">S1</text>
+  <text x="682" y="450" class="label">… 32 loop trips</text>
+  <text x="1018" y="450" text-anchor="middle" class="tiny">131,072 pair entries / tile</text>
+  <text x="145" y="510" class="small">State crosses chunk boundaries. Tokens inside a chunk are solved together.</text>
+
+  <rect x="48" y="554" width="1104" height="158" rx="16" class="panel"/>
+  <text x="72" y="590" class="head">Paired full-model result: C64 lower latency than C32</text>
+  <text x="118" y="628" class="label">T=32</text><text x="118" y="654" class="tiny">52.90 vs 52.70 ms</text><text x="118" y="681" class="small">−0.37% (neutral)</text>
+  <text x="388" y="628" class="label">T=128</text><text x="388" y="654" class="tiny">135.95 vs 161.51 ms</text><text x="388" y="681" class="good">15.82% lower</text>
+  <text x="658" y="628" class="label">T=512</text><text x="658" y="654" class="tiny">239.23 vs 328.41 ms</text><text x="658" y="681" class="good">27.16% lower</text>
+  <text x="928" y="628" class="label">T=2048</text><text x="928" y="654" class="tiny">557.35 vs 976.35 ms</text><text x="928" y="681" class="good">42.92% lower</text>
+</svg>

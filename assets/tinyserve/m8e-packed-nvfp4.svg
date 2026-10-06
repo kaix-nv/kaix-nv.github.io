@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="770" viewBox="0 0 1400 770" role="img" aria-labelledby="title desc">
+  <title id="title">M8e: packed NVFP4 storage with tile-local BF16 computation</title>
+  <desc id="desc">Offline export stores two E2M1 weight codes per byte, one E4M3 scale per sixteen columns, and one FP32 global scale. The loader retains those buffers. Each CUDA program reads a 32 by 64 weight tile, decodes it locally into BF16, and multiplies BF16 activations with FP32 accumulation. Only the output goes back to global memory. A worked index example maps output row 2, input channel 19 to byte 73, its high nibble, and scale byte 9.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#60758a"/></marker>
+    <style>
+      .title {font:700 29px Arial,sans-serif;fill:#142235}
+      .head {font:700 21px Arial,sans-serif;fill:#172536}
+      .body {font:18px Arial,sans-serif;fill:#405468}
+      .mono {font:17px monospace;fill:#26394d}
+      .small {font:16px Arial,sans-serif;fill:#53677a}
+      .arrow {fill:none;stroke:#60758a;stroke-width:2.5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1400" height="770" fill="#f8fafc"/>
+  <text x="40" y="48" class="title">M8e: four-bit weights do not require four-bit multiplication</text>
+  <text x="40" y="82" class="body">Y = X × Wᵀ · M token rows · N output channels · K input channels · G = ceil(K / 16)</text>
+
+  <rect x="40" y="120" width="310" height="218" rx="12" fill="#eee8f8" stroke="#8269ad" stroke-width="2"/>
+  <text x="60" y="156" class="head">Export once → load directly</text>
+  <text x="60" y="195" class="mono">codes  [N, G×8] : uint8</text>
+  <text x="60" y="228" class="mono">scales [N, G]   : uint8</text>
+  <text x="60" y="261" class="mono">global []       : FP32</text>
+  <text x="60" y="310" class="small">These three buffers stay resident.</text>
+  <path d="M350 224 H405" class="arrow"/>
+
+  <rect x="410" y="120" width="530" height="350" rx="12" fill="#fff4df" stroke="#d99a30" stroke-width="2"/>
+  <text x="432" y="156" class="head">One CUDA program · one output tile</text>
+  <text x="432" y="196" class="body">Loop over K in chunks of 64 channels:</text>
+  <text x="432" y="235" class="mono">1. Load 32 × 64 E2M1 codes</text>
+  <text x="432" y="267" class="mono">2. Decode block and global scales</text>
+  <text x="432" y="299" class="mono">3. Wtile = BF16((q × sblock) × sglobal)</text>
+  <text x="432" y="339" class="mono">4. Acc += BF16 Xtile × Wtileᵀ</text>
+  <text x="432" y="378" class="body">FP32 accumulator → one BF16 output store</text>
+  <text x="432" y="433" class="small">The decoded tile is local to the kernel.</text>
+  <path d="M940 282 H1000" class="arrow"/>
+
+  <rect x="1005" y="200" width="350" height="150" rx="12" fill="#e7f5ec" stroke="#53926b" stroke-width="2"/>
+  <text x="1027" y="239" class="head">Y [M, N] : BF16</text>
+  <text x="1027" y="279" class="body">No full BF16 W in VRAM</text>
+  <text x="1027" y="315" class="body">No native FP4 MMA claim</text>
+
+  <rect x="40" y="382" width="310" height="88" rx="12" fill="#e8f1fb" stroke="#6691ba" stroke-width="2"/>
+  <text x="60" y="419" class="head">X [M, K] : BF16</text>
+  <text x="60" y="451" class="small">16 or 32 token rows per tile</text>
+  <path d="M350 422 H384 V340 H405" class="arrow"/>
+
+  <rect x="40" y="510" width="1315" height="211" rx="12" fill="white" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="62" y="548" class="head">Concrete address trace · W has K = 64; read W[2, 19]</text>
+  <text x="62" y="590" class="mono">G = 4 → 32 code bytes / row → byte offset = 2×32 + floor(19/2) = 73</text>
+  <text x="62" y="625" class="mono">19 is odd → high nibble; scale offset = 2×4 + floor(19/16) = 9</text>
+  <text x="62" y="660" class="mono">byte 0xD2 → code 0xD → q = −3; block scale 0x38 → 1; global = 0.25</text>
+  <text x="62" y="695" class="mono">W[2, 19] = BF16((−3 × 1) × 0.25) = −0.75</text>
+</svg>

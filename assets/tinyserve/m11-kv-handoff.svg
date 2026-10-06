@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="590" viewBox="0 0 1120 590" role="img" aria-labelledby="title desc">
+  <title id="title">M11: two model owners, one KV handoff</title>
+  <desc id="desc">A request first reserves decoder pages. GPU 0 prefills and packs valid logical KV positions. The payload travels through host memory. GPU 1 imports into different physical pages and acknowledges completion. Only then can the source pages be freed. GPU 1 decodes other requests while GPU 0 prefills.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="#475569"/></marker></defs>
+  <rect width="1120" height="590" rx="16" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#172b4d">
+    <text x="35" y="43" font-size="25" font-weight="bold">Move the KV history; keep each GPU's page table local</text>
+    <text x="35" y="77" font-size="17">Both devices hold the complete model. Independent workers own all forwards and page mutations.</text>
+    <rect x="35" y="110" width="435" height="276" rx="12" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="57" y="144" font-size="22" font-weight="bold">GPU 0 · prefill owner</text>
+    <text x="57" y="182" font-size="18">Process the next prompt in chunks</text>
+    <text x="57" y="213" font-size="18">Source pages (toy block size 4): [5, 2]</text>
+    <text x="57" y="244" font-size="18">Six valid tokens; ignore unused page tails</text>
+    <rect x="57" y="266" width="390" height="58" rx="8" fill="white"/>
+    <text x="75" y="301" font-size="17">Pack K/V in logical order: positions 0..5</text>
+    <text x="57" y="357" font-size="17">Hold source pages until acknowledgement</text>
+    <rect x="650" y="110" width="435" height="276" rx="12" fill="#dcfce7" stroke="#059669"/>
+    <text x="672" y="144" font-size="22" font-weight="bold">GPU 1 · decode owner</text>
+    <text x="672" y="182" font-size="18">Reserve pages first: [9, 1, 7]</text>
+    <text x="672" y="213" font-size="18">Copy and scatter into these local pages</text>
+    <text x="672" y="244" font-size="18">cache length = 6; first output is pending</text>
+    <rect x="672" y="266" width="390" height="58" rx="8" fill="white"/>
+    <text x="690" y="291" font-size="17">Resume at logical position 6:</text>
+    <text x="690" y="313" font-size="17">page 1, offset 2; predict output #2</text>
+    <text x="672" y="357" font-size="17">Import pauses this owner, not the HTTP loop</text>
+    <path d="M470 213 H637" fill="none" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+    <text x="493" y="180" font-size="17">KV + first token</text>
+    <text x="493" y="200" font-size="15">via host memory</text>
+    <path d="M650 349 H483" fill="none" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+    <text x="493" y="334" font-size="17">copy complete</text>
+    <text x="35" y="433" font-size="20" font-weight="bold">Independent compute timelines</text>
+    <text x="35" y="470" font-size="17">GPU 0</text><rect x="115" y="447" width="480" height="32" rx="5" fill="#93c5fd"/>
+    <text x="133" y="469" font-size="17">prefill B (A already handed off)</text>
+    <text x="35" y="516" font-size="17">GPU 1</text><rect x="115" y="493" width="480" height="32" rx="5" fill="#86efac"/>
+    <text x="133" y="515" font-size="17">decode A · decode A · decode A</text>
+    <text x="650" y="471" font-size="17">No promise that two GPUs beat two replicas.</text>
+    <text x="650" y="503" font-size="17">Measure the KV-transfer bill and queueing.</text>
+    <text x="35" y="562" font-size="16">After copy acknowledgement: source pages can be released while destination decode proceeds independently.</text>
+  </g>
+</svg>

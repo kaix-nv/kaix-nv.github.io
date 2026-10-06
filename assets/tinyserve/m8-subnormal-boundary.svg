@@ -33,7 +33,7 @@
   <text x="752" y="213" text-anchor="middle" class="mono">8/512</text>
   <text x="836" y="213" text-anchor="middle" class="mono">9/512</text>
   <text x="920" y="213" text-anchor="middle" class="mono">10/512</text>
-  <text x="737" y="249" class="small">8/512 = 1/64 = min normal</text>
+  <text x="737" y="242" class="small">8/512 = 1/64 = min normal</text>
   <text x="32" y="266" class="body">Every neighboring dot shown is 1/512 apart, including across the subnormal/normal boundary.</text>
   <rect x="32" y="287" width="485" height="104" rx="10" fill="#fff" stroke="#c4d2df"/>
   <text x="50" y="317" class="label">Below the first dot</text>

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7k uses recurrent GDN for decode and chunkwise GDN for prefill</title>
+  <desc id="desc">A single decode token performs one recurrent state update. A multi-token prefill is split into kernel chunks. Within each chunk, cumulative decay, a lower-triangular solve, and matrix multiplications compute all token corrections in parallel, while only the final recurrent state passes to the next chunk. Scheduler chunking remains a separate outer token budget.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.input{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.decode{fill:#fef3c7;stroke:#d97706;stroke-width:2}.chunk{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.math{fill:#f3e8ff;stroke:#9333ea;stroke-width:2}.state{fill:#fff7ed;stroke:#f97316;stroke-width:2}.budget{fill:#e2e8f0;stroke:#64748b;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#head)}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7k: one recurrence, two execution geometries</text>
+  <text x="48" y="78" class="small">Decode has one new token. Prefill has many known tokens, so it should expose their work in bounded matrix-shaped chunks.</text>
+
+  <rect x="48" y="106" width="1104" height="154" rx="16" class="panel"/>
+  <text x="72" y="140" class="head">Phase dispatch</text>
+  <rect x="76" y="164" width="244" height="60" rx="10" class="input"/>
+  <text x="198" y="189" text-anchor="middle" class="label">GDN input [B,T,H,D]</text>
+  <text x="198" y="211" text-anchor="middle" class="tiny">same learned equation</text>
+  <path d="M320 194 H408" class="arrow"/>
+  <rect x="420" y="154" width="142" height="80" rx="12" class="panel"/>
+  <text x="491" y="184" text-anchor="middle" class="label">T?</text>
+  <text x="491" y="209" text-anchor="middle" class="tiny">new-token count</text>
+  <path d="M562 176 H678" class="arrow"/>
+  <text x="620" y="165" text-anchor="middle" class="tiny">T = 1</text>
+  <rect x="690" y="146" width="404" height="60" rx="10" class="decode"/>
+  <text x="892" y="171" text-anchor="middle" class="label">recurrent decode: update S once</text>
+  <text x="892" y="193" text-anchor="middle" class="tiny">no chunk setup for a single token</text>
+  <path d="M562 218 H678" class="arrow"/>
+  <text x="620" y="242" text-anchor="middle" class="tiny">T &gt; 1</text>
+  <rect x="690" y="214" width="404" height="34" rx="10" class="chunk"/>
+  <text x="892" y="236" text-anchor="middle" class="label">chunkwise prefill: C = 64 tokens</text>
+
+  <rect x="48" y="286" width="380" height="344" rx="16" class="panel"/>
+  <text x="72" y="322" class="head">M7e oracle: serial token loop</text>
+  <rect x="80" y="354" width="84" height="48" rx="8" class="state"/><text x="122" y="384" text-anchor="middle" class="label">S₀</text>
+  <path d="M164 378 H210" class="arrow"/>
+  <rect x="222" y="344" width="166" height="68" rx="9" class="decode"/>
+  <text x="305" y="371" text-anchor="middle" class="label">token 0</text><text x="305" y="394" text-anchor="middle" class="tiny">decay → read → write</text>
+  <path d="M305 412 V448" class="arrow"/>
+  <rect x="222" y="460" width="166" height="68" rx="9" class="decode"/>
+  <text x="305" y="487" text-anchor="middle" class="label">token 1</text><text x="305" y="510" text-anchor="middle" class="tiny">waits for S₁</text>
+  <path d="M305 528 V564" class="arrow"/>
+  <text x="238" y="589" text-anchor="middle" class="label">… one Python step per token</text>
+  <text x="72" y="614" class="tiny" style="font-size:11px">T=2048 creates 2048 dependent iterations per layer.</text>
+
+  <rect x="452" y="286" width="700" height="344" rx="16" class="panel"/>
+  <text x="476" y="322" class="head">M7k prefill: solve one causal chunk as matrices</text>
+  <rect x="480" y="350" width="104" height="52" rx="9" class="state"/>
+  <text x="532" y="381" text-anchor="middle" class="label">state Sᵢₙ</text>
+  <path d="M584 376 H626" class="arrow"/>
+  <rect x="638" y="342" width="466" height="68" rx="10" class="input"/>
+  <text x="871" y="369" text-anchor="middle" class="label">one chunk: Q, K, V, log-decay g, update rate β</text>
+  <text x="871" y="393" text-anchor="middle" class="tiny">[B,H,C,D], C ≤ 64</text>
+
+  <path d="M748 410 V446" class="arrow"/>
+  <rect x="480" y="458" width="188" height="72" rx="10" class="math"/>
+  <text x="574" y="485" text-anchor="middle" class="label">prefix decay G</text>
+  <text x="574" y="509" text-anchor="middle" class="tiny">cumsum(g), relative exp</text>
+  <rect x="690" y="458" width="188" height="72" rx="10" class="math"/>
+  <text x="784" y="485" text-anchor="middle" class="label">causal system</text>
+  <text x="784" y="509" text-anchor="middle" class="tiny">I + β · decay · K Kᵀ</text>
+  <rect x="900" y="458" width="204" height="72" rx="10" class="math"/>
+  <text x="1002" y="485" text-anchor="middle" class="label">solve corrections U</text>
+  <text x="1002" y="509" text-anchor="middle" class="tiny">lower-triangular solve</text>
+  <path d="M668 494 H678" class="arrow"/><path d="M878 494 H888" class="arrow"/>
+
+  <path d="M1002 530 V560 H871" class="arrow"/>
+  <rect x="638" y="552" width="466" height="58" rx="10" class="chunk"/>
+  <text x="871" y="577" text-anchor="middle" class="label">matrix outputs for all C tokens + final state Sₒᵤₜ</text>
+  <text x="871" y="599" text-anchor="middle" class="tiny">only Sₒᵤₜ crosses into the next kernel chunk</text>
+
+  <rect x="48" y="654" width="1104" height="88" rx="16" class="budget"/>
+  <text x="72" y="680" class="head">Do not confuse the two chunk sizes</text>
+  <text x="72" y="705" class="small">Scheduler chunking bounds admitted prompt work per engine step (for example 512 tokens).</text>
+  <text x="72" y="728" class="small">GDN kernel chunking reorganizes those admitted tokens internally (64 tokens here); it does not change scheduling.</text>
+</svg>

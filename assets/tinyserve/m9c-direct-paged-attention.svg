@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="850" viewBox="0 0 1280 850" role="img" aria-labelledby="title desc">
+<title id="title">Direct paged verification replaces the gather, not the acceptance loop</title>
+<desc id="desc">M9b gathers cached KV and expands heads before Torch attention. M9c sends four queries, the physical KV pool, and page metadata directly to a causal paged-append kernel. Queries at logical positions five through eight see keys up to their own positions. Rollback and the next-forward replan remain explicit.</desc>
+<style>text { white-space: pre; }</style>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10" fill="#64748b"/></marker></defs>
+<rect width="1280" height="850" fill="#fff"/>
+<g font-family="Arial,sans-serif" fill="#0f172a">
+<text x="40" y="46" font-size="28" font-weight="700">Keep the pages; change how verification reads them</text>
+<text x="40" y="78" font-size="18" fill="#475569">One request • page size 4 • cached prefix C=5 • target inputs [4,7,9,2] at positions 5–8</text>
+<rect x="40" y="104" width="1200" height="99" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="60" y="139" font-size="21" font-weight="700">Same model projections, RoPE, and physical KV writes</text>
+<text x="60" y="175" font-size="19">Q: [4,Hq,D]     KV length: 9     Physical page table: [5,2,4]     Pool: [pages,2,4,Hkv,D]</text>
+<rect x="40" y="235" width="575" height="237" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+<text x="60" y="273" font-size="23" font-weight="700">M9b: gather reference</text>
+<text x="60" y="310" font-size="18">Gather pages 5,2,4 into contiguous K/V</text>
+<path d="M315 321 V343" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="60" y="371" font-size="18">Trim unused tail; expand grouped KV heads</text>
+<path d="M315 382 V404" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="60" y="437" font-size="18">Torch attention over temporary context tensors</text>
+<rect x="655" y="235" width="585" height="237" rx="12" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="675" y="273" font-size="23" font-weight="700">M9c: direct paged append</text>
+<text x="675" y="310" font-size="18">Q + existing physical pool + page metadata</text>
+<path d="M945 321 V343" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="675" y="371" font-size="18">Causal kernel loads referenced page tiles</text>
+<text x="675" y="411" font-size="18">No separate full-context gather or head expansion</text>
+<text x="675" y="446" font-size="17" fill="#475569">T=1 uses paged decode; T&gt;1 uses paged append.</text>
+<rect x="40" y="501" width="575" height="192" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="60" y="537" font-size="21" font-weight="700">Plan once; reuse across this forward's layers</text>
+<g font-family="monospace" font-size="18"><text x="60" y="574">query indptr       [0,4]   tokens</text><text x="60" y="606">paged-KV indptr    [0,3]   pages</text><text x="60" y="638">page indices      [5,2,4]</text><text x="60" y="670">last-page length  [1]     valid slots</text></g>
+<rect x="655" y="501" width="585" height="192" rx="12" fill="#f0fdf4" stroke="#86efac"/>
+<text x="675" y="537" font-size="21" font-weight="700">Same causal rule: key j ≤ C + query row</text>
+<g font-family="monospace" font-size="18"><text x="675" y="574">query @5:  1 1 1 1 1 1 . . .</text><text x="675" y="606">query @6:  1 1 1 1 1 1 1 . .</text><text x="675" y="638">query @7:  1 1 1 1 1 1 1 1 .</text><text x="675" y="670">query @8:  1 1 1 1 1 1 1 1 1</text></g>
+<rect x="40" y="726" width="1200" height="90" rx="12" fill="#f8fafc" stroke="#94a3b8"/>
+<text x="60" y="763" font-size="21" font-weight="700">Logits → unchanged acceptance code → private-page rollback</text>
+<text x="60" y="796" font-size="18">After rejection: rebuild the next plan from the current table and length. An old plan can reference freed pages.</text>
+</g></svg>

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="650" viewBox="0 0 1120 650" role="img" aria-labelledby="title desc">
+  <title id="title">M8f layout: one page map for codes and scales</title>
+  <desc id="desc">For toy page size four and block table five comma two, logical token five maps to physical page two, offset one. Its INT8 key codes and FP32 key scale share that address and reconstruct one head vector. The value has separate codes and scale. At head dimension 128 the pair occupies 132 bytes instead of 256 BF16 bytes.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="#475569"/></marker></defs>
+  <rect width="1120" height="650" rx="16" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#172b4d">
+    <text x="35" y="43" font-size="25" font-weight="bold">M8f: the codes and scales travel together</text>
+    <text x="35" y="77" font-size="17">Same logical history, same page ownership; a different representation inside each physical slot.</text>
+    <rect x="35" y="108" width="1050" height="87" rx="10" fill="#e2e8f0"/>
+    <text x="55" y="141" font-size="19" font-weight="bold">Toy page size = 4 · block table = [5, 2] · logical token = 5</text>
+    <text x="55" y="174" font-size="18">logical page = 5 // 4 = 1 → physical page = table[1] = 2 · offset = 5 % 4 = 1</text>
+    <path d="M285 195 V226" stroke="#475569" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M835 195 V226" stroke="#475569" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <rect x="35" y="240" width="500" height="150" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="55" y="274" font-size="21" font-weight="bold">INT8 key codes · layer 3, head 0</text>
+    <text x="55" y="308" font-size="18">codes[3, page 2, K, offset 1, head 0, :]</text>
+    <text x="55" y="343" font-size="18">D signed integers: [c₀, c₁, …, c₁₂₇]</text>
+    <text x="55" y="373" font-size="17">128 bytes at D = 128</text>
+    <rect x="585" y="240" width="500" height="150" rx="10" fill="#dcfce7" stroke="#059669"/>
+    <text x="605" y="274" font-size="21" font-weight="bold">FP32 key scale · layer 3, head 0</text>
+    <text x="605" y="308" font-size="18">scales[3, page 2, K, offset 1, head 0]</text>
+    <text x="605" y="343" font-size="18">One positive scale: s</text>
+    <text x="605" y="373" font-size="17">4 bytes · the value vector has its own scale</text>
+    <path d="M285 390 V422 H545 V439" stroke="#475569" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <path d="M835 390 V422 H575 V439" stroke="#475569" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+    <rect x="250" y="450" width="620" height="76" rx="10" fill="#fef3c7" stroke="#d97706"/>
+    <text x="275" y="481" font-size="21" font-weight="bold">Read: reconstructed key = codes × scale</text>
+    <text x="275" y="510" font-size="17">132 stored bytes vs 256 BF16 bytes per head-vector</text>
+    <text x="35" y="565" font-size="18">Append token 6 → page 2, offset 2. Write its codes and scales; leave tokens 0–5 unchanged.</text>
+    <text x="35" y="598" font-size="18">Quantize post-RoPE K once. Reusing its cache entry must not rotate or re-quantize it again.</text>
+    <text x="35" y="631" font-size="16">Storage arithmetic, not a speedup claim. Real pages use 16 tokens; this example uses 4.</text>
+  </g>
+</svg>

@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">M7o fuses KDA pair construction while retaining the readable solve</title>
+  <desc id="desc">The old PyTorch path visits four 32-channel tiles and materializes a causal token-pair-channel tensor for each tile. The M7o Triton kernel streams all 128 channels, accumulates key-key and query-key coefficients, and writes the lower and query-pair matrices directly. The triangular solve, output matrix multiplications, and state update remain unchanged.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.old{fill:#fee2e2;stroke:#dc2626;stroke-width:2}.new{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.data{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.keep{fill:#fef3c7;stroke:#d97706;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.good{font:700 14px system-ui,sans-serif;fill:#15803d}.bad{font:700 14px system-ui,sans-serif;fill:#b91c1c}.arrow{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrowhead)}
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+
+  <rect class="bg" width="1200" height="820"/>
+  <text x="48" y="48" class="title">M7o: fuse only the measured KDA pair-construction bottleneck</text>
+  <text x="48" y="78" class="small">One C≤64 inner chunk, K=128 key channels. The equation and recurrent state boundary do not change.</text>
+
+  <rect x="48" y="104" width="1104" height="92" rx="15" class="panel"/>
+  <text x="72" y="137" class="head">Inputs after projection, normalization, and cumulative decay</text>
+  <rect x="72" y="151" width="1010" height="30" rx="7" class="data"/>
+  <text x="577" y="172" text-anchor="middle" class="tiny">q, k, G: [B,H,C,128]     beta: [B,H,C]     possibly channel-strided</text>
+  <path d="M350 181 V225" class="arrow"/>
+  <path d="M850 181 V225" class="arrow"/>
+
+  <rect x="48" y="227" width="528" height="314" rx="15" class="panel"/>
+  <text x="72" y="262" class="head">M7n PyTorch oracle</text>
+  <text x="72" y="287" class="small">Repeat the same launch chain for four 32-channel tiles.</text>
+
+  <rect x="74" y="307" width="104" height="48" rx="8" class="old"/>
+  <text x="126" y="327" text-anchor="middle" class="label">tile 0</text>
+  <text x="126" y="346" text-anchor="middle" class="tiny">d=0..31</text>
+  <rect x="190" y="307" width="104" height="48" rx="8" class="old"/>
+  <text x="242" y="327" text-anchor="middle" class="label">tile 1</text>
+  <text x="242" y="346" text-anchor="middle" class="tiny">d=32..63</text>
+  <rect x="306" y="307" width="104" height="48" rx="8" class="old"/>
+  <text x="358" y="327" text-anchor="middle" class="label">tile 2</text>
+  <text x="358" y="346" text-anchor="middle" class="tiny">d=64..95</text>
+  <rect x="422" y="307" width="104" height="48" rx="8" class="old"/>
+  <text x="474" y="327" text-anchor="middle" class="label">tile 3</text>
+  <text x="474" y="346" text-anchor="middle" class="tiny">d=96..127</text>
+
+  <path d="M300 355 V382" class="arrow"/>
+  <rect x="97" y="384" width="430" height="74" rx="9" class="old"/>
+  <text x="312" y="410" text-anchor="middle" class="label">subtract → causal mask → exp → multiply</text>
+  <text x="312" y="435" text-anchor="middle" class="tiny">materialize relative decay [B,H,C,C,32]</text>
+  <path d="M312 458 V479" class="arrow"/>
+  <text x="312" y="503" text-anchor="middle" class="bad">two reductions + two accumulations per tile</text>
+  <text x="312" y="525" text-anchor="middle" class="tiny">many small launches; temporary is reread and discarded</text>
+
+  <rect x="600" y="227" width="552" height="314" rx="15" class="panel"/>
+  <text x="624" y="262" class="head">M7o Triton pair kernel</text>
+  <text x="624" y="287" class="small">One launch covers every target row and causal source block.</text>
+
+  <rect x="626" y="307" width="500" height="65" rx="9" class="new"/>
+  <text x="876" y="333" text-anchor="middle" class="label">one program: target t × up to 16 source tokens i</text>
+  <text x="876" y="356" text-anchor="middle" class="tiny">stream channels d=0..127; keep two scalar sums</text>
+  <path d="M876 372 V398" class="arrow"/>
+  <rect x="626" y="400" width="500" height="72" rx="9" class="new"/>
+  <text x="876" y="426" text-anchor="middle" class="tiny">A[t,i] = Σd k[t,d] k[i,d] exp(G[t,d]-G[i,d])</text>
+  <text x="876" y="450" text-anchor="middle" class="tiny">P[t,i] = Σd q[t,d] k[i,d] exp(G[t,d]-G[i,d])</text>
+  <path d="M876 472 V493" class="arrow"/>
+  <text x="876" y="516" text-anchor="middle" class="good">write L[t,i] and P[t,i] directly</text>
+  <text x="876" y="536" text-anchor="middle" class="tiny">no [B,H,C,C,128] or tiled [B,H,C,C,32] temporary</text>
+
+  <path d="M312 541 V581" class="arrow"/>
+  <path d="M876 541 V581" class="arrow"/>
+  <rect x="48" y="583" width="1104" height="189" rx="15" class="panel"/>
+  <text x="72" y="619" class="head">Unchanged, executable PyTorch tail</text>
+
+  <rect x="72" y="645" width="174" height="70" rx="9" class="keep"/>
+  <text x="159" y="673" text-anchor="middle" class="label">build rhs</text>
+  <text x="159" y="697" text-anchor="middle" class="tiny">b·(v - kD @ Sin)</text>
+  <path d="M246 680 H280" class="arrow"/>
+  <rect x="282" y="645" width="180" height="70" rx="9" class="keep"/>
+  <text x="372" y="673" text-anchor="middle" class="label">triangular solve</text>
+  <text x="372" y="697" text-anchor="middle" class="tiny">L @ U = rhs</text>
+  <path d="M462 680 H496" class="arrow"/>
+  <rect x="498" y="645" width="236" height="70" rx="9" class="keep"/>
+  <text x="616" y="673" text-anchor="middle" class="label">form token outputs</text>
+  <text x="616" y="697" text-anchor="middle" class="tiny">qD @ Sin + P @ U</text>
+  <path d="M734 680 H768" class="arrow"/>
+  <rect x="770" y="645" width="294" height="70" rx="9" class="keep"/>
+  <text x="917" y="673" text-anchor="middle" class="label">carry state to next chunk</text>
+  <text x="917" y="697" text-anchor="middle" class="tiny">Sout = decay(Sin) + (kD)ᵀ @ U</text>
+
+  <text x="72" y="752" class="small">M7o changes pair construction only. This narrow boundary keeps the recurrence oracle, solve, output, and state equations easy to inspect.</text>
+</svg>

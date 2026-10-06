@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Tensor-parallel dataflow through one Qwen3 decoder layer</title>
+  <desc id="desc">Rank zero and rank one own different attention heads, KV heads, and MLP channels. Each rank computes locally, then two all-reduces reconstruct the replicated residual stream. Rank zero owns scheduling and sampling.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 28px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .panel { fill: #ffffff; stroke: #94a3b8; stroke-width: 2; rx: 16; }
+      .panel-title { font: 700 19px system-ui, sans-serif; fill: #0f172a; }
+      .box-title { font: 700 16px system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 400 14px system-ui, sans-serif; fill: #334155; }
+      .small { font: 400 12px system-ui, sans-serif; fill: #475569; }
+      .control { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .attention { fill: #ecfeff; stroke: #0891b2; stroke-width: 2; rx: 12; }
+      .mlp { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 2; rx: 12; }
+      .kv { fill: #cffafe; stroke: #06b6d4; stroke-width: 1.5; rx: 8; }
+      .partial { fill: #fff7ed; stroke: #ea580c; stroke-width: 1.5; rx: 8; }
+      .collective { fill: #ffedd5; stroke: #c2410c; stroke-width: 2; rx: 12; }
+      .replicated { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; rx: 10; }
+      .arrow { fill: none; stroke: #334155; stroke-width: 2.2; marker-end: url(#arrow); }
+      .broadcast { fill: none; stroke: #2563eb; stroke-width: 2; stroke-dasharray: 7 5; marker-end: url(#blue-arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <marker id="blue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1200" height="760"/>
+  <text x="50" y="44" class="title">M6a: one decoder layer, split across two GPUs</text>
+  <text x="50" y="70" class="subtitle">Qwen3-0.6B, TP=2 — local heads and channels, replicated residual stream</text>
+
+  <rect x="300" y="92" width="600" height="68" class="control"/>
+  <text x="600" y="118" text-anchor="middle" class="box-title">Rank 0 control plane</text>
+  <text x="600" y="141" text-anchor="middle" class="body">tokenize · schedule · sample · broadcast step plans and token IDs</text>
+
+  <rect x="45" y="190" width="450" height="430" class="panel"/>
+  <rect x="705" y="190" width="450" height="430" class="panel"/>
+  <text x="70" y="220" class="panel-title">GPU 0 · rank 0</text>
+  <text x="1130" y="220" text-anchor="end" class="panel-title">GPU 1 · rank 1</text>
+
+  <rect x="470" y="173" width="260" height="44" class="replicated"/>
+  <text x="600" y="201" text-anchor="middle" class="box-title">replicated x [B, T, 1024]</text>
+
+  <path d="M 420 160 L 260 235" class="broadcast"/>
+  <path d="M 780 160 L 940 235" class="broadcast"/>
+  <path d="M 540 217 L 300 242" class="arrow"/>
+  <path d="M 660 217 L 900 242" class="arrow"/>
+
+  <rect x="70" y="240" width="400" height="102" class="attention"/>
+  <rect x="730" y="240" width="400" height="102" class="attention"/>
+  <text x="90" y="267" class="box-title">Local attention shard</text>
+  <text x="90" y="291" class="body">Q heads 0–7 · KV heads 0–3</text>
+  <text x="90" y="315" class="body">FlashInfer reads local pages only</text>
+  <rect x="325" y="263" width="125" height="58" class="kv"/>
+  <text x="387" y="286" text-anchor="middle" class="small">local KV pool</text>
+  <text x="387" y="306" text-anchor="middle" class="small">4 of 8 heads</text>
+  <text x="750" y="267" class="box-title">Local attention shard</text>
+  <text x="750" y="291" class="body">Q heads 8–15 · KV heads 4–7</text>
+  <text x="750" y="315" class="body">FlashInfer reads local pages only</text>
+  <rect x="985" y="263" width="125" height="58" class="kv"/>
+  <text x="1047" y="286" text-anchor="middle" class="small">local KV pool</text>
+  <text x="1047" y="306" text-anchor="middle" class="small">4 of 8 heads</text>
+
+  <rect x="135" y="357" width="250" height="48" class="partial"/>
+  <rect x="795" y="357" width="250" height="48" class="partial"/>
+  <text x="260" y="386" text-anchor="middle" class="body">o_proj partial [B, T, 1024]</text>
+  <text x="920" y="386" text-anchor="middle" class="body">o_proj partial [B, T, 1024]</text>
+  <path d="M 260 342 L 260 357" class="arrow"/>
+  <path d="M 920 342 L 920 357" class="arrow"/>
+
+  <rect x="520" y="350" width="160" height="62" class="collective"/>
+  <text x="600" y="376" text-anchor="middle" class="box-title">all-reduce 1</text>
+  <text x="600" y="397" text-anchor="middle" class="small">sum attention partials</text>
+  <path d="M 385 381 L 520 381" class="arrow"/>
+  <path d="M 795 381 L 680 381" class="arrow"/>
+
+  <rect x="70" y="449" width="400" height="82" class="mlp"/>
+  <rect x="730" y="449" width="400" height="82" class="mlp"/>
+  <text x="90" y="477" class="box-title">Local MLP shard</text>
+  <text x="90" y="502" class="body">gate/up: 1536 of 3072 channels</text>
+  <text x="90" y="521" class="small">down_proj produces a residual-width partial</text>
+  <text x="750" y="477" class="box-title">Local MLP shard</text>
+  <text x="750" y="502" class="body">gate/up: 1536 of 3072 channels</text>
+  <text x="750" y="521" class="small">down_proj produces a residual-width partial</text>
+  <path d="M 600 412 L 600 430 L 270 430 L 270 449" class="arrow"/>
+  <path d="M 600 412 L 600 430 L 930 430 L 930 449" class="arrow"/>
+
+  <rect x="135" y="548" width="250" height="48" class="partial"/>
+  <rect x="795" y="548" width="250" height="48" class="partial"/>
+  <text x="260" y="577" text-anchor="middle" class="body">down_proj partial [B, T, 1024]</text>
+  <text x="920" y="577" text-anchor="middle" class="body">down_proj partial [B, T, 1024]</text>
+  <path d="M 260 531 L 260 548" class="arrow"/>
+  <path d="M 920 531 L 920 548" class="arrow"/>
+
+  <rect x="520" y="541" width="160" height="62" class="collective"/>
+  <text x="600" y="567" text-anchor="middle" class="box-title">all-reduce 2</text>
+  <text x="600" y="588" text-anchor="middle" class="small">sum MLP partials</text>
+  <path d="M 385 572 L 520 572" class="arrow"/>
+  <path d="M 795 572 L 680 572" class="arrow"/>
+
+  <rect x="415" y="642" width="370" height="48" class="replicated"/>
+  <text x="600" y="672" text-anchor="middle" class="box-title">replicated x′ [B, T, 1024] → next layer</text>
+  <path d="M 600 603 L 600 642" class="arrow"/>
+
+  <text x="50" y="724" class="body">28 decoder layers × 2 all-reduces = 56 collectives per forward</text>
+  <text x="1150" y="724" text-anchor="end" class="body">final norm + LM head on rank 0 · sampled token broadcast to rank 1</text>
+</svg>

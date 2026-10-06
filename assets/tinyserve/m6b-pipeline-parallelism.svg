@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title desc">
+  <title id="title">Two-stage pipeline ownership and microbatch overlap</title>
+  <desc id="desc">Rank zero owns embedding and layers zero through thirteen. Rank one owns layers fourteen through twenty-seven, final norm, and language model head. A second panel contrasts idle bubbles for one microbatch with overlapping stage work for four microbatches.</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#d97706"/>
+    </marker>
+    <style>
+      .title { font: 700 30px system-ui, sans-serif; fill: #172033; }
+      .section { font: 700 22px system-ui, sans-serif; fill: #172033; }
+      .rank { font: 700 20px system-ui, sans-serif; fill: #172033; }
+      .label { font: 600 16px system-ui, sans-serif; fill: #253047; }
+      .small { font: 14px system-ui, sans-serif; fill: #42506a; }
+      .tiny { font: 12px system-ui, sans-serif; fill: #42506a; }
+      .white { font: 700 13px system-ui, sans-serif; fill: white; text-anchor: middle; }
+      .axis { stroke: #94a3b8; stroke-width: 1.5; }
+      .dash { stroke-dasharray: 7 6; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="780" rx="20" fill="#f8fafc"/>
+  <text x="600" y="45" text-anchor="middle" class="title">M6b: split layers, then pipeline request microbatches</text>
+
+  <text x="55" y="83" class="section">1. Ownership and communication</text>
+  <rect x="55" y="100" width="460" height="250" rx="16" fill="#e8f1ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="85" y="135" class="rank">Rank 0 · stage 0</text>
+  <rect x="85" y="155" width="400" height="42" rx="8" fill="#bfdbfe"/>
+  <text x="285" y="182" text-anchor="middle" class="label">token embedding</text>
+  <rect x="85" y="210" width="400" height="58" rx="8" fill="#93c5fd"/>
+  <text x="285" y="236" text-anchor="middle" class="label">decoder layers 0–13</text>
+  <text x="285" y="257" text-anchor="middle" class="small">KV pool has 14 local layer slices</text>
+  <rect x="85" y="281" width="400" height="42" rx="8" fill="#dbeafe"/>
+  <text x="285" y="307" text-anchor="middle" class="label">scheduler + sampling + output</text>
+
+  <rect x="685" y="100" width="460" height="250" rx="16" fill="#eaf8ef" stroke="#16804b" stroke-width="2"/>
+  <text x="715" y="135" class="rank">Rank 1 · stage 1</text>
+  <rect x="715" y="155" width="400" height="58" rx="8" fill="#a7e3bd"/>
+  <text x="915" y="181" text-anchor="middle" class="label">decoder layers 14–27</text>
+  <text x="915" y="202" text-anchor="middle" class="small">KV pool has 14 local layer slices</text>
+  <rect x="715" y="226" width="400" height="42" rx="8" fill="#c6f0d4"/>
+  <text x="915" y="252" text-anchor="middle" class="label">final RMSNorm + LM head</text>
+  <rect x="715" y="281" width="400" height="42" rx="8" fill="#dcfce7"/>
+  <text x="915" y="307" text-anchor="middle" class="label">tensor worker; no scheduling</text>
+
+  <line x1="515" y1="180" x2="675" y2="180" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="595" y="159" text-anchor="middle" class="small">activations</text>
+  <text x="595" y="201" text-anchor="middle" class="tiny">[B,T,1024]; decode row = 2 KiB</text>
+  <line x1="685" y1="260" x2="525" y2="260" stroke="#d97706" stroke-width="3" marker-end="url(#arrow-orange)"/>
+  <text x="605" y="244" text-anchor="middle" class="small">last-token logits</text>
+  <text x="605" y="282" text-anchor="middle" class="tiny">[B,1,151936]; bf16 row ≈ 297 KiB</text>
+
+  <line x1="55" y1="380" x2="1145" y2="380" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="55" y="420" class="section">2. The bubble shrinks as independent rows enter the pipeline</text>
+
+  <text x="55" y="475" class="rank">One microbatch</text>
+  <text x="300" y="475" class="small">time →</text>
+  <text x="55" y="516" class="label">stage 0</text>
+  <text x="55" y="561" class="label">stage 1</text>
+  <line x1="145" y1="525" x2="1115" y2="525" class="axis"/>
+  <line x1="145" y1="570" x2="1115" y2="570" class="axis"/>
+  <rect x="165" y="495" width="310" height="30" rx="5" fill="#2563eb"/>
+  <text x="320" y="515" class="white">MB0 · layers 0–13</text>
+  <rect x="475" y="540" width="310" height="30" rx="5" fill="#16804b"/>
+  <text x="630" y="560" class="white">MB0 · layers 14–27</text>
+  <rect x="475" y="495" width="310" height="30" rx="5" fill="#e2e8f0" stroke="#94a3b8" class="dash"/>
+  <text x="630" y="515" text-anchor="middle" class="small">stage 0 idle</text>
+  <rect x="165" y="540" width="310" height="30" rx="5" fill="#e2e8f0" stroke="#94a3b8" class="dash"/>
+  <text x="320" y="560" text-anchor="middle" class="small">stage 1 idle</text>
+  <text x="820" y="548" class="small">Half the stage slots are bubbles.</text>
+
+  <text x="55" y="635" class="rank">Four microbatches</text>
+  <text x="300" y="635" class="small">time →</text>
+  <text x="55" y="676" class="label">stage 0</text>
+  <text x="55" y="721" class="label">stage 1</text>
+  <line x1="145" y1="685" x2="1115" y2="685" class="axis"/>
+  <line x1="145" y1="730" x2="1115" y2="730" class="axis"/>
+  <g>
+    <rect x="165" y="655" width="165" height="30" rx="5" fill="#2563eb"/><text x="247" y="675" class="white">MB0</text>
+    <rect x="330" y="655" width="165" height="30" rx="5" fill="#3b82f6"/><text x="412" y="675" class="white">MB1</text>
+    <rect x="495" y="655" width="165" height="30" rx="5" fill="#60a5fa"/><text x="577" y="675" class="white">MB2</text>
+    <rect x="660" y="655" width="165" height="30" rx="5" fill="#7db7f5"/><text x="742" y="675" class="white">MB3</text>
+    <rect x="165" y="700" width="165" height="30" rx="5" fill="#e2e8f0" stroke="#94a3b8" class="dash"/><text x="247" y="720" text-anchor="middle" class="small">fill bubble</text>
+    <rect x="330" y="700" width="165" height="30" rx="5" fill="#16804b"/><text x="412" y="720" class="white">MB0</text>
+    <rect x="495" y="700" width="165" height="30" rx="5" fill="#1f9d5c"/><text x="577" y="720" class="white">MB1</text>
+    <rect x="660" y="700" width="165" height="30" rx="5" fill="#34b872"/><text x="742" y="720" class="white">MB2</text>
+    <rect x="825" y="700" width="165" height="30" rx="5" fill="#52ca88"/><text x="907" y="720" class="white">MB3</text>
+  </g>
+  <text x="1015" y="683" class="small">stage 0 drains</text>
+  <text x="1015" y="723" class="small">one tail bubble</text>
+  <text x="600" y="762" text-anchor="middle" class="small">Overlap reduces idle slots, but smaller matrix batches and more P2P calls can still make total latency worse.</text>
+</svg>

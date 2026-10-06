@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-label="M7j replaces Kimi's materialized attention-residual expression with a one-launch streaming kernel that preserves the same stable softmax mixture.">
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#cbd5e1;stroke-width:2}.old{fill:#fff1f2;stroke:#fb7185;stroke-width:2}.new{fill:#ecfdf5;stroke:#34d399;stroke-width:2}.tensor{fill:#eff6ff;stroke:#60a5fa;stroke-width:2}.state{fill:#fefce8;stroke:#facc15;stroke-width:2}.title{font-family:system-ui,sans-serif;font-size:25px;font-weight:700;fill:#0f172a}.head{font-family:system-ui,sans-serif;font-size:18px;font-weight:700;fill:#0f172a}.label{font-family:system-ui,sans-serif;font-size:15px;font-weight:600;fill:#1e293b}.small{font-family:system-ui,sans-serif;font-size:14px;fill:#334155}.tiny{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;fill:#475569}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7j: stream the AttnRes candidates through one GPU launch</text>
+  <text x="48" y="78" class="small">One row has up to three saved block residuals plus the current prefix; all vectors have hidden width H.</text>
+
+  <rect x="48" y="108" width="1104" height="126" rx="16" class="panel"/>
+  <text x="72" y="143" class="head">Inputs to one residual decision</text>
+  <rect x="76" y="164" width="238" height="48" rx="9" class="tensor"/>
+  <text x="195" y="194" text-anchor="middle" class="label">saved [N, R, H]</text>
+  <text x="346" y="194" class="label">+</text>
+  <rect x="382" y="164" width="238" height="48" rx="9" class="tensor"/>
+  <text x="501" y="194" text-anchor="middle" class="label">prefix [N, H]</text>
+  <rect x="726" y="154" width="378" height="68" rx="9" class="state"/>
+  <text x="915" y="181" text-anchor="middle" class="label">choose a weighted mixture</text>
+  <text x="915" y="203" text-anchor="middle" class="tiny">R = 1..3, candidates = R + 1</text>
+
+  <rect x="48" y="264" width="520" height="360" rx="16" class="panel"/>
+  <text x="72" y="301" class="head">M7i oracle: materialize the equation</text>
+  <rect x="80" y="329" width="456" height="48" rx="9" class="old"/>
+  <text x="308" y="359" text-anchor="middle" class="small">cat(saved, prefix) to values [N, R+1, H]</text>
+  <rect x="80" y="417" width="456" height="58" rx="9" class="old"/>
+  <text x="308" y="442" text-anchor="middle" class="small">FP32 square, mean, rsqrt, normalize</text>
+  <text x="308" y="462" text-anchor="middle" class="tiny">several launches and temporary tensors</text>
+  <rect x="80" y="515" width="456" height="58" rx="9" class="old"/>
+  <text x="308" y="540" text-anchor="middle" class="small">score, softmax, matrix multiply, cast</text>
+  <text x="308" y="560" text-anchor="middle" class="tiny">read candidates again for the weighted sum</text>
+  <text x="308" y="602" text-anchor="middle" class="label">Readable correctness oracle</text>
+
+  <rect x="592" y="264" width="560" height="360" rx="16" class="panel"/>
+  <text x="616" y="301" class="head">M7j kernel: stream and reduce</text>
+  <rect x="620" y="329" width="508" height="62" rx="9" class="new"/>
+  <text x="874" y="355" text-anchor="middle" class="small">load candidate c once into registers</text>
+  <text x="874" y="376" text-anchor="middle" class="tiny">compute RMS and score in FP32</text>
+  <rect x="620" y="431" width="508" height="96" rx="9" class="state"/>
+  <text x="874" y="457" text-anchor="middle" class="small">online softmax state</text>
+  <text x="874" y="480" text-anchor="middle" class="tiny">m = running maximum, d = denominator</text>
+  <text x="874" y="503" text-anchor="middle" class="tiny">a[H] = weighted-vector accumulator</text>
+  <rect x="620" y="567" width="508" height="44" rx="9" class="new"/>
+  <text x="874" y="595" text-anchor="middle" class="small">write output [N, H] = a / d</text>
+
+  <rect x="48" y="650" width="1104" height="72" rx="16" class="panel"/>
+  <text x="72" y="682" class="head">What changes?</text>
+  <text x="238" y="682" class="small">Launch and memory geometry.</text>
+  <text x="472" y="682" class="head">What stays fixed?</text>
+  <text x="659" y="682" class="small">Candidate order, FP32 RMS/scoring, stable softmax, and BF16 output.</text>
+  <text x="72" y="706" class="tiny">The strict dispatch contract falls back to the PyTorch oracle outside CUDA BF16/FP16 inference or R = 1..3.</text>
+</svg>

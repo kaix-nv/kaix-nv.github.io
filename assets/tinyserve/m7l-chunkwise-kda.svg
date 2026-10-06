@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7l evaluates Kimi Delta Attention recurrently for decode and chunkwise for prefill</title>
+  <desc id="desc">A token-by-token KDA recurrence is replaced during prefill by bounded chunks. Each chunk computes cumulative decay per key channel, reduces channel tiles into causal token-pair matrices, solves a lower-triangular correction system, and carries one fixed-size state to the next chunk. Single-token decode remains recurrent.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.input{fill:#eff6ff;stroke:#3b82f6;stroke-width:2}.serial{fill:#fef3c7;stroke:#d97706;stroke-width:2}.tile{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.matrix{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.state{fill:#fff7ed;stroke:#f97316;stroke-width:2}.note{fill:#e2e8f0;stroke:#64748b;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#head)}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="760"/>
+  <text x="48" y="48" class="title">M7l: chunkwise KDA without a prompt-sized channel tensor</text>
+  <text x="48" y="78" class="small">KDA decays every key channel differently. Prefill exposes matrix work while decode keeps the exact one-token recurrence.</text>
+
+  <rect x="48" y="106" width="1104" height="128" rx="16" class="panel"/>
+  <text x="72" y="140" class="head">Measured phase dispatch</text>
+  <rect x="76" y="160" width="254" height="50" rx="10" class="input"/>
+  <text x="203" y="191" text-anchor="middle" class="label">KDA input [B,T,H,K]</text>
+  <path d="M330 185 H398" class="arrow"/>
+  <rect x="410" y="152" width="142" height="66" rx="10" class="panel"/>
+  <text x="481" y="179" text-anchor="middle" class="label">T?</text>
+  <text x="481" y="201" text-anchor="middle" class="tiny">new-token count</text>
+  <path d="M552 170 H660" class="arrow"/>
+  <text x="606" y="158" text-anchor="middle" class="tiny">T &lt; 16</text>
+  <rect x="672" y="144" width="416" height="50" rx="10" class="serial"/>
+  <text x="880" y="175" text-anchor="middle" class="label">recurrent: decode and short prefill</text>
+  <path d="M552 206 H660" class="arrow"/>
+  <text x="606" y="225" text-anchor="middle" class="tiny">T ≥ 16</text>
+  <rect x="672" y="202" width="416" height="24" rx="8" class="matrix"/>
+  <text x="880" y="219" text-anchor="middle" class="tiny">chunkwise prefill, C = 32</text>
+
+  <rect x="48" y="260" width="322" height="390" rx="16" class="panel"/>
+  <text x="72" y="296" class="head">The serial oracle</text>
+  <rect x="76" y="326" width="90" height="48" rx="8" class="state"/><text x="121" y="356" text-anchor="middle" class="label">S₀</text>
+  <path d="M166 350 H196" class="arrow"/>
+  <rect x="208" y="316" width="130" height="68" rx="9" class="serial"/>
+  <text x="273" y="343" text-anchor="middle" class="label">token 0</text><text x="273" y="366" text-anchor="middle" class="tiny">K channel loop</text>
+  <path d="M273 384 V420" class="arrow"/>
+  <rect x="208" y="432" width="130" height="68" rx="9" class="serial"/>
+  <text x="273" y="459" text-anchor="middle" class="label">token 1</text><text x="273" y="482" text-anchor="middle" class="tiny">waits for S₁</text>
+  <path d="M273 500 V536" class="arrow"/>
+  <text x="209" y="562" text-anchor="middle" class="label">… one host step per token</text>
+  <text x="72" y="598" class="small">Readable and efficient at T=1.</text>
+  <text x="72" y="621" class="small">Launch-bound for a known prompt.</text>
+
+  <rect x="394" y="260" width="758" height="390" rx="16" class="panel"/>
+  <text x="418" y="296" class="head">One KDA prefill chunk</text>
+  <rect x="422" y="324" width="112" height="52" rx="9" class="state"/>
+  <text x="478" y="355" text-anchor="middle" class="label">state Sᵢₙ</text>
+  <path d="M534 350 H574" class="arrow"/>
+  <rect x="586" y="316" width="516" height="68" rx="10" class="input"/>
+  <text x="844" y="343" text-anchor="middle" class="label">Q, K, V, channel decay g, update rate β</text>
+  <text x="844" y="367" text-anchor="middle" class="tiny">[B,H,C,K], C ≤ 32</text>
+
+  <path d="M844 384 V416" class="arrow"/>
+  <rect x="422" y="428" width="204" height="86" rx="10" class="tile"/>
+  <text x="524" y="455" text-anchor="middle" class="label">cumulative decay</text>
+  <text x="524" y="478" text-anchor="middle" class="tiny">G = cumsum(g)</text>
+  <text x="524" y="498" text-anchor="middle" class="tiny">one value per channel</text>
+  <rect x="650" y="428" width="204" height="86" rx="10" class="tile"/>
+  <text x="752" y="455" text-anchor="middle" class="label">tile K channels</text>
+  <text x="752" y="478" text-anchor="middle" class="tiny">sum kₜ[d] kᵢ[d]</text>
+  <text x="752" y="498" text-anchor="middle" class="tiny">· exp(Gₜ[d]−Gᵢ[d])</text>
+  <rect x="878" y="428" width="224" height="86" rx="10" class="matrix"/>
+  <text x="990" y="455" text-anchor="middle" class="label">pair matrices</text>
+  <text x="990" y="478" text-anchor="middle" class="tiny">[B,H,C,C]</text>
+  <text x="990" y="498" text-anchor="middle" class="tiny">no [B,H,C,C,K]</text>
+  <path d="M626 471 H638" class="arrow"/><path d="M854 471 H866" class="arrow"/>
+
+  <path d="M990 514 V542 H860" class="arrow"/>
+  <rect x="586" y="534" width="516" height="88" rx="10" class="matrix"/>
+  <text x="844" y="561" text-anchor="middle" class="label">solve (I + L)U = R, then compute all outputs</text>
+  <text x="844" y="584" text-anchor="middle" class="tiny">causal lower-triangular solve + matrix products</text>
+  <text x="844" y="604" text-anchor="middle" class="tiny">carry only final fixed-size state Sₒᵤₜ to the next chunk</text>
+
+  <rect x="48" y="674" width="1104" height="58" rx="16" class="note"/>
+  <text x="72" y="699" class="head">The bounded-memory trick</text>
+  <text x="420" y="699" class="small">Reduce 32-channel tiles immediately into C×C pair matrices.</text>
+  <text x="330" y="720" class="small">Memory depends on kernel chunk C, not the total prompt T; scheduler chunking remains a separate outer policy.</text>
+</svg>

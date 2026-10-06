@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">M7r traces Kimi routed MoE from a memory boundary to a grouped-expert launch storm</title>
+  <desc id="desc">The top panel shows that selected weights cost two mebibytes per token, so 32 tokens exactly fit the 64 mebibyte limit and 33 tokens switch to the grouped path. A four-token routing example shows the grouped path repeatedly finding tokens and launching gate, up, and down projections for each active expert. Measurements show grouped expert work consumes 84 to 89 percent of MoE time for 128 to 2048 token prompts and produces more than 1200 CUDA kernel events in one isolated block. The next experiment directly indexes packed expert weights in a native kernel without materializing selected weights.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.selected{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.grouped{fill:#fef3c7;stroke:#d97706;stroke-width:2}.target{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.token{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.expert{fill:#e0f2fe;stroke:#0284c7;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.blue{fill:#2563eb}.amber{fill:#d97706}.green{fill:#16a34a}.barbg{fill:#e2e8f0}.white{font:700 12px system-ui,sans-serif;fill:#fff}.arrow{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrowhead)}.route{stroke:#7c3aed;stroke-width:2;fill:none;marker-end:url(#arrowhead)}
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="900"/>
+  <text x="48" y="48" class="title">M7r: the new bottleneck is the long-prompt MoE path</text>
+  <text x="48" y="76" class="small">M7q removed KDA submission overhead; M7r measures before choosing another kernel.</text>
+
+  <rect x="48" y="100" width="1104" height="188" rx="16" class="panel"/>
+  <text x="72" y="136" class="head">1. One memory check changes the execution algorithm</text>
+  <text x="72" y="165" class="label">one selected weight family per token</text>
+  <text x="72" y="190" class="tiny">K × I × D × BF16 = 16 × 256 × 256 × 2 bytes = 2 MiB</text>
+  <rect x="72" y="212" width="300" height="52" rx="10" class="selected"/>
+  <text x="222" y="234" text-anchor="middle" class="label">T=32 → selected path</text>
+  <text x="222" y="253" text-anchor="middle" class="tiny">32 × 2 MiB = 64 MiB · exactly fits</text>
+  <path d="M392 238 H506" class="arrow"/>
+  <text x="449" y="224" text-anchor="middle" class="tiny">T becomes 33</text>
+  <rect x="526" y="184" width="350" height="80" rx="10" class="grouped"/>
+  <text x="701" y="211" text-anchor="middle" class="label">T≥33 → grouped path</text>
+  <text x="701" y="233" text-anchor="middle" class="tiny">loop over each active expert</text>
+  <text x="701" y="252" text-anchor="middle" class="tiny">bounded memory, fragmented launches</text>
+  <text x="910" y="185" class="label">Rejected shortcut</text>
+  <text x="910" y="211" class="tiny">raise the cap:</text>
+  <text x="910" y="232" class="tiny">T=128 → 256 MiB</text>
+  <text x="910" y="252" class="tiny">T=2048 → 4 GiB</text>
+
+  <rect x="48" y="314" width="540" height="364" rx="16" class="panel"/>
+  <text x="72" y="350" class="head">2. Concrete grouped-expert trace</text>
+  <text x="72" y="375" class="small">Simplified K=2 example; the checkpoint uses K=16.</text>
+  <rect x="82" y="408" width="58" height="36" rx="8" class="token"/><text x="111" y="431" text-anchor="middle" class="label">t0</text>
+  <rect x="82" y="462" width="58" height="36" rx="8" class="token"/><text x="111" y="485" text-anchor="middle" class="label">t1</text>
+  <rect x="82" y="516" width="58" height="36" rx="8" class="token"/><text x="111" y="539" text-anchor="middle" class="label">t2</text>
+  <rect x="82" y="570" width="58" height="36" rx="8" class="token"/><text x="111" y="593" text-anchor="middle" class="label">t3</text>
+  <rect x="240" y="412" width="70" height="42" rx="10" class="expert"/><text x="275" y="439" text-anchor="middle" class="label">E2</text>
+  <rect x="240" y="486" width="70" height="42" rx="10" class="expert"/><text x="275" y="513" text-anchor="middle" class="label">E5</text>
+  <rect x="240" y="560" width="70" height="42" rx="10" class="expert"/><text x="275" y="587" text-anchor="middle" class="label">E7</text>
+  <path d="M140 426 C182 426 192 428 240 433" class="route"/><path d="M140 426 C185 435 195 489 240 501" class="route"/>
+  <path d="M140 480 C184 470 193 438 240 435" class="route"/><path d="M140 480 C184 493 194 563 240 575" class="route"/>
+  <path d="M140 534 C184 529 194 510 240 508" class="route"/><path d="M140 534 C184 542 194 570 240 577" class="route"/>
+  <path d="M140 588 C185 578 194 514 240 510" class="route"/><path d="M140 588 C184 588 194 582 240 580" class="route"/>
+  <path d="M322 507 H358" class="arrow"/>
+  <rect x="372" y="400" width="182" height="220" rx="12" class="grouped"/>
+  <text x="463" y="428" text-anchor="middle" class="label">for each active E</text>
+  <text x="390" y="458" class="tiny">where(indices == E)</text>
+  <text x="390" y="489" class="tiny">gather token rows</text>
+  <text x="390" y="520" class="tiny">launch gate GEMM</text>
+  <text x="390" y="551" class="tiny">launch up GEMM</text>
+  <text x="390" y="582" class="tiny">launch down GEMM</text>
+  <text x="390" y="605" class="tiny">scatter outputs</text>
+  <text x="72" y="646" class="small">Real prompt: 16 MoE layers × about 17 active experts each.</text>
+
+  <rect x="612" y="314" width="540" height="364" rx="16" class="panel"/>
+  <text x="636" y="350" class="head">3. What the retained profile found</text>
+  <text x="636" y="375" class="small">MoE share of model interval; expert path share of MoE</text>
+  <text x="636" y="415" class="label">T=32</text><rect x="704" y="397" width="330" height="22" rx="5" class="barbg"/><rect x="704" y="397" width="115" height="22" rx="5" class="blue"/><text x="1048" y="413" class="tiny">35% · selected 45%</text>
+  <text x="636" y="461" class="label">T=128</text><rect x="704" y="443" width="330" height="22" rx="5" class="barbg"/><rect x="704" y="443" width="236" height="22" rx="5" class="amber"/><text x="1048" y="459" class="tiny">72% · grouped 85%</text>
+  <text x="636" y="507" class="label">T=512</text><rect x="704" y="489" width="330" height="22" rx="5" class="barbg"/><rect x="704" y="489" width="233" height="22" rx="5" class="amber"/><text x="1048" y="505" class="tiny">71% · grouped 86%</text>
+  <text x="636" y="553" class="label">T=2048</text><rect x="704" y="535" width="330" height="22" rx="5" class="barbg"/><rect x="704" y="535" width="179" height="22" rx="5" class="amber"/><text x="1048" y="551" class="tiny">54% · grouped 89%</text>
+  <rect x="636" y="584" width="492" height="70" rx="10" class="grouped"/>
+  <text x="654" y="610" class="label">One isolated block, synthetic real-shape inputs</text>
+  <text x="654" y="633" class="tiny">selected T=32: 61 CUDA events · grouped T=128: 1,215</text>
+  <text x="654" y="650" class="tiny">grouped T=2048: 1,352 events · 16.6 ms CPU vs 3.8 ms CUDA</text>
+
+  <rect x="48" y="704" width="1104" height="148" rx="16" class="target"/>
+  <text x="72" y="740" class="head">4. M7s experiment selected by the trace</text>
+  <rect x="76" y="766" width="224" height="50" rx="9" class="selected"/>
+  <text x="188" y="787" text-anchor="middle" class="label">indices [N,K]</text>
+  <text x="188" y="805" text-anchor="middle" class="tiny">packed weights [E,I,D]</text>
+  <path d="M314 791 H398" class="arrow"/>
+  <rect x="414" y="756" width="350" height="70" rx="10" class="target"/>
+  <text x="589" y="784" text-anchor="middle" class="label">native indexed expert kernels</text>
+  <text x="589" y="806" text-anchor="middle" class="tiny">no [N,K,I,D] gather · no expert Python loop</text>
+  <path d="M778 791 H856" class="arrow"/>
+  <rect x="872" y="766" width="244" height="50" rx="9" class="target"/>
+  <text x="994" y="787" text-anchor="middle" class="label">weighted output [N,D]</text>
+  <text x="994" y="805" text-anchor="middle" class="tiny">measure before promotion</text>
+  <text x="48" y="882" class="small">Diagnostic boundary: CUDA-event intervals and operator traces explain where to experiment; M7r itself claims no serving speedup.</text>
+</svg>

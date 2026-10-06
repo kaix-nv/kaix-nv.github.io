@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">M7p fuses KDA correction, output, and recurrent-state update</title>
+  <desc id="desc">M7o sends each KDA chunk through four small matrix multiplications and a library triangular solve. M7p retains the pair matrices, assigns each correction program one batch-head and sixteen value channels, solves token rows in causal order, and updates independent sixteen-by-sixteen state tiles in a second kernel.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.data{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.old{fill:#fef3c7;stroke:#d97706;stroke-width:2}.new{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.state{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.good{font:700 14px system-ui,sans-serif;fill:#15803d}.warn{font:700 14px system-ui,sans-serif;fill:#b45309}.arrow{stroke:#334155;stroke-width:2.4;fill:none;marker-end:url(#arrowhead)}.dash{stroke:#64748b;stroke-width:2;stroke-dasharray:6 5;fill:none;marker-end:url(#arrowhead)}
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+
+  <rect class="bg" width="1200" height="900"/>
+  <text x="48" y="48" class="title">M7p: keep causal order, fuse the fragmented KDA tail</text>
+  <text x="48" y="78" class="small">One inner chunk: B=1, H=8, C≤64, K=128, V=128. M7o's pair kernel and the KDA equation stay unchanged.</text>
+
+  <rect x="48" y="104" width="1104" height="120" rx="15" class="panel"/>
+  <text x="72" y="137" class="head">Shared chunk inputs</text>
+  <rect x="72" y="156" width="320" height="48" rx="8" class="data"/>
+  <text x="232" y="177" text-anchor="middle" class="label">M7o pair kernel</text>
+  <text x="232" y="196" text-anchor="middle" class="tiny">L, P: [B,H,C,C]</text>
+  <rect x="440" y="156" width="292" height="48" rx="8" class="data"/>
+  <text x="586" y="177" text-anchor="middle" class="label">chunk projections</text>
+  <text x="586" y="196" text-anchor="middle" class="tiny">q, k, v, G, beta</text>
+  <rect x="780" y="156" width="320" height="48" rx="8" class="state"/>
+  <text x="940" y="177" text-anchor="middle" class="label">incoming recurrent state</text>
+  <text x="940" y="196" text-anchor="middle" class="tiny">S_in: [B,H,128,128]</text>
+  <path d="M232 204 V258" class="arrow"/>
+  <path d="M586 204 V258" class="arrow"/>
+  <path d="M940 204 V258" class="arrow"/>
+
+  <rect x="48" y="260" width="528" height="382" rx="15" class="panel"/>
+  <text x="72" y="296" class="head">M7o: five library operations per chunk</text>
+  <text x="72" y="321" class="small">Readable, but each small operation returns to Python dispatch.</text>
+
+  <rect x="82" y="346" width="192" height="64" rx="9" class="old"/>
+  <text x="178" y="372" text-anchor="middle" class="label">remembered state</text>
+  <text x="178" y="394" text-anchor="middle" class="tiny">(k·D) @ S_in</text>
+  <path d="M274 378 H316" class="arrow"/>
+  <rect x="318" y="346" width="220" height="64" rx="9" class="old"/>
+  <text x="428" y="372" text-anchor="middle" class="label">build rhs</text>
+  <text x="428" y="394" text-anchor="middle" class="tiny">beta·(v - remembered)</text>
+  <path d="M428 410 V438" class="arrow"/>
+
+  <rect x="146" y="440" width="328" height="66" rx="9" class="old"/>
+  <text x="310" y="467" text-anchor="middle" class="label">library triangular solve</text>
+  <text x="310" y="491" text-anchor="middle" class="tiny">L @ W = rhs</text>
+  <path d="M310 506 V534" class="arrow"/>
+
+  <rect x="82" y="536" width="210" height="66" rx="9" class="old"/>
+  <text x="187" y="563" text-anchor="middle" class="label">token output</text>
+  <text x="187" y="587" text-anchor="middle" class="tiny">qD @ S_in + P @ W</text>
+  <rect x="316" y="536" width="222" height="66" rx="9" class="old"/>
+  <text x="427" y="563" text-anchor="middle" class="label">outgoing state</text>
+  <text x="427" y="587" text-anchor="middle" class="tiny">decay(S_in) + kDᵀ @ W</text>
+  <text x="310" y="628" text-anchor="middle" class="warn">4 BMMs + 1 solve × 32 chunks</text>
+
+  <rect x="600" y="260" width="552" height="382" rx="15" class="panel"/>
+  <text x="624" y="296" class="head">M7p: two native tail kernels per chunk</text>
+  <text x="624" y="321" class="small">Parallelize value/state tiles; preserve sequential token rows.</text>
+
+  <rect x="628" y="346" width="496" height="152" rx="11" class="new"/>
+  <text x="876" y="375" text-anchor="middle" class="label">correction + output kernel</text>
+  <text x="876" y="401" text-anchor="middle" class="tiny">one program = (batch, head, 16 value channels)</text>
+  <text x="876" y="427" text-anchor="middle" class="tiny">project kD and qD through one S_in tile</text>
+  <text x="876" y="451" text-anchor="middle" class="tiny">row 0 → row 1 → ... → row C-1</text>
+  <text x="876" y="477" text-anchor="middle" class="tiny">write W[:, tile] and Y[:, tile]</text>
+  <path d="M876 498 V526" class="arrow"/>
+
+  <rect x="628" y="528" width="496" height="82" rx="11" class="new"/>
+  <text x="876" y="556" text-anchor="middle" class="label">recurrent-state update kernel</text>
+  <text x="876" y="581" text-anchor="middle" class="tiny">one program = independent [16 key × 16 value] S_out tile</text>
+  <text x="876" y="629" text-anchor="middle" class="good">L and P are built once, then reused by all 8 value tiles</text>
+
+  <path d="M187 602 V690" class="dash"/>
+  <path d="M427 602 V690" class="dash"/>
+  <path d="M876 610 V690" class="arrow"/>
+  <rect x="48" y="692" width="1104" height="160" rx="15" class="panel"/>
+  <text x="72" y="728" class="head">Same outputs and state boundary, smaller launch graph</text>
+
+  <rect x="82" y="750" width="300" height="66" rx="9" class="data"/>
+  <text x="232" y="778" text-anchor="middle" class="label">token outputs Y</text>
+  <text x="232" y="801" text-anchor="middle" class="tiny">[B,H,C,128]</text>
+  <rect x="450" y="750" width="300" height="66" rx="9" class="state"/>
+  <text x="600" y="778" text-anchor="middle" class="label">next-chunk state S_out</text>
+  <text x="600" y="801" text-anchor="middle" class="tiny">[B,H,128,128]</text>
+  <rect x="818" y="750" width="300" height="66" rx="9" class="new"/>
+  <text x="968" y="778" text-anchor="middle" class="label">2,048-token result</text>
+  <text x="968" y="801" text-anchor="middle" class="tiny">27.8% lower full-model latency</text>
+
+  <text x="72" y="876" class="small">The causal solve is still sequential across rows. Fusion removes dispatch boundaries; it does not pretend the dependency is parallel.</text>
+</svg>

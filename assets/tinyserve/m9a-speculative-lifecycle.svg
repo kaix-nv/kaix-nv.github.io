@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
+<title id="title">M9a: one request through speculative decoding</title>
+<desc id="desc">Target prefill emits the first token. A loop drafts proposals, verifies all positions in one target forward, accepts only the matching prefix, and truncates both KV caches. EOS or the output limit completes the request.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L8 3L0 6" fill="none" stroke="#475569" stroke-width="1.5"/></marker></defs>
+<rect width="1280" height="650" fill="#fff"/>
+<g font-family="Arial,sans-serif" fill="#0f172a">
+<text x="48" y="49" font-size="28" font-weight="700">One request: draft guesses, target commits</text>
+<text x="48" y="81" font-size="18" fill="#475569">Greedy • one GPU • private contiguous KV • no scheduler or graph replay</text>
+<rect x="48" y="111" width="360" height="112" rx="12" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="68" y="143" font-size="21" font-weight="700">1. Target prefill</text>
+<text x="68" y="173" font-size="18">Cache prompt; emit first token.</text>
+<text x="68" y="201" font-size="18">That token is now pending input.</text>
+<rect x="469" y="111" width="360" height="112" rx="12" fill="#f0fdf4" stroke="#86efac"/>
+<text x="489" y="143" font-size="21" font-weight="700">2. Draft prefill</text>
+<text x="489" y="173" font-size="18">Cache the same prompt IDs.</text>
+<text x="489" y="201" font-size="18">Both caches end before pending.</text>
+<text x="871" y="149" font-size="18" font-weight="700">First token already finishes?</text>
+<text x="871" y="180" font-size="18">Skip draft; return the result.</text>
+<rect x="48" y="280" width="1184" height="273" rx="16" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="70" y="313" font-size="18" font-weight="700" fill="#475569">REPEAT UNTIL EOS OR OUTPUT LIMIT</text>
+<rect x="70" y="336" width="250" height="146" rx="10" fill="#f0fdf4" stroke="#86efac"/>
+<text x="88" y="369" font-size="21" font-weight="700">3. Propose</text>
+<text x="88" y="402" font-size="18">Draft runs serially.</text>
+<text x="88" y="431" font-size="18">Guess d1, d2, …, dk.</text>
+<text x="88" y="459" font-size="16" fill="#475569">Reserve one output for target.</text>
+<rect x="367" y="336" width="251" height="146" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="385" y="369" font-size="21" font-weight="700">4. Verify</text>
+<text x="385" y="402" font-size="18">One target forward over</text>
+<text x="385" y="431" font-size="18">[pending, d1, …, dk].</text>
+<text x="385" y="459" font-size="17" fill="#475569">Keep all k+1 logit rows.</text>
+<rect x="665" y="336" width="250" height="146" rx="10" fill="#fff7ed" stroke="#fdba74"/>
+<text x="683" y="369" font-size="21" font-weight="700">5. Accept a prefix</text>
+<text x="683" y="402" font-size="18">Stop at first mismatch.</text>
+<text x="683" y="431" font-size="18">Emit accepted guesses,</text>
+<text x="683" y="459" font-size="16">then target correction/bonus.</text>
+<rect x="962" y="336" width="248" height="146" rx="10" fill="#faf5ff" stroke="#d8b4fe"/>
+<text x="980" y="369" font-size="21" font-weight="700">6. Commit KV</text>
+<text x="980" y="402" font-size="18">Hide rejected suffixes.</text>
+<text x="980" y="431" font-size="18">Catch draft up if needed.</text>
+<text x="980" y="459" font-size="18">Last output → new pending.</text>
+<text x="195" y="529" font-size="17" fill="#475569">Round boundary: both caches contain committed history except its final emitted token.</text>
+<text x="48" y="600" font-size="20" font-weight="700">Finish: return committed tokens and counters; release both request-private caches.</text>
+<text x="48" y="631" font-size="17" fill="#475569">Rejected bytes need not be zeroed: attention can only read the shortened valid prefix.</text>
+</g>
+<g fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)">
+<path d="M408 166H460"/><path d="M650 223V253H60V324H195V335"/>
+<path d="M320 410H359"/><path d="M618 410H657"/><path d="M915 410H954"/>
+<path d="M1086 483V499H195V485"/>
+</g>
+</svg>

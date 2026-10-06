@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="730" viewBox="0 0 1120 730" role="img" aria-labelledby="title desc">
+  <title id="title">M8f: three different quantized-cache execution contracts</title>
+  <desc id="desc">The implemented QDQ oracle rounds and reconstructs at writes but retains floating cache values. The implemented real-storage path retains INT8 codes and FP32 scales, gathers and reconstructs a temporary BF16 history, then calls attention. A possible later fused reader would reconstruct only tiles inside attention and avoid the full-history temporary. The fused reader is not implemented.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="#475569"/></marker></defs>
+  <rect width="1120" height="730" rx="16" fill="#f8fafc"/>
+  <g font-family="sans-serif" fill="#172b4d">
+    <text x="35" y="43" font-size="25" font-weight="bold">Fewer stored bits do not automatically make attention faster</text>
+    <text x="35" y="77" font-size="17">Cache-reading paths: codes, scales, temporary tensors, and compute are separate choices.</text>
+    <text x="35" y="120" font-size="20" font-weight="bold">1 · Q/DQ numerical oracle</text>
+    <rect x="35" y="140" width="270" height="75" rx="9" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="53" y="171" font-size="18">Round + reconstruct</text><text x="53" y="198" font-size="17">at each new KV write</text>
+    <path d="M305 178 H382" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="395" y="140" width="280" height="75" rx="9" fill="#e2e8f0" stroke="#64748b"/>
+    <text x="413" y="171" font-size="18">Floating KV pool</text><text x="413" y="198" font-size="17">stores approximate values</text>
+    <path d="M675 178 H772" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="785" y="140" width="300" height="75" rx="9" fill="#fef3c7" stroke="#d97706"/>
+    <text x="803" y="171" font-size="18">Reference attention</text><text x="803" y="198" font-size="17">same cache-read semantics</text>
+    <text x="35" y="245" font-size="17">Tests the numerical recipe. It does not compress the persistent cache.</text>
+    <path d="M35 268 H1085" stroke="#cbd5e1"/>
+    <text x="35" y="305" font-size="20" font-weight="bold">2 · First real-storage implementation</text>
+    <rect x="35" y="327" width="270" height="87" rx="9" fill="#dcfce7" stroke="#059669"/>
+    <text x="53" y="358" font-size="18">INT8 codes + FP32 scales</text><text x="53" y="386" font-size="17">persistent paged storage</text>
+    <path d="M305 370 H382" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="395" y="327" width="280" height="87" rx="9" fill="#fee2e2" stroke="#dc2626"/>
+    <text x="413" y="358" font-size="18">Gather + reconstruct</text><text x="413" y="386" font-size="17">temporary BF16 history</text>
+    <path d="M675 370 H772" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="785" y="327" width="300" height="87" rx="9" fill="#fef3c7" stroke="#d97706"/>
+    <text x="803" y="358" font-size="18">Reference attention</text><text x="803" y="386" font-size="17">reads the floating temporary</text>
+    <text x="35" y="446" font-size="17">Real storage compression. Extra reconstruction traffic can reduce peak savings and worsen latency.</text>
+    <path d="M35 469 H1085" stroke="#cbd5e1"/>
+    <text x="35" y="507" font-size="20" font-weight="bold">3 · Possible later fused reader — outside the first slice</text>
+    <rect x="35" y="530" width="270" height="87" rx="9" fill="#dcfce7" stroke="#059669"/>
+    <text x="53" y="561" font-size="18">INT8 codes + FP32 scales</text><text x="53" y="589" font-size="17">same storage contract</text>
+    <path d="M305 573 H382" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+    <rect x="395" y="530" width="690" height="87" rx="9" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="415" y="561" font-size="18">Attention kernel: read codes/scales → reconstruct tiles → consume</text>
+    <text x="415" y="589" font-size="17">No full BF16 history written to memory; compute can still be floating point.</text>
+    <text x="35" y="650" font-size="17">Rows 1 and 2 are implemented. Row 3 is future work; fewer stored bytes alone do not prove a speedup.</text>
+    <text x="35" y="691" font-size="16">Fresh prefill currently attends to in-flight K/V; these diagrams describe reads from the stored history.</text>
+  </g>
+</svg>
