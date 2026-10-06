@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 920" role="img" aria-labelledby="title desc">
+  <title id="title">A request's lifecycle in the paged serving scheduler</title>
+  <desc id="desc">A waiting request is admitted when its full current token history fits the KV reservation policy. It enters prefilling and advances its cached-token cursor until all current input tokens are cached. The final prefill produces the first output token for a new request. Running requests append the previous sampled token to KV, then sample the next one. EOS or the output budget finishes the request and releases its active KV references. Memory pressure can preempt a prefilling or running request: release active references, reset the cached cursor, preserve token history and request-local RNG, and return the request to the front of the waiting queue. Readmission may reuse warm prefix pages but otherwise recomputes missing history. The policy does not guarantee fairness or bounded latency.</desc>
+  <defs>
+    <style>
+      text { font-family: system-ui, sans-serif; fill: #0f172a; }
+      .title { font-size: 28px; font-weight: 700; }
+      .subtitle { font-size: 17px; fill: #475569; }
+      .heading { font-size: 20px; font-weight: 700; }
+      .state { font-family: ui-monospace, monospace; font-size: 21px; font-weight: 700; }
+      .body { font-size: 16px; }
+      .small { font-size: 14px; fill: #475569; }
+      .mono { font-family: ui-monospace, monospace; font-size: 16px; }
+      .edge { fill: none; stroke: #64748b; stroke-width: 2.5; marker-end: url(#arrow); }
+      .preempt { fill: none; stroke: #b45309; stroke-width: 2.5; marker-end: url(#back); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <marker id="back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b45309"/></marker>
+  </defs>
+  <rect width="1280" height="920" rx="18" fill="#f8fafc"/>
+  <text x="42" y="48" class="title">One request: admission, cached history, output, and cleanup</text>
+  <text x="42" y="80" class="subtitle">Paged-KV path; the state names describe eligibility for work, not four separate GPU queues.</text>
+
+  <text x="300" y="140" text-anchor="middle" class="small">admit</text>
+  <text x="637" y="125" text-anchor="middle" class="small">history cached;</text>
+  <text x="637" y="146" text-anchor="middle" class="small">sample next token</text>
+  <text x="975" y="125" text-anchor="middle" class="small">EOS or</text>
+  <text x="975" y="146" text-anchor="middle" class="small">output budget</text>
+
+  <rect x="45" y="170" width="220" height="159" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2"/>
+  <text x="155" y="209" text-anchor="middle" class="state">WAITING</text>
+  <text x="155" y="245" text-anchor="middle" class="body">token history retained</text>
+  <text x="155" y="272" text-anchor="middle" class="body">no active KV ownership</text>
+  <text x="155" y="302" text-anchor="middle" class="small">wait for admission capacity</text>
+  <path d="M274 246H326" class="edge"/>
+
+  <rect x="335" y="170" width="260" height="159" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  <text x="465" y="209" text-anchor="middle" class="state">PREFILLING</text>
+  <text x="465" y="245" text-anchor="middle" class="body">KV space reserved</text>
+  <text x="465" y="272" text-anchor="middle" class="body">cache missing input tokens</text>
+  <text x="465" y="302" text-anchor="middle" class="small">partial chunks stay in this state</text>
+  <path d="M604 246H666" class="edge"/>
+
+  <rect x="675" y="170" width="260" height="159" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="805" y="209" text-anchor="middle" class="state">RUNNING</text>
+  <text x="805" y="245" text-anchor="middle" class="body">cache the last sampled token</text>
+  <text x="805" y="272" text-anchor="middle" class="body">sample the next output token</text>
+  <text x="805" y="302" text-anchor="middle" class="small">repeat until EOS or output limit</text>
+  <path d="M944 246H1006" class="edge"/>
+
+  <rect x="1015" y="170" width="220" height="159" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="1125" y="209" text-anchor="middle" class="state">FINISHED</text>
+  <text x="1125" y="245" text-anchor="middle" class="body">terminal bookkeeping</text>
+  <text x="1125" y="272" text-anchor="middle" class="body">release active KV refs</text>
+  <text x="1125" y="302" text-anchor="middle" class="small">remove from active work</text>
+
+  <path d="M805 338V395H155V339" class="preempt"/>
+  <path d="M465 338V395" fill="none" stroke="#b45309" stroke-width="2.5"/>
+  <circle cx="465" cy="395" r="4" fill="#b45309"/>
+  <text x="520" y="432" text-anchor="middle" class="body" style="fill:#92400e">Memory pressure: preempt a PREFILLING or RUNNING request back to WAITING.</text>
+  <text x="520" y="459" text-anchor="middle" class="small">Release its active KV refs; reset the cache cursor; keep token history and request-local RNG.</text>
+
+  <rect x="35" y="491" width="580" height="216" rx="13" fill="#fff" stroke="#cbd5e1"/>
+  <text x="57" y="524" class="heading">Admission reserves the current history</text>
+  <text x="57" y="558" class="body">Reserve space for all current tokens, not just the next chunk.</text>
+  <text x="57" y="586" class="body">A readmitted request includes its already generated tokens.</text>
+  <text x="57" y="620" class="body">Reuse matching complete prefix blocks when available;</text>
+  <text x="57" y="648" class="body">compute the missing history before sampling again.</text>
+  <text x="57" y="683" class="small">Reservation does not prevent a later memory-pressure preemption.</text>
+
+  <rect x="638" y="491" width="607" height="216" rx="13" fill="#fff" stroke="#cbd5e1"/>
+  <text x="660" y="524" class="heading">The newest sampled token is not cached yet</text>
+  <text x="660" y="559" class="mono">final prefill: KV = [p0 p1 p2 p3 p4]    → sample A1</text>
+  <text x="660" y="593" class="mono">next decode:  KV = [p0 p1 p2 p3 p4 A1] → sample A2</text>
+  <text x="660" y="631" class="body">Sampling adds a token to the request's history.</text>
+  <text x="660" y="659" class="body">The next model call writes that token's K and V.</text>
+  <text x="660" y="687" class="small">A's five-token prompt produces A1 at the end of its final prefill.</text>
+
+  <rect x="35" y="732" width="1210" height="157" rx="13" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="57" y="764" class="body">The first sampled token can immediately satisfy EOS or the output budget: RUNNING need not run a decode call.</text>
+  <text x="57" y="794" class="body">Cancellation also performs terminal cleanup. Zero-output requests can finish without entering model execution.</text>
+  <text x="57" y="824" class="body">Released pages can remain warm in the prefix cache. Releasing ownership is not the same as erasing their bytes.</text>
+  <text x="57" y="858" class="small">This policy readmits preempted requests at the waiting-queue front; FCFS order alone does not guarantee fairness or bounded latency.</text>
+</svg>

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 830" role="img" aria-labelledby="title desc">
+  <title id="title">Five scheduling iterations, two execution layouts</title>
+  <desc id="desc">A and B have already emitted their first tokens. C arrives before iteration one; D before iteration three. A shared four-token prompt budget processes C in chunks of four, four, and two, with the remaining two tokens in iteration three used for D. D finishes prefill in iteration four. B finishes in iteration two, A and C in iteration four, and D in iteration five. Ordinary execution needs two, two, three, two, and one forwards; mixed needs one each, with iteration five using the ordinary decode-only path. Blocks indicate work, not elapsed time.</desc>
+  <defs><style>
+    text { font-family: system-ui, sans-serif; fill: #0f172a; }
+    .title { font-size: 27px; font-weight: 700; }
+    .body { font-size: 17px; }
+    .small { font-size: 15px; fill: #475569; }
+    .heading { font-size: 16px; font-weight: 700; }
+    .mono { font-family: ui-monospace, monospace; font-size: 16px; }
+    .decode { fill: #ede9fe; stroke: #7c3aed; stroke-width: 1.5; }
+    .prefill { fill: #ffedd5; stroke: #ea580c; stroke-width: 1.5; }
+    .empty { fill: #f1f5f9; stroke: #cbd5e1; }
+  </style></defs>
+  <rect width="1200" height="830" rx="18" fill="#f8fafc"/>
+  <text x="32" y="44" class="title">One shared budget, changing batch membership</text>
+  <text x="32" y="76" class="body">Start: A1 and B1 emitted. Prompt budget = 4 per iteration; decode tokens do not consume it.</text>
+  <rect x="32" y="97" width="17" height="17" rx="3" class="decode"/>
+  <text x="60" y="112" class="small">decode: one input token per request</text>
+  <rect x="387" y="97" width="17" height="17" rx="3" class="prefill"/>
+  <text x="415" y="112" class="small">prefill: logical prompt range [start:end)</text>
+  <text x="39" y="155" class="heading">Iteration</text>
+  <text x="183" y="155" class="heading">Decode work</text>
+  <text x="402" y="155" class="heading">Prompt work</text>
+  <text x="778" y="155" class="heading">Sampled / finished</text>
+  <text x="1031" y="144" class="heading">Model calls</text>
+  <text x="1018" y="164" class="small">ordinary → mixed</text>
+  <g>
+    <rect x="24" y="177" width="1152" height="89" rx="10" fill="#fff" stroke="#e2e8f0"/>
+    <text x="54" y="214" class="heading">1</text>
+    <text x="44" y="242" class="small">C arrives</text>
+    <rect x="170" y="194" width="196" height="53" rx="8" class="decode"/>
+    <text x="268" y="226" text-anchor="middle" class="body">A + B</text>
+    <rect x="397" y="194" width="326" height="53" rx="8" class="prefill"/>
+    <text x="560" y="226" text-anchor="middle" class="mono">C[0:4] · 4 tokens</text>
+    <text x="778" y="226" class="body">A2, B2</text>
+    <text x="1080" y="226" text-anchor="middle" class="body">2 → 1</text>
+  </g>
+  <g>
+    <rect x="24" y="277" width="1152" height="89" rx="10" fill="#fff" stroke="#e2e8f0"/>
+    <text x="54" y="326" class="heading">2</text>
+    <rect x="170" y="294" width="196" height="53" rx="8" class="decode"/>
+    <text x="268" y="326" text-anchor="middle" class="body">A + B</text>
+    <rect x="397" y="294" width="326" height="53" rx="8" class="prefill"/>
+    <text x="560" y="326" text-anchor="middle" class="mono">C[4:8] · 4 tokens</text>
+    <text x="778" y="314" class="body">A3, B3</text>
+    <text x="778" y="342" class="small">B finishes</text>
+    <text x="1080" y="326" text-anchor="middle" class="body">2 → 1</text>
+  </g>
+  <g>
+    <rect x="24" y="377" width="1152" height="89" rx="10" fill="#fff" stroke="#e2e8f0"/>
+    <text x="54" y="414" class="heading">3</text>
+    <text x="44" y="442" class="small">D arrives</text>
+    <rect x="170" y="394" width="196" height="53" rx="8" class="decode"/>
+    <text x="268" y="426" text-anchor="middle" class="body">A</text>
+    <rect x="397" y="394" width="158" height="53" rx="8" class="prefill"/>
+    <text x="476" y="417" text-anchor="middle" class="mono">C[8:10]</text>
+    <text x="476" y="438" text-anchor="middle" class="small">2 tokens</text>
+    <rect x="565" y="394" width="158" height="53" rx="8" class="prefill"/>
+    <text x="644" y="417" text-anchor="middle" class="mono">D[0:2]</text>
+    <text x="644" y="438" text-anchor="middle" class="small">2 tokens left</text>
+    <text x="778" y="414" class="body">A4, C1</text>
+    <text x="778" y="442" class="small">D is still partial</text>
+    <text x="1080" y="426" text-anchor="middle" class="body">3 → 1</text>
+  </g>
+  <g>
+    <rect x="24" y="477" width="1152" height="89" rx="10" fill="#fff" stroke="#e2e8f0"/>
+    <text x="54" y="526" class="heading">4</text>
+    <rect x="170" y="494" width="196" height="53" rx="8" class="decode"/>
+    <text x="268" y="526" text-anchor="middle" class="body">A + C</text>
+    <rect x="397" y="494" width="326" height="53" rx="8" class="prefill"/>
+    <text x="560" y="526" text-anchor="middle" class="mono">D[2:3] · 1 token</text>
+    <text x="778" y="514" class="body">A5, C2, D1</text>
+    <text x="778" y="542" class="small">A and C finish</text>
+    <text x="1080" y="526" text-anchor="middle" class="body">2 → 1</text>
+  </g>
+  <g>
+    <rect x="24" y="577" width="1152" height="89" rx="10" fill="#fff" stroke="#e2e8f0"/>
+    <text x="54" y="626" class="heading">5</text>
+    <rect x="170" y="594" width="196" height="53" rx="8" class="decode"/>
+    <text x="268" y="626" text-anchor="middle" class="body">D</text>
+    <rect x="397" y="594" width="326" height="53" rx="8" class="empty"/>
+    <text x="560" y="626" text-anchor="middle" class="body">No prompt work</text>
+    <text x="778" y="614" class="body">D2</text>
+    <text x="778" y="642" class="small">D finishes</text>
+    <text x="1080" y="615" text-anchor="middle" class="body">1 → 1</text>
+    <text x="1080" y="641" text-anchor="middle" class="small">decode-only</text>
+  </g>
+  <text x="32" y="704" class="body">Ordinary: decode forward, then separate prompt forwards in this example.</text>
+  <text x="32" y="733" class="body">Mixed: one packed forward when prompt work exists; the selected token ranges stay the same.</text>
+  <text x="32" y="770" class="small">A request samples its first output only after its final prompt chunk; it begins decode in the next iteration.</text>
+  <text x="32" y="797" class="small">Blocks are not timed. Events reach the caller after the entire synchronous iteration, not at sampling time.</text>
+</svg>
