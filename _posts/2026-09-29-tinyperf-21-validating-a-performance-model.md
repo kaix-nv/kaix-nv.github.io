@@ -450,7 +450,7 @@ Table 21.4  Grids pinned by tests/test_core.py: the current model against the re
     prefix-cached TTFT, suffix of 512 tokens or more      6  held out                  0.977-1.104    0.94-1.12
     128-token suffix at batch 1: a pinned miss            1  held out                        0.710     0.6-0.75
   labels as each chapter gives them, for the model that first priced the grid; each grid has been a test since, in view of every later change
-  tests/test_core.py: 87 tests, 31 of them read measurements from data/validation
+  tests/test_core.py: 92 tests, 31 of them read measurements from data/validation
 ```
 
 The tests also keep the repository's scope statement true. And pinning

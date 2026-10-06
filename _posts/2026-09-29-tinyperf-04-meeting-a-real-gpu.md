@@ -534,6 +534,7 @@ Table 4.9  Beyond four constants: the other fields of the RTX A6000's calibratio
   moe_math_efficiency            bf16 expert kernel: prefill math               9  fitted end to end
   weight_only_math_efficiency    MXFP4 expert GEMMs: math                  10, 22  fitted end to end
   collective_curve_2gpu          NCCL collectives on two GPUs                  11  kernel alone
+  collective_curve_link_gbps     the link that curve was measured on           11  the pair's ring rate
   pp_step_overhead_us            pipeline-parallel engine: cost per step       12  fitted end to end
   per_seq_step_overhead_us       cost per sequence per step                    15  retired: 0
   mixed_decode_gqa_reread        decode rows' KV re-read in a mixed step       16  kernel alone
@@ -543,7 +544,7 @@ Table 4.9  Beyond four constants: the other fields of the RTX A6000's calibratio
   serving_error_band             the serving model's validated error           18  held-out cells
   kv_producer_layer_us           KV producer: cost per layer                   20  fitted end to end
   weight_only_expert_mixed_us    MXFP4 expert kernel beside decodes            22  kernel alone
-  27 fields in all: the device name, the four fitted constants, the provenance string and these 21
+  28 fields in all: the device name, the four fitted constants, the provenance string and these 22
 ```
 
 The rule: **each field is measured on its own kernel, timed alone or
