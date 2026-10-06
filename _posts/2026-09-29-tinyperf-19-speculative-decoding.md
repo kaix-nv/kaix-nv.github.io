@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 19: Speculative decoding"
 date: 2026-09-29 12:19:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/19-speculative-decoding/
-excerpt: "A decode step reads every weight of the model to give each sequence one token (chapter 6). For Qwen3-8B on an RTX A6000, tinyperf's calibrated model prices that step at 24.2 ms for one sequence (chapter 14 measured a 24.4 ms TPOT), and only a faster memory makes that one stream faster. Speculative decoding changes what a step produces. A cheap draft model guesses the next few tokens, the large target model checks them all in one step and keeps the ones it agrees with, and one expensive step yields several tokens. When is that true, how far ahead should the draft guess, and what does a performance model need to know that it can't derive?"
+excerpt: "A decode step reads every weight of the model to give each sequence one token (chapter 6). For Qwen3-8B on an RTX A6000, tinyperf's calibrated model (the book's model at its calibrated tier, with constants fitted to this GPU; chapter 4) prices that step at 24.2 ms for one sequence (chapter 14 measured a 24.4 ms TPOT, time per output token), and only a faster memory makes that one stream faster. Speculative decoding changes what a step produces. A cheap draft model guesses the next few tokens, the large target model checks them all in one step and keeps the ones it agrees with, and one expensive step yields several tokens. When is that true, how far ahead should the draft guess, and what does a performance model need to know that it can't derive?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/28/building-tinyperf-m17.html
   - /tinyperf/perf-modeling/2026/08/29/building-tinyperf-m27.html
@@ -15,14 +15,15 @@ redirect_from:
 
 A decode step reads every weight of the model to give each sequence one
 token (chapter 6). For Qwen3-8B on an RTX A6000, tinyperf's calibrated
-model prices that step at 24.2 ms for one sequence (chapter 14 measured
-a 24.4 ms TPOT), and only a faster memory makes that one stream
-faster. Speculative decoding changes what a step produces. A cheap
-*draft* model guesses the next few tokens, the large *target* model
-checks them all in one step and keeps the ones it agrees with, and one
-expensive step yields several tokens. When is that true, how far ahead
-should the draft guess, and what does a performance model need to know
-that it can't derive?
+model (the book's model at its calibrated tier, with constants fitted
+to this GPU; chapter 4) prices that step at 24.2 ms for one sequence
+(chapter 14 measured a 24.4 ms TPOT, time per output token), and only
+a faster memory makes that one stream faster. Speculative decoding
+changes what a step produces. A cheap *draft* model guesses the next
+few tokens, the large *target* model checks them all in one step and
+keeps the ones it agrees with, and one expensive step yields several
+tokens. When is that true, how far ahead should the draft guess, and
+what does a performance model need to know that it can't derive?
 
 The short answer: a cycle of k drafted tokens yields
 `(1 − α^(k+1)) / (1 − α)` tokens on average, where α is the chance that
@@ -31,11 +32,13 @@ over k+1 positions, and while that step is memory-bound it costs about
 one decode step. With Qwen3-0.6B drafting four tokens for Qwen3-8B at
 α = 0.8, the model projects 3.36 tokens in 38 ms, 2.14 times plain
 decoding. Three things take the gain away: large batches, which push
-the verify step past the ridge point; a draft whose own KV cache grows
-with the context; and acceptance that falls with position, which makes
-deep drafts a waste. A model's own prediction head prices at about 5% of a
-target step. No speculation number in this chapter is measured, and the
-acceptance is an input the model can't derive.
+the verify step (the target's check of the drafts) past the ridge point
+(where its GEMMs stop being memory-bound; chapter 2); a draft whose own
+KV cache grows with the context; and acceptance that falls with
+position, which makes deep drafts a waste. A model's own prediction
+head prices at about 5% of a target step. No speculation number in this
+chapter is measured, and the acceptance is an input the model can't
+derive.
 
 By the end of this chapter you will know:
 
@@ -44,7 +47,7 @@ By the end of this chapter you will know:
 - the expected tokens per cycle, and the speedup and break-even
   acceptance that follow from the draft's cost;
 - why verifying is nearly free while the step is memory-bound, and the
-  regime map where it stops;
+  regime map (speedup by batch and context) that shows where it stops;
 - why a small draft costs more than its parameter count suggests;
 - what a multi-token-prediction (MTP) head costs as a draft;
 - why acceptance that decays with position makes the best depth
@@ -159,15 +162,16 @@ class SpecStepLatencyModel:
 ```
 
 `decode_us` returns the time per emitted token. The class has the step
-model's interface, so chapter 14's `simulate` accepts it, and every
-sequence then advances one token per "step" at that price: a
-*mean-field* model, in which every sequence gets the average yield.
-(`prefill_us`, not shown, prefills both models.)
+model's interface, so chapter 14's serving simulator, `simulate`,
+accepts it, and every sequence then advances one token per "step" at
+that price: a *mean-field* model, in which every sequence gets the
+average yield. (`prefill_us`, not shown, prefills both models.)
 
 Here is one cycle on the book's usual set-up, Qwen3-8B on the RTX A6000
-at its fitted rates with kernels in a CUDA graph. The draft is
-Qwen3-0.6B, the smallest model of the family: a draft must share the
-target's vocabulary, and these two share a tokenizer.
+at its fitted rates with kernels in a CUDA graph (launches recorded
+once and replayed as one; chapter 4). The draft is Qwen3-0.6B, the
+smallest model of the family: a draft must share the target's
+vocabulary, and these two share a tokenizer.
 
 ```
 Worked example  One cycle: Qwen3-8B with a Qwen3-0.6B draft, RTX A6000, batch 1, context 1024, k = 4
@@ -240,7 +244,8 @@ decode step, but runs every GEMM on b·(k+1) rows instead of b. A weight
 GEMM on M rows does about M FLOPs per byte (chapter 6), so verification
 stays memory-bound, and costs about one decode step, while b·(k+1) is
 below the A6000's fitted ridge point of 168 (in practice the 128-row
-tile edge). Past it, GEMM time grows with the rows. `chunk_us` prices
+tile edge: past 128 rows the GEMM adds a second row of output tiles;
+chapter 3). Past it, GEMM time grows with the rows. `chunk_us` prices
 the step, with the LM head on all k+1 rows and the context rounded up
 to 256.
 
@@ -324,10 +329,11 @@ reads are small.
 ## A draft that ships with the model: MTP heads
 
 Some models are trained with a *multi-token prediction* (MTP) head: one
-extra decoder layer that takes the trunk's final hidden state and the
-embedding of the token just sampled, and predicts the token after it
-through the trunk's own LM head. DeepSeek-V3 and Qwen3.8-27B (the
-hybrid of chapter 8) ship one. As a draft it needs no second model or
+extra decoder layer that takes the final hidden state of the trunk (the
+model's main body of layers) and the embedding of the token just
+sampled, and predicts the token after it through the trunk's own LM
+head. DeepSeek-V3 and Qwen3.8-27B (chapter 8's hybrid of linear- and
+full-attention layers) ship one. As a draft it needs no second model or
 tokenizer, and its cache is one layer; chapter 6's `kv_bytes_per_token`
 counts that layer, so capacity charges it. tinyperf prices the head as
 a model of its own, the target's dimensions with `mtp_layers` layers of
@@ -349,8 +355,9 @@ class MTPStepLatencyModel:
 ```
 
 The cycle is a separate draft's, except that the head runs at the
-target's tensor parallelism. `break_even_alpha` (not shown) bisects for
-the α at which `cycle / E` equals a decode step.
+target's tensor parallelism (its weights split across the target's
+GPUs; chapter 11). `break_even_alpha` (not shown) bisects for the α at
+which `cycle / E` equals a decode step.
 
 ```
 Worked example  The MTP head of Qwen3.8-27B as a draft: what one step reads, B200
@@ -379,7 +386,8 @@ Table 19.6  The MTP head as a draft: Qwen3.8-27B on a B200, calibrated tier, k =
 
 At c ≈ 0.05, against 0.14 for the separate draft (Table 19.3), the
 head breaks even near 5% acceptance. The target's step it rests on is
-held out against vLLM, 4–12% low (chapter 8).
+held out against vLLM (nothing in it was fitted to those runs), 4–12%
+low (chapter 8).
 
 An MTP head is trained to look one token ahead. An engine can draft
 deeper by running it again on its own output, and `MTPStepLatencyModel`
@@ -524,9 +532,10 @@ Table 19.10  A verify step's weight GEMMs, measured: Qwen3-8B's 144 layer GEMMs 
 ```
 
 The calibrated model's verify GEMMs read 1.00–1.02 of the
-measurement, but above 32 rows that is *fitted*: its row curve came
-from these timings. The tile model alone, *held out*, reads up to 17%
-low.
+measurement, but above 32 rows that is *fitted*: its row curve
+(cuBLAS's measured time over the tile model, by rows; chapter 15) came
+from these timings. The tile model alone (chapter 3's price from tiles
+and waves), *held out*, reads up to 17% low.
 
 Unchecked: any acceptance rate, the draft's step (priced with
 constants fitted to Qwen3-8B's kernels), attention with k+1 queries,
@@ -550,11 +559,13 @@ Exercise 5 is the measurement this chapter lacks.
   tokens; `decode_us` interpolates.
 - **Memory.** The draft's weights and cache are never charged against
   capacity (Table 19.5's footer). An MTP head's cache is.
-- **In the simulator** `SpecStepLatencyModel` has no `sampler_us` and
-  no calibration, so the sampler and the 25 ms per-request overhead
-  (chapter 14) vanish under speculation. With no `mixed_step_us`,
-  chunked prefill raises an `AttributeError`: only prefill-first
-  scheduling runs.
+- **In the simulator** `SpecStepLatencyModel` has no `sampler_us` and no
+  calibration, so the sampler (which picks each next token; chapter 15)
+  and the 25 ms per-request overhead (chapter 14) vanish under
+  speculation. With no `mixed_step_us`, chunked prefill (prompt chunks
+  sharing steps with decodes) raises an `AttributeError`: only
+  prefill-first scheduling (prompts in steps of their own; chapter 14)
+  runs.
 - **Padding.** Its `decode_us` ignores `real`, so attention is charged
   for the padded CUDA-graph batch (chapter 15).
 - **The MTP head's input projection** (2h × h, 0.10 GB here) is left
@@ -588,7 +599,8 @@ Appendix A turns these speedups into cost per million tokens.
    for your workload.
 3. **Charge the draft's memory.** Add the draft's weights and cache to
    `simulate`'s KV budget and rerun a chapter 14 load sweep with
-   speculation. Does the smaller pool or the step price set the knee?
+   speculation. Does the smaller pool or the step price set the knee
+   (the load where latency turns sharply upward; chapter 18)?
 4. **Give speculation a sampler.** Add `sampler_us`, a `calibration`
    and `mixed_step_us` to `SpecStepLatencyModel`. What should a mixed
    step with speculation cost, and the sampler on k+1 rows per

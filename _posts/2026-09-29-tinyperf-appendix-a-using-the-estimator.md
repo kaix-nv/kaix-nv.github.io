@@ -4,7 +4,7 @@ title: "Building tinyperf, appendix A: Using the estimator"
 date: 2026-09-29 12:23:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/appendix-a-using-the-estimator/
-excerpt: "The chapters built a model that prices a step and a simulator that replays a server under load. Planning asks which configuration, how many GPUs, and what a million tokens costs in dollars and joules, at a latency target. How do you answer that with the model, and how far can you trust the answers?"
+excerpt: "The chapters built a model that prices a step (predicts the time of one forward pass over a batch) and a simulator that replays a server under load. Planning asks which configuration, how many GPUs, and what a million tokens costs in dollars and joules, at a latency target. How do you answer that with the model, and how far can you trust the answers?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/22/building-tinyperf-m14.html
   - /tinyperf/perf-modeling/2026/08/23/building-tinyperf-m15.html
@@ -15,24 +15,29 @@ redirect_from:
 
 *[Building tinyperf](/series/tinyperf/) · Appendices · Code: [`tinyperf/sweep.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/sweep.py), `pareto`, `find_knee` and `tip_fraction`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, and at a [later commit](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) `VLLM` and `recorded_trace`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`; [`tinyperf/energy.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/energy.py), `energy_report` · Every table and both figures in this appendix come from `python3 book/scripts/appA_using.py`.*
 
-The chapters built a model that prices a step and a simulator that
-replays a server under load. Planning asks which configuration, how
-many GPUs, and what a million tokens costs in dollars and joules, at a
-latency target. How do you answer that with the model, and how far can
-you trust the answers?
+The chapters built a model that prices a step (predicts the time of
+one forward pass over a batch) and a simulator that replays a server
+under load. Planning asks which configuration, how many GPUs, and what
+a million tokens costs in dollars and joules, at a latency target. How
+do you answer that with the model, and how far can you trust the
+answers?
 
 The short answer: price every configuration and keep the ones nothing
-beats. Simulate one replica across load, and plan below its knee with
-margins for the model's error, the traffic and steady load. Divide
-GPU-hours by tokens: as the latency target approaches the time of a
-one-sequence decode step (the *wall*), the cost grows as
-`1 / (1 − wall/target)`. Energy per token follows the same GPU time.
-Only the plan on the RTX A6000 rests on held-out runs; other GPUs,
-prices, energy and speculation are projections.
+beats. Simulate one replica across load, and plan below its knee (the
+load where latency turns sharply upward) with margins for the model's
+error, the traffic and steady load. Divide GPU-hours by tokens: as the
+latency target approaches the time of a one-sequence decode step (the
+*wall*), the cost grows as `1 / (1 − wall/target)`. Energy per token
+follows the same GPU time. Only the plan on the RTX A6000 rests on
+held-out runs, which nothing in the model was fitted to or built
+around; other GPUs, prices, energy and speculative decoding (a cheap
+draft model proposes tokens that the served model checks in one step;
+chapter 19) are projections, unchecked by any measured server.
 
 By the end of this appendix you will know:
 
-- how to sweep configurations and read a Pareto front;
+- how to sweep configurations and read a Pareto front (the
+  configurations no other beats on both metrics);
 - how to size a deployment: what caps a replica, how far below its knee
   to plan, how many replicas to buy;
 - why tight latency targets cost disproportionately;
@@ -60,9 +65,11 @@ def pareto(results: list, x: str, y: str) -> list:
 On this *Pareto front*, sorted by x (smaller is better), a point joins
 only if its y (larger is better) beats every point before it: improving
 one metric costs the other. The price function is yours; the script's
-uses the step model of chapter 14's engine preset, `VLLM.step_model`,
-which prices kernels launched from a CUDA graph (chapter 4) and takes a
-precision recipe (chapter 10's FP8 recipe ships as
+uses the step model of chapter 14's engine preset (vLLM 0.15.1's
+settings in one object), `VLLM.step_model`, which prices kernels
+launched from a CUDA graph (recorded once and replayed as one;
+chapter 4) and takes a precision recipe, the dtype of each kind of
+operator (chapter 10's 8-bit floating-point recipe ships as
 `RECIPE_FP8_SERVING`):
 
 ```python
@@ -78,12 +85,16 @@ def price(cfg):
             "per_gpu": cfg["batch"] * 1e3 / tpot_ms / world, "world": world}
 ```
 
-What exceeds 90% of memory (chapter 6's rule) is not priced. The rest
-get *tokens per second per user*, 1000 / TPOT in ms, and *per GPU*,
-what the owner pays for. Table A.1 sweeps Llama-3-70B's decode at 4,096
-tokens of context: tensor parallelism tp = 1–8 (each GPU holds 1/tp of
-every weight matrix; chapter 11), pipeline stages pp = 1–2 (chapter
-12), bf16 or chapter 10's FP8 recipe, batch 1–256.
+What exceeds 90% of memory (chapter 6's rule) is not priced. The rest,
+priced at the calibrated tier (on constants fitted to each GPU;
+chapter 4), get *tokens per second per user*, 1000 / TPOT (time per
+output token) in ms, and *per GPU*, what the owner pays for. Each price
+comes from a step graph, the list of operators one step runs
+(chapter 5). Table A.1 sweeps Llama-3-70B's decode at 4,096 tokens of
+context: tensor parallelism tp = 1–8 (each GPU holds 1/tp of every
+weight matrix; chapter 11), pipeline stages pp = 1–2 (the layers cut
+into pp blocks of consecutive layers, each on its own GPUs; chapter 12),
+bf16 or chapter 10's FP8 recipe, batch 1–256.
 
 ```
 Table A.1  A decode sweep's Pareto front: Llama-3-70B on H100 SXMs, context 4096, calibrated tier
@@ -126,13 +137,15 @@ alone.*
 
 A deployment is sized in requests, which takes the serving simulator
 (chapter 14). From chapter 18: the *knee* is the load at which TTFT
-turns sharply upward; ρ is the share of the GPU's time spent on
-requests' own work rather than the weight read every step shares; and
-the mean-value *envelope* puts the knee where requests in flight fill
-the engine's *seats* (`max_num_seqs`, 64 here).
+(time to first token) turns sharply upward; ρ is the share of the
+GPU's time spent on requests' own work rather than the weight read
+every step shares; and the *envelope*, a steady-state model of the
+server from mean values, puts the knee where requests in flight fill
+the engine's *seats* (`max_num_seqs`, the most requests it runs at
+once; 64 here).
 
-**What caps a replica.** The seats, or the KV pool vLLM sizes at
-start-up (chapter 17):
+**What caps a replica.** The seats, or the KV pool (the cache space, in
+tokens) vLLM sizes at start-up (chapter 17):
 
 ```
 Worked example  What caps one replica: Qwen3-8B on one RTX A6000, vLLM's defaults with 64 seats
@@ -150,8 +163,9 @@ seats move it only to 0.65 requests per second.
 checked it against held-out runs: the engine preset with the measured
 server's 64 seats (the calibrated A6000, top-p sampling, chunked prefill
 of at most 2,048 prompt tokens per step), on the arrivals `vllm bench
-serve` sent in chapter 14's runs, as recorded (`recorded_trace`) and
-replayed by `bench_requests`. The script's `plan_checks`, condensed:
+serve` (vLLM's load generator) sent in chapter 14's runs, as recorded
+(`recorded_trace`) and replayed by `bench_requests`. The script's
+`plan_checks`, condensed:
 
 ```python
 SERVER = VLLM.with_(max_num_seqs=64)                            # the measured server
@@ -167,9 +181,11 @@ over = tip_fraction(QWEN, A6000, rate, 1000, seeds=40, latency_model=LAT,
 steady = [run(poisson_requests(4000, rate, 1024, 128, seed=s)) for s in (1, 2)]
 ```
 
-`tip_fraction` takes `simulate`'s arguments, not the preset, so the
-seats and budget go in by vLLM's names, which `simulate` accepts for
-`max_batch` and `chunk_tokens`.
+`tip_fraction`, the share of random arrival traces whose p95 TTFT
+exceeds a threshold, takes `simulate`'s arguments, not the preset, so
+the seats and the token budget (the most tokens one step may carry) go
+in by vLLM's names, which `simulate` accepts for `max_batch` and
+`chunk_tokens`.
 
 ```
 Table A.2  Planning one replica: Qwen3-8B on one RTX A6000, 1024 tokens in, 128 out; target p95 TTFT <= 1 s and p95 TPOT <= 100 ms
@@ -189,7 +205,8 @@ Four checks, each adding margin:
 
 - **The point prediction** says 3.25 requests per second (p95 TTFT
   990 ms), where goodput peaks too (chapter 14). The server measured
-  851 ms there and 1,053 at 3.5 (in-sample).
+  851 ms there and 1,053 at 3.5 (in-sample: the model was built with
+  these runs in view).
 - **The model's error.** `prediction_interval` (chapter 18) reruns the
   simulation with every step up to 1.7% faster and slower, the model's
   step error on held-out runs, and widens each end by 7.2%, the p95-TTFT
@@ -221,7 +238,8 @@ and below its knee, serves λ·G tokens per second:
 $ per million tokens = GPUs × $ per GPU-hour / (λ × G × 3600 / 10^6)
 ```
 
-**Prices.** Each device file carries a `usd_per_hour` (0.49 for the RTX
+**Prices.** Each device file (a GPU's rates and sizes, in
+`data/devices/`; chapter 2) carries a `usd_per_hour` (0.49 for the RTX
 A6000, 2.49 for the H100 SXM, 5.99 for the B200) that the code calls an
 "illustrative public-cloud" price, with no source or date. Every cost
 scales with it; yours goes in as
@@ -303,8 +321,9 @@ the A6000 costs $0.387.
 So the cheapest GPU depends on the target: loose targets cost
 $0.28–0.33 on all three at these prices, but below 25 ms the A6000
 can't serve, nor the H100 below 8. At the A6000's floor, prompts take
-half the GPU's time. The step-price cache (chapter 14) keeps all this
-cheap: 1.6 million engine steps took 4,010 step graphs.
+half the GPU's time. The step-price cache (step prices stored by shape
+and reused; chapter 14) keeps all this cheap: 1.6 million engine steps
+took 4,010 step graphs.
 
 ## Energy per token
 
@@ -317,10 +336,11 @@ E_step = sum of E_op + static_w × step time
 demand = static_w + E_op / t;   above tdp_w the operation runs demand / tdp_w times longer
 ```
 
-*Executed* flops include a tile's padding rows (chapter 3);
-`dtype_scale` halves an FP8 flop's energy, an assumption. Datasheets
-give the limit, not the other coefficients; `tools/measure_power.py`
-measures them:
+*Executed* flops include a tile's padding rows (a GEMM runs in
+fixed-size output tiles, and those at the matrix's edge are padded;
+chapter 3); `dtype_scale` halves an FP8 flop's energy, an assumption.
+Datasheets give the limit (the TDP, thermal design power, `tdp_w`), not
+the other coefficients; `tools/measure_power.py` measures them:
 
 ```
 Table A.4  The power model on the RTX A6000: four coefficients from four loads, one load held out (data/power/rtx_a6000_measured.json)
@@ -348,7 +368,8 @@ at the limit.
 The held-out GEMV, a decode step's shape, streams weights with almost
 no useful math yet drew 299 W, at the cap, so its uncapped demand is at
 least that. The tool predicts 307 W with a 64-row tile; the model
-268 W with its 16-row tile, at best 0.90.
+268 W with its 16-row tile, at best 0.90 (a ratio, here as in every
+chapter, is predicted ÷ measured).
 
 ```
 Table A.5  Energy per token, projected: Qwen3-8B, context 1,088, calibrated tier, kernels in a CUDA graph (J per token)
@@ -378,10 +399,11 @@ latency target raises it as it raises the price.
 At a fixed batch, speculative decoding cuts the cost per token by its
 speedup, 2.16 times at one sequence and 1.28 at 64 (Table 19.5). At a
 latency target it also lets a larger batch fit; Table A.6 finds the
-largest batch meeting each target. *i.i.d.* acceptance gives every
-drafted token the same chance α; "decay 0.8" lowers it to α·0.8^(i−1)
-at the i-th. An *MTP head* is one extra layer some models ship to draft
-their own next token (chapter 19).
+largest batch meeting each target, and the cheapest depth k, the tokens
+drafted per cycle. *i.i.d.* acceptance gives every drafted token the
+same chance α of being accepted; "decay 0.8" lowers it to α·0.8^(i−1)
+at the i-th. An *MTP head* (multi-token prediction) is one extra layer
+some models ship to draft their own next token (chapter 19).
 
 ```
 Table A.6  Speculation at a latency target: decode steps alone, alpha 0.8, the cheapest depth k (1-8) and batch; $ per million output tokens
@@ -411,36 +433,43 @@ Table A.6  Speculation at a latency target: decode steps alone, alpha 0.8, the c
   speculation fits 42 at $0.081 (i.i.d.), or $0.091 if acceptance
   decays. The saving is the batch the target allows.
 - **At loose targets a separate draft stops paying.** At 60 ms it
-  costs 4% more: the verify step's GEMMs pass the ridge point (chapter
-  19), and the draft's weights and cache cap the batch at 95 against
-  plain decoding's 128. The MTP head, about 5% of a target step with a
-  one-layer cache, still saves 43% at 24 ms.
+  costs 4% more: the verify step's GEMMs (the target checking the
+  drafted tokens) pass the ridge point, where they turn math-bound
+  (chapter 19), and the draft's weights and cache cap the batch at 95
+  against plain decoding's 128. The MTP head, about 5% of a target step
+  with a one-layer cache, still saves 43% at 24 ms.
 - **Decay matters most where targets are tightest:** at 15 ms the
   i.i.d. formula quotes about half the decaying price.
 
 ## How far to trust a plan
 
 Only the A6000's serving answers (Table A.2 and Table A.3's first
-column) rest on held-out runs on this GPU and engine: p95 TTFT typical
-error 7.1% and TPOT 1.9% over 26 cells (chapter 14), the KV pool within
-1% (chapter 17), intervals holding 35 of 36 values (chapter 18); the
-margin rule is ours. The sweep (collectives measured only on a PCIe
-pair; chapter 11), energy per token and speculation are projections.
+column) rest on held-out runs on this GPU and engine: a typical error
+(the ratios' usual distance from 1, `exp(mean |ln ratio|) − 1`;
+chapter 3) of 7.1% on p95 TTFT and 1.9% on TPOT over 26 cells
+(chapter 14), the KV pool within 1% (chapter 17), intervals holding 35
+of 36 values (chapter 18); the margin rule is ours. The sweep
+(collectives, the calls that combine GPUs' partial results, measured
+only on a PCIe pair; chapter 11), energy per token and speculation are
+projections.
 
 ## Where it breaks
 
 - **`price_serving_config`**, which `find_knee` calls, takes no engine
   preset. It prices greedy sampling only (top-p steps
-  are 2–4% longer on the A6000; chapter 18), admits by reservation,
-  which under-batches when the pool binds (chapter 17), and divides by
-  a short run's makespan, drain included. **`price_decode_config`** at
-  the calibrated tier charges the eager launch cost, not a CUDA graph's.
+  are 2–4% longer on the A6000; chapter 18), admits by reservation (a
+  request enters only if its prompt and whole reply fit beside the
+  others'), which under-batches when the pool binds (chapter 17), and
+  divides by a short run's makespan, drain included.
+  **`price_decode_config`** at the calibrated tier charges the eager
+  launch cost (each kernel issued from Python, 12–25 µs), not a CUDA
+  graph's.
 - **Other GPUs.** The H100 and B200 have GEMM constants only; a held-out
   B200 decode step of Qwen3.8-27B read 0.878–0.958 (chapter 8). The
-  25 ms per-request overhead (chapter 14), fitted on one A6000 server,
-  is latency only, never capacity, and absent elsewhere: at the B200's
-  45 requests per second it would be 1.1 s of host work per second,
-  untested.
+  25 ms per-request overhead (time a request spends outside the GPU's
+  steps; chapter 14), fitted on one A6000 server, is latency only,
+  never capacity, and absent elsewhere: at the B200's 45 requests per
+  second it would be 1.1 s of host work per second, untested.
 - **Fixed lengths.** A real mix moves both the pool and the knee. And
   **prices** are one number per GPU: no spot pricing, power or cooling.
 - **Energy.** The energy per FLOP, fitted on a GEMM's whole draw, makes

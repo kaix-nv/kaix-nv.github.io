@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 9: Mixture of experts"
 date: 2026-09-29 12:09:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/09-mixture-of-experts/
-excerpt: "Many of today's largest language models replace each feed-forward layer with a set of smaller feed-forward networks, the experts, and a small router that sends each token to a few of them. A token pays for the math of its few experts, while the model holds the knowledge of all of them. For a performance model this raises one question with a surprisingly deep answer: what does an MoE layer cost to run?"
+excerpt: "Many of today's largest language models replace each feed-forward layer with a set of smaller feed-forward networks, the experts, and a small router that sends each token to a few of them. A token pays for the math of its few experts, while the model holds the knowledge of all of them. For a performance model this raises one question with a surprisingly deep answer: what does an MoE (mixture-of-experts) layer cost to run?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/21/building-tinyperf-m11.html
   - /tinyperf/perf-modeling/2026/09/02/building-tinyperf-m43.html
@@ -21,24 +21,28 @@ with a set of smaller feed-forward networks, the *experts*, and a small
 *router* that sends each token to a few of them. A token pays for the
 math of its few experts, while the model holds the knowledge of all of
 them. For a performance model this raises one question with a
-surprisingly deep answer: what does an MoE layer cost to run?
+surprisingly deep answer: what does an MoE (mixture-of-experts) layer
+cost to run?
 
 The short answer has two halves. When a step carries thousands of
-tokens, an MoE layer costs what its active parameters' math costs, like
-a dense layer of that size. When a step carries a few dozen tokens, as
-every decode step does, it costs the time to read the weights of the
-experts the step touches. How many experts that is can't be derived from
-the model's configuration. It depends on the router, on the text, and on
-how the serving engine put the step together, and it has to be measured.
+tokens, an MoE layer costs the math of its active parameters, the
+weights each token actually uses, like a dense layer of that size. When
+a step carries a few dozen tokens, as every decode step does, it costs
+the time to read the weights of the experts the step touches. How many
+experts that is can't be derived from the model's configuration. It
+depends on the router, on the text, and on how the serving engine put
+the step together, and it has to be measured.
 
 By the end of this chapter you will know:
 
-- how an MoE layer becomes one grouped GEMM, and why its cost has two
-  regimes;
+- how an MoE layer becomes one grouped GEMM (a batched GEMM with one
+  entry per expert), and why its cost has two regimes;
 - how to count the experts a step touches, and why the textbook formula
   counts up to twice as many as a real router touches;
-- the four ways a serving engine's steps change that count: batches out
-  of step, reply position, CUDA-graph padding and prompt chunks;
+- the four ways a serving engine's steps change that count: sequences
+  at different points in their replies, how far into their replies they
+  are, CUDA-graph padding (filler rows up to a recorded batch size) and
+  pieces of a new prompt in the same step;
 - how close the model gets on two MoE models, and what it still can't
   predict.
 
@@ -56,7 +60,8 @@ and the outputs are summed with the router's weights. Here 12 picks land
 on 5 of the 8 experts. The other 3 experts' weights are never read in
 this step.*
 
-Three models appear in this chapter:
+Three models appear in this chapter (an expert's width is the inner
+size of its feed-forward network):
 
 ```
 Table 9.1  Three MoE models: parameters in billions
@@ -94,8 +99,11 @@ bytes  = experts touched · (expert parameters) · bytes per weight
 
 The FLOPs follow the tokens; the weight bytes follow the experts
 touched. Table 9.2 prices one layer of gpt-oss-20b's experts this way,
-with chapter 3's model at the RTX A6000's fitted rates. It assumes
-uniform routing, which the rest of this chapter will correct.
+with chapter 3's model at the RTX A6000's fitted rates (constants
+fitted to its measurements; chapter 4). It assumes uniform routing
+(every expert equally likely to be picked), which the rest of this
+chapter will correct. The bound column names what sets the time of the
+gate-up GEMM and of the down GEMM (chapter 5).
 
 ```
 Table 9.2  One gpt-oss-20b layer's experts as a grouped GEMM, bf16, uniform routing, RTX A6000
@@ -128,7 +136,8 @@ Before counting them, check the claim that an expert's cost at decode
 is just its weights. Table 9.3 times the expert kernel of a serving
 engine, vLLM, which every measurement in this chapter uses. The kernel
 was timed inside real decode steps, launch by launch, and each launch
-was paired with the routing that layer chose in that step.
+was paired with the routing that layer chose in that step. The table's
+last line, for 4-bit weights and their kernel, is explained below.
 
 ```
 Table 9.3  The engine's expert kernel, timed inside real decode steps: gpt-oss-20b bf16, RTX A6000
@@ -200,21 +209,23 @@ says every expert is touched, where fair random picks reach 21.
 
 > **Field note: the balanced rule.** The model's first MoE version
 > used `min(e, T · k)`. On gpt-oss-20b's first run on real hardware,
-> decode at batch 8 priced 50% high, where batch 1 was within 9% and
-> batch 32 was 13–17% high. The balanced rule and a fair router agree at
-> batch 1 (both say 4) and nearly agree at batch 32 (32 against 31.6);
-> they differ most at batch 8 (32 against 21), and so did the error.
-> The rest of batch 32's error was the real router's concentration,
-> the subject of the next section.
+> decode at batch 8 priced 50% high (the model's time above the
+> measured one), where batch 1 was within 9% and batch 32 was 13–17%
+> high. The balanced rule and a fair router agree at batch 1 (both
+> say 4) and nearly agree at batch 32 (32 against 31.6); they differ
+> most at batch 8 (32 against 21), and so did the error. The rest of
+> batch 32's error was the real router's concentration, the subject of
+> the next section.
 
 The formula extends to a router with favourites. Give expert i a
 popularity `p_i`, and let its probability of being among one token's k
 picks be `q_i = min(1, c · p_i)`, with c chosen so the `q_i` sum to k.
 Then `touched = Σ 1 − (1 − q_i)^T`. It still gives exactly k for one
 token. tinyperf keeps this form: a model may set a skew for a Zipf
-popularity law, and one that sets none, like any model nobody has
-measured, gets uniform routing. Measured models read a table instead,
-for reasons the next section makes plain. Here is the code:
+popularity law (popularity falling as a power of an expert's rank),
+and one that sets none, like any model nobody has measured, gets uniform
+routing. Measured models read a table instead, for reasons the next
+section makes plain. Here is the code:
 
 ```python
 def law_touched(n_experts, top_k, assignments, skew=0.0):
@@ -276,9 +287,9 @@ workload touches fewer experts than uniform routing at every batch above
 one, and the workload decides by how much.*
 
 The gpt-oss-20b workloads: *chat* is news articles with a request to
-summarize them, the model's reply decoded; *prose* is WikiText-103;
-*code* is Python sources; *random* is random token ids; *mixed* puts
-prose, code and chat in one batch.
+summarize them, the model's reply decoded; *prose* is WikiText-103
+(Wikipedia articles); *code* is Python sources; *random* is random token
+ids; *mixed* puts prose, code and chat in one batch.
 
 Three things stand out.
 
@@ -319,9 +330,10 @@ batch 8 is the average of 10.9, 14.5 and 13.4 over three lengths.
 > time-per-token measurement covers, the same prompts touch 13.1. The
 > 9.7 looked like a direct measurement, so for a while the kernel was
 > blamed for the difference: fitted constants said it streamed weights
-> at 0.70 of the memory rate, then slower still "in company". Timed
-> launch by launch against the right routing (Table 9.3), it ran at the
-> full rate all along. Chapter 22 tells the whole story.
+> at 0.70 of the memory rate, then slower still "in company", inside
+> the engine's steps rather than replayed alone. Timed launch by launch
+> against the right routing (Table 9.3), it ran at the full rate all
+> along. Chapter 22 tells the whole story.
 
 ## What the step contains
 
@@ -376,16 +388,17 @@ At 12 decodes, a step early in its replies touches 15 experts and a step
 late in them touches 23. The model reads a factor off the median
 position and applies it to the decodes beyond the first; one token
 always touches its k. The factor is 1 near position 128, where the online
-table was measured, 0.47 at position 10 and 1.52 at about 400. So far
-only gpt-oss-20b has one.
+table (Table 9.7's online counts) was measured, 0.47 at position 10 and
+1.52 at about 400. So far only gpt-oss-20b has one.
 
 ```python
 def effective_decodes(n, reply_pos, by_position):
     return round((1 + (n - 1) * _log2_interp(by_position, max(reply_pos, 1))) * 4) / 4
 ```
 
-The builder then scales the step's count by the table's ratio between
-the effective and the real decodes.
+The graph builder (`build_llm_graph`, which turns the model into a list
+of operators; chapter 6) then scales the step's count by the table's
+ratio between the effective and the real decodes.
 
 **Padding.** A decode step with 9 sequences runs the CUDA graph captured
 for 16. The other 7 rows are not empty: they hold whatever tokens were
@@ -446,8 +459,8 @@ more decodes 27–28.
 So the model counts experts from tables keyed by what the step
 contains: decodes, tokens for chunk-carrying steps, a padded table by
 real decodes, and a reply-position factor. In the builder, without
-expert parallelism (chapter 12 covers that branch), with comments and a
-bookkeeping line trimmed:
+expert parallelism (whole experts spread over several GPUs; chapter 12
+covers that branch), with comments and a bookkeeping line trimmed:
 
 ```python
             e_local = p.n_experts
@@ -469,9 +482,9 @@ bookkeeping line trimmed:
 `padded_touched` reads the padded table. `moe_route_decodes` is the
 effective decodes from the reply position. `active_local` becomes the
 grouped GEMM's batch, and `m_e` its rows per expert. `moe_imbalance`
-scales the rows for a hot expert. It matters when the expert math binds,
-in prefill and under expert parallelism (chapter 12), and not in
-weight-bound decode.
+scales the rows for a hot expert, one busier than the mean. It matters
+when the expert math binds, in prefill and under expert parallelism
+(chapter 12), and not in weight-bound decode.
 
 ## Rows per expert, and the kernel
 
@@ -497,9 +510,11 @@ is about what constants like it can hide.
 **Decode steps, fixed batches.** Qwen3-30B-A3B served across two RTX
 A6000s with tensor parallelism (tp=2: each GPU holds half of every
 weight matrix; chapter 11), each batch decoding side by side and timed
-step by step inside the engine. Nothing in the model was fitted to these
-timings: the routing table came from a separate, routing-only
-measurement, and the kernel constants from gpt-oss-20b.
+step by step inside the engine (timed by CUDA events around each step;
+chapter 15).
+Nothing in the model was fitted to these timings: the routing table came
+from a separate, routing-only measurement, and the kernel constants from
+gpt-oss-20b.
 
 ```
 Table 9.11  Qwen3-30B-A3B decode steps on the engine's clock, tp=2 on two RTX A6000s
@@ -577,9 +592,9 @@ Recorded  Qwen3-30B-A3B online decode steps, model/engine median, as recorded at
 - The count of experts touched: exact for a fair router,
   `e · (1 − (1 − k/e)^T)`, and measured tables for real ones, keyed by
   workload and by what the step contains.
-- Evidence: decode steps within 0.94–1.07 on a held-out model where
-  uniform routing reads 1.28–1.44, and real-text decode within
-  0.96–1.07 when the workload's table is used.
+- Evidence: decode steps within 0.94–1.07 on a held-out model (one
+  nothing was fitted to) where uniform routing reads 1.28–1.44, and
+  real-text decode within 0.96–1.07 when the workload's table is used.
 
 ## Exercises
 

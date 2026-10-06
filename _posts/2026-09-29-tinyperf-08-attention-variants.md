@@ -29,9 +29,9 @@ The short answer: each design bounds one term and pays somewhere else.
 - **Linear attention** replaces the cache with a fixed-size state, but
   the deployed kernel that builds it runs, by the constants fitted to
   it, at about a hundredth of the tensor cores' rate.
-- A **latent cache** stores one small vector per token, 53 times
-  smaller than per-head keys and values here, but it cannot be split
-  across GPUs by heads.
+- A **latent cache** (from multi-head latent attention, MLA) stores one
+  small vector per token, 53 times smaller than per-head keys and values
+  here, but it cannot be split across GPUs by heads.
 - **Sparse attention** reads only the top k tokens, and an indexer that
   scores every token takes over the growth.
 - **Compressed attention** pools every r tokens into one entry.
@@ -41,7 +41,8 @@ No released design stops the growth outright; each changes the slope.
 By the end of this chapter you will know:
 
 - what one layer of each design stores, and the formula for it;
-- how the builder prices each design, and how capacity counts it;
+- how the builder prices each design, and how capacity (the most
+  sequences that fit in memory; chapter 6) counts it;
 - where each design moves the cost;
 - how close the model gets where there are measurements, and what can
   only be checked on paper.
@@ -146,7 +147,8 @@ own attention with the length capped:
 mean, `(s + 1) / 2`, so a long prompt's windowed queries read W keys
 each. Table 8.2 prices gpt-oss-20b, 12 full and 12 windowed layers,
 against a twin whose layers are all full, on a B200 at the rates fitted
-to it (chapter 4), kernels issued from a CUDA graph.
+to it (chapter 4), kernels issued from a CUDA graph (launches recorded
+once and replayed together).
 
 ```
 Table 8.2  gpt-oss-20b against its full-attention twin, one B200 at its fitted rates
@@ -217,12 +219,12 @@ LIN_MATH_EFFICIENCY = 0.55   # more elementwise/gating than a dense GEMM
 ```
 
 The builder emits one such op per linear layer (`tokens_per_seq=s`,
-`fresh_state=(phase == "prefill")`), between a fused QKV projection
-with a short convolution and a gated output projection. A calibration
-can supply the efficiency and a per-layer floor, which applies only
-when the chunked kernel runs. Table 8.3 prices the hybrid against a
-twin in which each linear layer is replaced by the model's own full
-layer.
+`fresh_state=(phase == "prefill")`), between a fused QKV projection with
+a short convolution and a gated output projection. A calibration (a
+GPU's file of fitted constants; chapter 4) can supply the efficiency and
+a per-layer floor, which applies only when the chunked kernel runs.
+Table 8.3 prices the hybrid against a twin in which each linear layer is
+replaced by the model's own full layer.
 
 ```
 Table 8.3  Qwen3.8-27B (48 linear + 16 full layers) against an all-full-attention twin, one B200
@@ -247,8 +249,9 @@ sequence at that length.
 
 Prefill is where the constants matter. Table 8.4 prices one layer's
 attention in a prefill with the linear core two ways: at the asserted
-efficiency, the 0.55 in the code, set by hand and never measured; and
-at the constants fitted to vLLM's TTFT on a B200 (below).
+efficiency, the 0.55 in the code, set by hand and never measured; and at
+the constants fitted to vLLM's TTFT (time to first token) on a B200
+(below).
 
 ```
 Table 8.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200, us per layer
@@ -290,10 +293,10 @@ the prompt, so no check of scaling alone could tell them apart.
 
 Multi-head latent attention (MLA) projects each token's hidden state
 down to a latent vector c of 512 values, plus a 64-value key part that
-carries the position (rope), shared by every head. The cache holds only
-these 576 values per token per layer. Per-head keys and values,
-`K_h = W_uk,h · c` and `V_h = W_uv,h · c`, are rebuilt in one of two
-ways:
+carries the position (rope, for rotary position embedding), shared by
+every head. The cache holds only these 576 values per token per layer.
+Per-head keys and values, `K_h = W_uk,h · c` and `V_h = W_uv,h · c`, are
+rebuilt in one of two ways:
 
 - **Materialize** (prefill): up-project every latent to per-head K and
   V and run ordinary attention. With thousands of queries per sequence,
@@ -302,7 +305,8 @@ ways:
   fold `W_uk` into the query, and `W_uv` into the output. Each head's
   query becomes a 512-value vector that scores the latents directly, so
   attention runs on the shared latent itself: multi-query attention
-  with a head dim of 576 for the scores and 512 for the values.
+  (every query head sharing one key and value head) with a head dim of
+  576 for the scores and 512 for the values.
 
 The saving, derived from the config:
 
@@ -334,11 +338,14 @@ The absorbed decode path in the builder (comments trimmed):
 ```
 
 Attention batches over sequences with every head stacked as rows,
-chapter 6's GQA trick with one group, so the shared latent is read once
-per sequence. The prefill branch emits `mla_k_up` and `mla_v_up` GEMMs
-and per-head attention instead. Table 8.5's twin has 96 KV heads at a
-head dim of 160 for both K and V, the mean of K's 192 and V's 128, so
-its bytes and FLOPs match per-head K and V.
+chapter 6's grouped-query attention (GQA) trick with one group, so the
+shared latent is read once per sequence. The prefill branch emits
+`mla_k_up` and `mla_v_up` GEMMs and per-head attention instead.
+Table 8.5's twin has 96 KV heads at a head dim of 160 for both K and V,
+the mean of K's 192 and V's 128, so its bytes and FLOPs match per-head
+K and V. The last columns split the layer over eight GPUs by tensor
+parallelism (tp=8: each GPU holds an eighth of every weight matrix and
+of the heads; chapter 11).
 
 ```
 Table 8.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequences, B200
@@ -358,12 +365,11 @@ Table 8.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequenc
 - **Absorption** adds two small GEMMs per layer. Their weights are the
   same at any batch, so at 32 sequences they should cost close to the
   11 µs of batch 1 (not measured), not the table's 143.
-- **Tensor parallelism** (tp=8: each GPU holds an eighth of every
-  weight matrix and of the heads; chapter 11) splits per-head K and V
-  eight ways but not the latent, which every head needs. Each GPU keeps
-  and reads all of it, so per GPU the attention gain falls from 28 to
-  3.5 times. Chapter 12's data-parallel attention, which gives each GPU
-  whole sequences instead, avoids that.
+- **Tensor parallelism** splits per-head K and V eight ways but not the
+  latent, which every head needs. Each GPU keeps and reads all of it, so
+  per GPU the attention gain falls from 28 to 3.5 times. Chapter 12's
+  data-parallel attention, which gives each GPU whole sequences
+  instead, avoids that.
 
 ## Sparse attention: an indexer picks the tokens
 
@@ -439,16 +445,18 @@ costs a seventh, nearly all of it indexer, which tp does not shrink.
 DeepSeek-V4-class models compress the cache along the sequence, with a
 ratio per layer. A CSA layer pools every 4 tokens' latents into one
 entry (a learned, softmax-weighted pool), indexes the pooled entries as
-above and attends to the top 512. An HCA layer pools 128 tokens into
-one and attends to all the pooled entries. Every layer also keeps its
-last 128 tokens raw, as a window. V4-Flash has 20 CSA, 20 HCA and 3
+above and attends to the top 512. An HCA layer pools 128 tokens into one
+and attends to all the pooled entries. Every layer also keeps its last
+128 tokens raw, as a window. V4-Flash has 20 CSA, 20 HCA and 3
 window-only layers, with multi-query attention on a 512-value latent
 plus 64 of rope. The builder gives each layer class one attention op
 over the window plus its pooled entries, `min(k, c/r)` of them for CSA
 and `c/r` for HCA, after a projection and a pooling pass for the
 compressor. Table 8.7's twin attends to its whole context through the
 latent in every layer: no pooling, no indexer. The model needs eight
-GPUs; the tp=1 column prices its prefill as if on one.
+GPUs (tp=8, and ep=8: its mixture-of-experts layers spread their experts
+over the eight GPUs; chapter 12); the tp=1 column prices its prefill as
+if on one.
 
 ```
 Table 8.7  DeepSeek-V4-Flash against its uncompressed twin, 8 B200s (tp=8, ep=8)
@@ -460,14 +468,13 @@ Table 8.7  DeepSeek-V4-Flash against its uncompressed twin, 8 B200s (tp=8, ep=8)
   decode steps of 8 sequences; prefill of one prompt; indexer share of that prefill at tp=1 and tp=8
 ```
 
-(ep=8: the experts spread over the eight GPUs; chapter 12.) Compression
-buys a cache 0.15 of the twin's, 11 million-token sequences where one
-fits, and a decode step that grows 24% from 32k to 1M tokens where the
-twin's grows elevenfold. The prefill shows where the cost went. The
-indexer scores every pooled key for every query, so its work grows with
-the square of the prompt, and it is not split: at a million tokens it
-is 58% of the prefill priced as if on one GPU and 84% on eight, where
-the rest is split eight ways.
+Compression buys a cache 0.15 of the twin's, 11 million-token sequences
+where one fits, and a decode step that grows 24% from 32k to 1M tokens
+where the twin's grows elevenfold. The prefill shows where the cost
+went. The indexer scores every pooled key for every query, so its work
+grows with the square of the prompt, and it is not split: at a million
+tokens it is 58% of the prefill priced as if on one GPU and 84% on
+eight, where the rest is split eight ways.
 
 ## Sidebar: an image encoder
 
@@ -494,12 +501,15 @@ of this has been measured.
 
 ## How close is it?
 
-**Windows, timed.** Table 8.9 times gpt-oss-20b's two kinds of
-attention layer alone in vLLM's Triton kernel on an RTX A6000, inside
-CUDA graphs. The decode prices use chapter 7's decode kernel price (a
-fixed cost per call plus the cache at a fitted rate), fitted on another
-kernel and another model's heads, so the decode cells are held out;
-chapter 7's Table 7.6 prices the full layers (0.90–1.16).
+**Windows, timed.** Table 8.9 times gpt-oss-20b's two kinds of attention
+layer alone in vLLM's Triton kernel on an RTX A6000, inside CUDA graphs.
+The decode prices use chapter 7's decode kernel price (a fixed cost per
+call plus the cache at a fitted rate), fitted on another kernel and
+another model's heads, so the decode cells are held out; chapter 7's
+Table 7.6 prices the full layers (0.90–1.16). Ratios are predicted ÷
+measured: above 1 the model reads high. A set of ratios is summarized by
+its range or its typical error, the geometric mean distance from 1
+(chapter 3).
 
 ```
 Table 8.9  gpt-oss-20b's two kinds of attention layer, timed alone in vLLM's Triton kernel, RTX A6000
@@ -527,9 +537,9 @@ splitting each context and not (chapter 7; not profiled). It is a small
 term: at 6,144 tokens a windowed layer costs 12% of a full one at 8
 sequences and 3% at 64.
 
-**The hybrid, served.** Qwen3.8-27B in bf16 on one B200 under vLLM,
-five cells, each timed in forward and reverse cell order (the table
-uses the midpoint). TTFT and TPOT are as in chapter 6.
+**The hybrid, served.** Qwen3.8-27B in bf16 on one B200 under vLLM, five
+cells, each timed in forward and reverse cell order (the table uses the
+midpoint). TTFT and TPOT (time per output token) are as in chapter 6.
 
 ```
 Table 8.10  Qwen3.8-27B served by vLLM on one B200: model/measured, calibrated model

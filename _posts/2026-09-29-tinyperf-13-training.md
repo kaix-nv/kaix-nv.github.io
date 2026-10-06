@@ -4,7 +4,7 @@ title: "Building tinyperf, chapter 13: Training"
 date: 2026-09-29 12:13:00 -0700
 categories: [tinyperf, perf-modeling]
 permalink: /tinyperf/book/13-training/
-excerpt: "Every chapter so far priced inference. A training step does more with the same model: a forward pass over a batch of sequences, a loss, a backward pass that turns the loss into a gradient for every weight, and an optimizer update of every weight. It keeps more in memory, and at scale it is spread over hundreds of GPUs in three ways at once: copies of the model, stages of layers, and slices of every layer (chapter 11's tensor parallelism). What does one training step cost, in time and memory, and how do data, pipeline and ZeRO parallelism change it?"
+excerpt: "Every chapter so far priced inference. A training step does more with the same model: a forward pass over a batch of sequences, a loss, a backward pass that turns the loss into a gradient for every weight, and an optimizer update of every weight. It keeps more in memory, and at scale it is spread over hundreds of GPUs in three ways at once: copies of the model (data parallelism), stages of layers (pipeline parallelism), and slices of every layer (chapter 11's tensor parallelism, over tp GPUs). What does one training step cost, in time and memory, and how do data, pipeline and ZeRO parallelism (which shards the optimizer's memory over the copies) change it?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/21/building-tinyperf-m12.html
   - /tinyperf/perf-modeling/2026/08/28/building-tinyperf-m21.html
@@ -18,33 +18,40 @@ the same model: a forward pass over a batch of sequences, a loss, a
 backward pass that turns the loss into a gradient for every weight, and
 an optimizer update of every weight. It keeps more in memory, and at
 scale it is spread over hundreds of GPUs in three ways at once: copies
-of the model, stages of layers, and slices of every layer (chapter 11's
-tensor parallelism). What does one training step cost, in time and
-memory, and how do data, pipeline and ZeRO parallelism change it?
+of the model (data parallelism), stages of layers (pipeline
+parallelism), and slices of every layer (chapter 11's tensor
+parallelism, over tp GPUs). What does one training step cost, in time
+and memory, and how do data, pipeline and ZeRO parallelism (which
+shards the optimizer's memory over the copies) change it?
 
 The short answer. A step costs about three forward passes, 6 FLOPs per
 parameter per token. Mixed-precision Adam keeps 16 bytes per parameter,
-2 of them the weights, plus activations that grow with the tokens in
-flight. Copies of the model add a gradient all-reduce, hidden under the
-backward once each GPU's micro-batch holds more tokens than its
-achieved FLOP rate divided by its link bandwidth (about 1,400 on eight
-H100s), whatever the model's size. ZeRO divides the 16 bytes among the
-copies. With the model cut into pp stages and m micro-batches per step,
-each GPU idles for a *bubble* of (pp − 1)/(m + pp − 1) of the step,
-which newer schedules shrink by spending memory. No training step has
-been measured for this repository: every time here is a projection, and
-the evidence is arithmetic.
+2 of them the weights, plus activations (the forward's tensors that the
+backward reads) that grow with the tokens in flight. Copies of the
+model add a gradient all-reduce (which sums the gradients across the
+copies; chapter 11), hidden under the backward once each GPU's
+micro-batch (the sequences it runs through the model at once) holds
+more tokens than its achieved FLOP rate divided by its link bandwidth
+(about 1,400 on eight H100s), whatever the model's size. ZeRO divides
+the 16 bytes among the copies. With the model cut into pp stages and m
+micro-batches per step, each GPU idles for a *bubble* of
+(pp − 1)/(m + pp − 1) of the step, which newer schedules shrink by
+spending memory. No training step has been measured for this
+repository: every time here is a projection, and the evidence is
+arithmetic.
 
 By the end of this chapter you will know:
 
 - why the backward costs twice the forward, where the 6 FLOPs come
-  from, and what else the graph adds;
+  from, and what else tinyperf's graph of operators adds;
 - what mixed-precision Adam stores and moves per parameter, and what
   each ZeRO stage shards;
-- how activations are counted, and what recomputation and sequence
-  parallelism save;
+- how activations are counted, and what recomputation (rerunning the
+  forward during the backward) and sequence parallelism (splitting
+  them along the sequence) save;
 - when data parallelism's gradient all-reduce is exposed;
-- the pipeline bubble, and what each schedule buys and pays.
+- the pipeline bubble, and what each schedule (the order of a stage's
+  forwards and backwards) buys and pays.
 
 ## A training step
 
@@ -86,8 +93,9 @@ costs about `6·P·T` FLOPs (the rule usually written 6N).
 
 That rule counts only GEMMs. tinyperf's backward is a pass that walks
 the forward graph in reverse and appends a backward operator for each
-forward one, by family. Here it is without its docstring, its two
-imports and the branch for chapter 8's linear attention:
+forward one, by family (the operator's kind; chapter 5). Here it is
+without its docstring, its two imports and the branch for chapter 8's
+linear attention:
 
 ```python
 def add_backward(graph: Graph, optimizer_bytes: float = 0.0) -> int:
@@ -124,12 +132,15 @@ def add_backward(graph: Graph, optimizer_bytes: float = 0.0) -> int:
 
 - **GEMMs** get Figure 13.1's two: `_dgrad` makes M × K from a
   contraction over N, `_wgrad` makes K × N over M.
-- **Fused attention** (chapter 7) gets one backward kernel with twice
-  the query rows, twice the forward's FLOPs. That is the model-FLOPs
-  convention. The kernel itself recomputes the scores and then runs four
-  more products (dV, dP, dQ, dK), five to the forward's two, so its time
-  is likely a fifth low.
-- **Collectives** are mirrored one for one, same type. Under tensor
+- **Fused attention** (one FlashAttention-style kernel for all of
+  attention; chapter 7) gets one backward kernel with twice the query
+  rows, twice the forward's FLOPs. That is the model-FLOPs convention,
+  which counts the math the model needs, not what a kernel recomputes.
+  The kernel itself recomputes the scores and then runs four more
+  products (dV, dP, dQ, dK), five to the forward's two, so its time is
+  likely a fifth low.
+- **Collectives** (communication calls that every GPU of a group makes
+  together) are mirrored one for one, same type. Under tensor
   parallelism (chapter 11) the true backward swaps all-reduce and
   pass-through, but the count, two per layer, is the same.
 - **Memory-bound operators** (chapter 5's `rw` family) get a mirror that
@@ -211,8 +222,9 @@ Adam keeps two fp32 running averages per weight, of the gradient and of
 its square. *Data parallelism* (dp, next section) runs dp copies of the
 model, each on its own micro-batches, and holds all of this dp times.
 *ZeRO* (the zero redundancy optimizer) removes those copies in stages.
-Each rank updates only 1/dp of the weights, so it needs only that share
-of the optimizer state (ZeRO-1). If the gradients are reduce-scattered
+Each rank (one of the dp GPUs) updates only 1/dp of the weights, so it
+needs only that share of the optimizer state (ZeRO-1). If the gradients
+are reduce-scattered (each rank receives the sum of its own share only)
 rather than all-reduced, it needs only its share of them (ZeRO-2).
 ZeRO-3 shards the weights too, gathering each layer's just before use.
 
@@ -255,11 +267,12 @@ checkpointing) keeps only each layer's 16-bit input and runs the layer's
 forward again during the backward: 12 times less memory for one more
 forward per micro-batch. In Megatron-LM's published count, whose split
 the code takes, tensor parallelism shards the 24 of every 34 bytes that
-live between each block's column- and row-parallel GEMMs.
-The other 10, the norms' inputs and outputs (the outputs are the first
-GEMMs' inputs) and two dropout masks, sit whole on every rank.
-*Sequence parallelism* splits those along the sequence across the
-tensor-parallel ranks, so everything shards.
+live between each block's column- and row-parallel GEMMs (weights split
+by columns, then by rows; chapter 11). The other 10, the norms' inputs
+and outputs (the outputs are the first GEMMs' inputs) and two dropout
+masks, sit whole on every rank. *Sequence parallelism* splits those
+along the sequence across the tensor-parallel ranks, so everything
+shards.
 
 ![Stacked bars of weights, gradients, optimizer state and activations
 per GPU for ZeRO stages 0 to 3; only ZeRO-0 crosses the 80 GB
@@ -268,6 +281,10 @@ line.](/assets/tinyperf-book/ch13-memory.svg)
 *Figure 13.2. Memory per GPU for Llama-2-7B, data-parallel on eight
 GPUs, one 4,096-token sequence each, nothing recomputed. The optimizer
 state is two thirds of ZeRO-0's bar.*
+
+Table 13.4 adds GPT-3 175B, in its last rows split by tp and pp under
+1F1B, the pipeline schedule that alternates one forward and one
+backward (see the pipeline section).
 
 ```
 Table 13.4  Memory per GPU, GB: model states plus activations (train_memory_gb)
@@ -302,11 +319,12 @@ Before the optimizer runs, the copies all-reduce their gradients, 2
 bytes per parameter (chapter 11). Frameworks overlap this with the
 backward, reducing each bucket of gradients as soon as it is ready.
 ZeRO-1 and -2 reduce-scatter the gradients and all-gather the updated
-weights instead: the same bytes, since a ring all-reduce is those two
-in turn. ZeRO-3 also gathers each layer's weights before its forward
-and again before its backward, three passes where the all-reduce makes
-two. `dp_grad_sync_us` prices the all-reduce with
-chapter 11's ring model and multiplies by 1.5 for stage 3.
+weights (each rank sends its share to all) instead: the same bytes,
+since a ring all-reduce (pieces passed round the GPUs in a ring;
+chapter 11) is those two in turn. ZeRO-3 also gathers each layer's
+weights before its forward and again before its backward, three passes
+where the all-reduce makes two. `dp_grad_sync_us` prices the all-reduce
+with chapter 11's ring model and multiplies by 1.5 for stage 3.
 
 When does the backward hide it? Within one node, the ring moves
 `2(n−1)/n · 2P` bytes over each GPU's link, with n = dp and P the
@@ -322,7 +340,7 @@ P cancels, and so do the backward's 4 FLOPs per parameter per token
 against the ring's 2 · 2 bytes per parameter, which leaves a FLOP rate
 over a byte rate, counted in tokens. Whether the sync is exposed
 depends on the tokens each GPU's backward covers, not on the model's
-size.
+size. In Table 13.5, IB is InfiniBand, the network between nodes.
 
 ```
 Table 13.5  Where the gradient all-reduce hides: llama2-7b, bf16 gradients, one micro-batch per step, projected at datasheet rates
@@ -446,7 +464,9 @@ layers and charges each extra copy 2 bytes per parameter.
 
 Table 13.6 compares the schedules on GPT-3 175B on 64 H100s: tensor
 parallelism of 8 in each node, 8 stages across nodes, 2,048-token
-micro-batches. MFU counts the whole step, optimizer included.
+micro-batches. MFU counts the whole step, optimizer included. The last
+line prices the logits all-gather, which a vocabulary-parallel loss
+(each tp rank scoring its own slice of the vocabulary) doesn't run.
 
 ```
 Table 13.6  Pipeline schedules: gpt3-175b on 64 H100s, tp=8 x pp=8, 2048-token micro-batches, projected at datasheet rates
@@ -493,12 +513,14 @@ Worked example  DualPipe's bubble in per-stage chunk times: gpt3-175b, pp=8
 
 ## What we can check
 
-There is no "How close is it?" here: `data/validation` holds serving
-and kernel measurements only, so there are no ratios. What can be
-checked is the arithmetic. The graph's FLOPs match `6·(P − embedding) +
-attention` exactly (Table 13.1). Every row of Table 13.4 equals the sum
-of its components within 1e-9 GB, which shows the code implements its
-accounting, not that the accounting is complete.
+There is no "How close is it?" here, the section where other chapters
+set the model against measurements: `data/validation` holds serving
+and kernel measurements only, so there are no ratios of predicted to
+measured. What can be checked is the arithmetic. The graph's FLOPs
+match `6·(P − embedding) + attention` exactly (Table 13.1). Every row
+of Table 13.4 equals the sum of its components within 1e-9 GB, which
+shows the code implements its accounting, not that the accounting is
+complete.
 
 **Bubbles.** The chapter's script holds a small event simulation. Each
 stage runs its chunks in a fixed order, each as soon as its input is
@@ -563,8 +585,8 @@ DualPipe are not in the simulation: unchecked.
   activations between stages, or for interleaving's v times more.
 - **Schedules as closed forms:** ZB-H1's and ZB-H2's limits are in
   "What we can check"; DualPipe's F&B is priced as F + B, so its
-  purpose for MoE models, hiding communication under computation, earns
-  nothing.
+  purpose for mixture-of-experts models, hiding communication under
+  computation, earns nothing.
 - **ZeRO-3's gathers** are only 1.5 times the sync: the memory the
   gathered layers occupy, and prefetching, are not modeled.
 - **An inference builder.** At tp > 1 the graph all-gathers the
@@ -600,7 +622,7 @@ DualPipe are not in the simulation: unchecked.
    How far off is the equal-stage formula?
 5. Time one training micro-batch of a small model on your GPU and
    compare it with Table 13.2's method: this chapter's first held-out
-   evidence.
+   evidence, a measurement nothing in the model was fitted to.
 
 ---
 
