@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 920" role="img" aria-labelledby="title desc">
+  <title id="title">Iteration three: five packed tokens, three independent histories</title>
+  <desc id="desc">A contributes one decode token at logical position seven, C contributes its final prompt tokens at eight and nine, and D contributes its first two prompt tokens at zero and one. Query boundaries are zero, one, three, five. With illustrative page tables A nine two, C four twelve six, D seven, physical write slots are eleven, twenty-four, twenty-five, twenty-eight, twenty-nine. Each query can see only its own causal history. Packed rows zero and two produce logits for A4 and C1; D is partial and emits nothing.</desc>
+  <defs><style>
+    text { font-family: system-ui, sans-serif; fill: #0f172a; }
+    .title { font-size: 27px; font-weight: 700; }
+    .heading { font-size: 19px; font-weight: 700; }
+    .body { font-size: 17px; }
+    .small { font-size: 15px; fill: #475569; }
+    .mono { font-family: ui-monospace, monospace; font-size: 18px; }
+    .a { fill: #ede9fe; stroke: #7c3aed; stroke-width: 2; }
+    .c { fill: #ffedd5; stroke: #ea580c; stroke-width: 2; }
+    .d { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+    .arrow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+  </style>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1200" height="920" rx="18" fill="#f8fafc"/>
+  <text x="32" y="44" class="title">Iteration 3: the row is flat; the histories are not</text>
+  <text x="32" y="78" class="body">Spans: A[7:8], C[8:10], D[0:2]. One decode token + four prompt tokens = five input rows.</text>
+  <text x="32" y="129" class="heading">Packed row</text>
+  <text x="32" y="200" class="heading">Logical position</text>
+  <text x="32" y="239" class="heading">Physical KV slot</text>
+  <rect x="285" y="103" width="157" height="154" rx="9" class="a"/>
+  <rect x="459" y="103" width="331" height="154" rx="9" class="c"/>
+  <rect x="807" y="103" width="331" height="154" rx="9" class="d"/>
+  <path d="M624 108V252M972 108V252" stroke="#94a3b8" stroke-dasharray="4 4"/>
+  <text x="363" y="132" text-anchor="middle" class="mono">0 · A</text>
+  <text x="537" y="132" text-anchor="middle" class="mono">1 · C</text>
+  <text x="711" y="132" text-anchor="middle" class="mono">2 · C</text>
+  <text x="885" y="132" text-anchor="middle" class="mono">3 · D</text>
+  <text x="1059" y="132" text-anchor="middle" class="mono">4 · D</text>
+  <text x="363" y="166" text-anchor="middle" class="small">A3 input</text>
+  <text x="537" y="166" text-anchor="middle" class="small">prompt</text>
+  <text x="711" y="166" text-anchor="middle" class="small">last prompt</text>
+  <text x="885" y="166" text-anchor="middle" class="small">prompt</text>
+  <text x="1059" y="166" text-anchor="middle" class="small">prompt</text>
+  <text x="363" y="200" text-anchor="middle" class="mono">7</text>
+  <text x="537" y="200" text-anchor="middle" class="mono">8</text>
+  <text x="711" y="200" text-anchor="middle" class="mono">9</text>
+  <text x="885" y="200" text-anchor="middle" class="mono">0</text>
+  <text x="1059" y="200" text-anchor="middle" class="mono">1</text>
+  <text x="363" y="239" text-anchor="middle" class="mono">11</text>
+  <text x="537" y="239" text-anchor="middle" class="mono">24</text>
+  <text x="711" y="239" text-anchor="middle" class="mono">25</text>
+  <text x="885" y="239" text-anchor="middle" class="mono">28</text>
+  <text x="1059" y="239" text-anchor="middle" class="mono">29</text>
+  <text x="32" y="299" class="heading">Query boundaries</text>
+  <text x="285" y="299" class="mono">[0, 1, 3, 5]</text>
+  <text x="480" y="299" class="small">A owns [0:1); C owns [1:3); D owns [3:5).</text>
+  <text x="32" y="338" class="small">Example page tables, page size 4: A [9, 2] · C [4, 12, 6] · D [7]. Page IDs are illustrative.</text>
+  <text x="32" y="366" class="small">For A at position 7: logical page 1, offset 3 → physical page 2 → slot 2 × 4 + 3 = 11.</text>
+  <path d="M363 381V407" class="arrow"/>
+  <path d="M624 381V407" class="arrow"/>
+  <path d="M972 381V407" class="arrow"/>
+  <rect x="32" y="422" width="354" height="165" rx="12" class="a"/>
+  <rect x="423" y="422" width="354" height="165" rx="12" class="c"/>
+  <rect x="814" y="422" width="354" height="165" rx="12" class="d"/>
+  <text x="52" y="456" class="heading">A's private attention history</text>
+  <text x="52" y="493" class="body">query 7 → keys A[0:8)</text>
+  <text x="52" y="532" class="small">Seven old keys + current key.</text>
+  <text x="52" y="561" class="small">No keys from C or D.</text>
+  <text x="443" y="456" class="heading">C's private attention history</text>
+  <text x="443" y="493" class="body">query 8 → keys C[0:9)</text>
+  <text x="443" y="526" class="body">query 9 → keys C[0:10)</text>
+  <text x="443" y="561" class="small">Earlier cached prefix stays visible.</text>
+  <text x="834" y="456" class="heading">D's private attention history</text>
+  <text x="834" y="493" class="body">query 0 → key D[0]</text>
+  <text x="834" y="526" class="body">query 1 → keys D[0:2)</text>
+  <text x="834" y="561" class="small">Future prompt token 2 is not visible.</text>
+  <rect x="32" y="615" width="1136" height="194" rx="12" fill="#fff" stroke="#cbd5e1"/>
+  <text x="52" y="651" class="heading">After all transformer layers: select rows before the vocabulary projection</text>
+  <text x="52" y="690" class="mono">[1, 5, H] → rows [0, 2] → [1, 2, H] → LM head [1, 2, V] → [2, V]</text>
+  <text x="52" y="730" class="body">Row 0 samples A4. Row 2 samples C1. D emits nothing: its prompt is incomplete.</text>
+  <text x="52" y="769" class="small">Emitting span indices [0, 1] mean A and C; they are not the packed hidden-row indices [0, 2].</text>
+  <text x="32" y="848" class="body">Token-wise operations share a model forward; attention still enforces request boundaries.</text>
+  <text x="32" y="884" class="small">The gather backend runs per-span attention calls. One model forward does not imply one attention kernel.</text>
+</svg>
