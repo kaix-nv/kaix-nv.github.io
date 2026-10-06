@@ -148,14 +148,53 @@ step; the two orange layers use many step prices. Calibration attaches
 fitted constants to the lower layers. Validation checks every layer
 against measurements.*
 
-Read it from the bottom. The device is a GPU as a dozen rates and
-sizes, most from its datasheet. Kernel cost models turn one operation's
-shapes into time. A graph lists one step's operations, and passes
-rewrite it the way a runtime does. `execute`, tinyperf's scheduler (not
-the serving engine's), prices every operation, adds them up and reports
-which resource limited each. Model builders turn a model's configuration
-into one step's graph. The serving simulator and sweeps use many step
-prices.
+Read it from the bottom: each layer uses the ones below it.
+
+- **Device** (chapter 2). A GPU as about a dozen rates and sizes: peak
+  math for each number format, memory bandwidth, the size and bandwidth
+  of the on-chip L2 cache, a kernel's launch cost, the links between
+  GPUs and the memory capacity. Most come from the datasheet, one JSON
+  file per GPU in `data/devices/`. A what-if, such as twice the
+  bandwidth, is a change to one number.
+- **Kernel cost models** (chapters 3, 7 and 11). Each turns one
+  operation's shapes into a time on a device: a GEMM by how a library
+  cuts it into tiles and waves, fused attention by its math and the
+  cache it reads, a collective (GPUs exchanging data, such as summing
+  their partial results) by a link's bandwidth and per-hop latency.
+- **Graph of operators** (chapters 5, 7, 10 and 13). One step written
+  down as an ordered list of operations, each with its shapes, FLOPs
+  and bytes. *Passes* rewrite the list the way a runtime would: fuse
+  attention into one kernel, switch layers to 8- or 4-bit formats, add
+  the gradient computation for training.
+- **Scheduler and report** (chapter 5). `execute`, tinyperf's scheduler
+  (not the serving engine's), prices every operation with its kernel
+  model and adds them up. The report lists each operation's time and
+  what limited it, math, DRAM, the L2 or a link, so every price comes
+  with its reason.
+- **Model builders** (chapters 6–9 and 11–13). They turn a model's
+  configuration (layers, heads, experts) and a step's shape (the batch,
+  the prompt or context length, and how the model is split across
+  GPUs) into that step's graph, and say what fits in memory: the
+  weights, the KV cache and, for training, the optimizer's state.
+- **Serving simulator** (chapters 14–20). It plays a server forward in
+  time: requests arrive, the engine's scheduler forms each step's
+  batch, the layers below price the step, and the clock advances. Out
+  come the latencies a user feels: the time to a request's first token
+  and between its later ones (TTFT and TPOT; below). It also covers
+  speculative decoding (a small draft model proposes tokens that the
+  served model checks in one step) and separate prefill and decode
+  servers.
+- **Sweeps and planning** (appendix A). They run the step price or the
+  simulator over thousands of configurations, keep those that no other
+  beats on two metrics at once (the *Pareto front*), and turn the
+  winners into GPUs, dollars and joules per million tokens.
+
+Beside the stack stand two columns. **Calibration** (chapter 4)
+attaches constants fitted to kernels timed on a real GPU to the lower
+four layers; without it the model prices from the datasheet alone.
+**Validation** (chapter 21) checks every layer against measurements:
+`data/validation/` holds them, `tools/` the scripts that took them, and
+`tests/` fails if a price leaves its validated range.
 
 ## How to read this book
 
@@ -302,7 +341,7 @@ chapter 2) and so works for any device you can write down. Its times
 read 10–23% low on this GPU (Table 1.2), so compare the rows with each
 other, not with a stopwatch. The last column names what limits the
 prefill's first feed-forward network (FFN) GEMM: math, or the bandwidth
-of the L2, the on-chip cache that all DRAM traffic passes through.
+of the L2, which all DRAM traffic passes through.
 
 ```
 Table 1.3  What if? Qwen3-8B on an RTX A6000 with one rate doubled, projected tier
@@ -428,11 +467,10 @@ can't:
 - **Anything never measured.** Which experts an MoE router picks depends
   on the text. Without a measurement the model assumes uniform routing,
   which reads 28–44% high on one model's decode steps from batch 8 up
-  (chapter 9). In speculative decoding a cheap draft model proposes
-  tokens and the served model checks several in one step; how often it
-  accepts them,
-  the acceptance rate, is an input you supply (chapter 19). A GPU
-  without public rates can't be described at all.
+  (chapter 9). In speculative decoding, how often the served model
+  accepts the draft's tokens, the acceptance rate, is an input you
+  supply (chapter 19). A GPU without public rates can't be described at
+  all.
 
 ## What you built
 
