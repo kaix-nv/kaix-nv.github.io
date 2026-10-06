@@ -13,7 +13,7 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m52.html
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Appendices · Code: [`tinyperf/sweep.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/sweep.py), `pareto`, `find_knee` and `tip_fraction`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`; [`tinyperf/energy.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/energy.py), `energy_report` · Every table and both figures in this appendix come from `python3 book/scripts/appA_using.py`.*
+*[Building tinyperf](/series/tinyperf/) · Appendices · Code: [`tinyperf/sweep.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/sweep.py), `pareto`, `find_knee` and `tip_fraction`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, and at a [later commit](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) `VLLM` and `recorded_trace`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`; [`tinyperf/energy.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/energy.py), `energy_report` · Every table and both figures in this appendix come from `python3 book/scripts/appA_using.py`.*
 
 The chapters built a model that prices a step and a simulator that
 replays a server under load. Planning asks which configuration, how
@@ -60,12 +60,14 @@ def pareto(results: list, x: str, y: str) -> list:
 On this *Pareto front*, sorted by x (smaller is better), a point joins
 only if its y (larger is better) beats every point before it: improving
 one metric costs the other. The price function is yours; the script's
-uses chapter 14's step model, which takes a precision recipe (chapter
-10) and prices kernels launched from a CUDA graph (chapter 4):
+uses the step model of chapter 14's engine preset, `VLLM.step_model`,
+which prices kernels launched from a CUDA graph (chapter 4) and takes a
+precision recipe (chapter 10's FP8 recipe ships as
+`RECIPE_FP8_SERVING`):
 
 ```python
 def price(cfg):
-    recipe = RECIPE_FP8 if cfg["precision"] == "fp8" else None
+    recipe = RECIPE_FP8_SERVING if cfg["precision"] == "fp8" else None
     mem = llm_memory(LLAMA, cfg["gpu"], batch=cfg["batch"], context_len=SWEEP_CTX,
                      tp=cfg["tp"], pp=cfg["pp"], recipe=recipe)
     if not mem.fits:
@@ -145,22 +147,29 @@ that matters little: ρ is already 0.86 at the 64-seat knee, and 42
 seats move it only to 0.65 requests per second.
 
 **Where to plan.** Table A.2 runs the short workload as chapter 14
-checked it against held-out runs: the calibrated A6000 with top-p
-sampling, 64 seats, chunked prefill of at most 2,048 prompt tokens per
-step, and the arrivals `vllm bench serve` sent in chapter 14's runs,
+checked it against held-out runs: the engine preset with the measured
+server's 64 seats (the calibrated A6000, top-p sampling, chunked prefill
+of at most 2,048 prompt tokens per step), on the arrivals `vllm bench
+serve` sent in chapter 14's runs, as recorded (`recorded_trace`) and
 replayed by `bench_requests`. The script's `plan_checks`, condensed:
 
 ```python
-LAT = StepLatencyModel(QWEN, A6000, methodology=CAL, sampling="top_p")
-ENGINE = dict(methodology=CAL, max_batch=64, chunk_tokens=2048)
-run = lambda reqs, s=1.0: simulate(QWEN, A6000, reqs, latency_model=LAT, step_scale=s, **ENGINE)
+SERVER = VLLM.with_(max_num_seqs=64)                            # the measured server
+LAT = SERVER.step_model(QWEN, A6000)
+run = lambda reqs, s=1.0: SERVER.simulate(QWEN, A6000, reqs, latency_model=LAT, step_scale=s)
 band = LAT.calibration.serving_error_band
+SEED0 = recorded_trace(1024, 128, 240)                          # the 240-request trace
 
-point = run(bench_requests(SEED0, rate))                        # SEED0: the 240-request trace
+point = run(bench_requests(SEED0, rate))
 interval = prediction_interval(lambda s: run(bench_requests(SEED0, rate), s), band)["ttft_p95"]
-over = tip_fraction(QWEN, A6000, rate, 1000, seeds=40, latency_model=LAT, max_batch=64, chunk_tokens=2048)
+over = tip_fraction(QWEN, A6000, rate, 1000, seeds=40, latency_model=LAT,
+                    max_num_seqs=64, max_num_batched_tokens=2048)
 steady = [run(poisson_requests(4000, rate, 1024, 128, seed=s)) for s in (1, 2)]
 ```
+
+`tip_fraction` takes `simulate`'s arguments, not the preset, so the
+seats and budget go in by vLLM's names, which `simulate` accepts for
+`max_batch` and `chunk_tokens`.
 
 ```
 Table A.2  Planning one replica: Qwen3-8B on one RTX A6000, 1024 tokens in, 128 out; target p95 TTFT <= 1 s and p95 TPOT <= 100 ms
@@ -420,7 +429,8 @@ pair; chapter 11), energy per token and speculation are projections.
 
 ## Where it breaks
 
-- **`price_serving_config`** prices greedy sampling only (top-p steps
+- **`price_serving_config`**, which `find_knee` calls, takes no engine
+  preset. It prices greedy sampling only (top-p steps
   are 2–4% longer on the A6000; chapter 18), admits by reservation,
   which under-batches when the pool binds (chapter 17), and divides by
   a short run's makespan, drain included. **`price_decode_config`** at
@@ -452,8 +462,8 @@ pair; chapter 11), energy per token and speculation are projections.
 ## Exercises
 
 1. **More seats.** Rerun Table A.3's B200 column with 128 and 256 seats
-   (`max_batch`). How far does the floor fall, and does the pool then
-   bind?
+   (`VLLM.with_(max_num_seqs=128)`, and `VLLM` itself: 256 is vLLM's
+   default). How far does the floor fall, and does the pool then bind?
 2. **Two GPUs per replica.** Plan Table A.2's traffic on pairs of A6000s
    at tp = 2 (chapter 11's measured collectives). Does a pair serve more
    than twice one GPU's safe rate?

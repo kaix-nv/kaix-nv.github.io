@@ -383,10 +383,11 @@ that overlaps is unmeasured, so report both ends.
 The ring model needs two numbers per link. A datasheet gives the
 bandwidth; nothing gives the latency. This chapter's measurements come
 from two RTX A6000s that talk through the PCIe host bridge, with no
-NVLink bridge. The model loads the pair as `Device.load("rtx_a6000",
-nvlink_bw_gbps=4.0, nvlink_hop_latency_us=8.0, gpus_per_node=2)`: the
-NVLink fields hold the PCIe link, which is why a collective's bound
-column reads `nvlink`. The 4.0 GB/s is a 64 MB all-reduce's rate in a
+NVLink bridge. The model loads the pair as
+`Device.load("rtx_a6000_pcie_pair")`, the RTX A6000's device file with
+the link as measured: `nvlink_bw_gbps` 4.0, `nvlink_hop_latency_us` 8.0
+and `gpus_per_node` 2. The NVLink fields hold the PCIe link, which is
+why a collective's bound column reads `nvlink`. The 4.0 GB/s is a 64 MB all-reduce's rate in a
 first benchmark (`data/validation/nccl_rtx_a6000_pcie_2gpu.json`).
 
 > **Field note: the link that measured the interpreter.** The first

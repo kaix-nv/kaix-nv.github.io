@@ -167,8 +167,8 @@ uses:
 ```
 
 Weight GEMMs in fp4, attention (and so its cache) in fp8, the head and
-router in 16 bits. This chapter's FP8 recipe, built by its script, is
-the same dictionary with fp8 for fp4. Table 10.2 shows what four
+router in 16 bits. This chapter's FP8 recipe is the same dictionary
+with fp8 for fp4; tinyperf ships it as `RECIPE_FP8_SERVING`. Table 10.2 shows what four
 deployments write on Qwen3-8B; each row but the head's stands for 36
 layers.
 

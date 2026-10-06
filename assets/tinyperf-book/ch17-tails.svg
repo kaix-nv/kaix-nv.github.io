@@ -36,7 +36,7 @@
 <line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
 <text x="475.0" y="498" class="axis" text-anchor="middle">arrival rate (requests per second)</text>
 <text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">time to first token (seconds)</text>
-<polyline points="80.0,405.5 192.9,382.1 305.7,355.3 418.6,131.3 531.4,112.3 644.3,102.7 870.0,96.5" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<polyline points="80.0,405.5 192.9,382.1 305.7,355.3 418.6,130.4 531.4,112.3 644.3,102.7 870.0,96.4" fill="none" stroke="#ea580c" stroke-width="2.2"/>
 <line x1="93.5" y1="70.3" x2="123.5" y2="70.3" stroke="#ea580c" stroke-width="2.2"/>
 <text x="131.5" y="74.3" class="legend">p95, preempting model</text>
 <polyline points="80.0,405.5 192.9,382.1 305.7,265.6 418.6,160.6 531.4,136.5 644.3,124.4 870.0,112.3" fill="none" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="7 5"/>
@@ -47,7 +47,7 @@
 <circle cx="870.0" cy="97.9" r="4.5" fill="#0f172a"/>
 <circle cx="108.5" cy="114.3" r="4.5" fill="#0f172a"/>
 <text x="131.5" y="118.3" class="legend">p95, measured</text>
-<polyline points="80.0,425.8 192.9,416.7 305.7,399.7 418.6,368.7 531.4,344.2 644.3,328.8 870.0,312.2" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<polyline points="80.0,425.8 192.9,416.7 305.7,399.7 418.6,368.6 531.4,344.2 644.3,328.8 870.0,312.2" fill="none" stroke="#2563eb" stroke-width="2.2"/>
 <line x1="93.5" y1="136.3" x2="123.5" y2="136.3" stroke="#2563eb" stroke-width="2.2"/>
 <text x="131.5" y="140.3" class="legend">p50, preempting model</text>
 <polyline points="80.0,425.8 192.9,416.7 305.7,398.8 418.6,220.4 531.4,185.7 644.3,178.3 870.0,166.8" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-dasharray="7 5"/>
