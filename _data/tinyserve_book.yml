@@ -4,6 +4,7 @@
 status: outline
 parts_approved_on: "2026-10-06"
 chapter_breakdown: working
+style_sample_approved_on: "2026-10-06"
 source_outline: "tinyserve/docs/book-outline.md"
 parts:
   - id: foundations
@@ -26,6 +27,8 @@ chapters:
     part: foundations
     slug: tinyserve-01-first-token
     title: From weights to the first token
+    status: draft
+    draft_post: 2026-10-06-tinyserve-01-first-token
     question: How does a checkpoint become a generated token?
     legacy_posts:
       - building-tinyserve-m0
@@ -111,7 +114,7 @@ chapters:
     part: runtime
     slug: tinyserve-10-scheduling
     title: Scheduling prefill and decode
-    status: draft
+    status: reviewed
     draft_post: 2026-10-06-tinyserve-10-scheduling
     question: Who runs next and how much prompt work can run before decoders progress?
     legacy_posts:

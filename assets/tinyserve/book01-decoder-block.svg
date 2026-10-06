@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 970" role="img" aria-labelledby="title desc">
+  <title id="title">Two residual sublayers in one Qwen3 decoder block</title>
+  <desc id="desc">The three-token example enters a block as a one by three by eight hidden tensor. The first branch applies RMSNorm and causal grouped-query attention with QK normalization and RoPE, then adds the attention output to the original residual. The second branch normalizes that updated residual and applies a gated feed-forward transformation before another residual addition. Attention mixes allowed token positions; the feed-forward network works independently at each position. Both branches return width eight, although attention internally joins sixteen features and the feed-forward network expands to twelve.</desc>
+  <defs><style>
+    text { font-family: system-ui, sans-serif; fill: #0f172a; }
+    .title { font-size: 27px; font-weight: 700; }
+    .head { font-size: 20px; font-weight: 700; }
+    .body { font-size: 17px; }
+    .small { font-size: 15px; fill: #475569; }
+    .mono { font-family: ui-monospace, monospace; font-size: 17px; }
+    .arrow { fill: none; stroke: #64748b; stroke-width: 2.3; marker-end: url(#arrow); }
+    .skip { fill: none; stroke: #7c3aed; stroke-width: 2.3; marker-end: url(#skip); }
+  </style>
+  <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+  <marker id="skip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#7c3aed"/></marker>
+  </defs>
+  <rect width="1100" height="970" rx="18" fill="#f8fafc"/>
+  <text x="32" y="45" class="title">One decoder block keeps the residual width fixed</text>
+  <text x="32" y="77" class="body">Worked example: batch 1, three positions, eight hidden features. Repeat this block twice.</text>
+  <rect x="365" y="104" width="370" height="55" rx="9" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="550" y="138" text-anchor="middle" class="mono">input x: [1, 3, 8]</text>
+  <path d="M550 159V188" class="arrow"/>
+  <path d="M365 132H290V431H526" class="skip"/>
+  <text x="47" y="259" class="head">Residual</text>
+  <text x="47" y="288" class="body">Keep x unchanged</text>
+  <text x="47" y="315" class="small">while the branch runs.</text>
+  <rect x="365" y="194" width="370" height="54" rx="9" fill="#fff" stroke="#94a3b8"/>
+  <text x="550" y="227" text-anchor="middle" class="body">RMSNorm across 8 features</text>
+  <path d="M550 248V277" class="arrow"/>
+  <rect x="365" y="283" width="370" height="108" rx="9" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="550" y="312" text-anchor="middle" class="head">Causal grouped-query attention</text>
+  <text x="550" y="340" text-anchor="middle" class="small">Q/K: norm + RoPE; V: neither</text>
+  <text x="550" y="369" text-anchor="middle" class="small">join 16 features → project back to 8</text>
+  <path d="M550 391V407" class="arrow"/>
+  <circle cx="550" cy="431" r="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="550" y="439" text-anchor="middle" class="title">+</text>
+  <text x="771" y="307" class="head">Mix allowed positions</text>
+  <text x="771" y="340" class="body">Position 0 sees only 0.</text>
+  <text x="771" y="370" class="body">Position 2 sees 0, 1, 2.</text>
+  <text x="589" y="437" class="mono">updated x: [1, 3, 8]</text>
+  <path d="M550 453V493" class="arrow"/>
+  <path d="M550 474H290V752H526" class="skip"/>
+  <text x="47" y="600" class="head">Residual</text>
+  <text x="47" y="629" class="body">Keep the updated x</text>
+  <text x="47" y="656" class="small">from the first addition.</text>
+  <rect x="365" y="499" width="370" height="54" rx="9" fill="#fff" stroke="#94a3b8"/>
+  <text x="550" y="532" text-anchor="middle" class="body">RMSNorm across 8 features</text>
+  <path d="M550 553V588" class="arrow"/>
+  <rect x="365" y="594" width="370" height="110" rx="9" fill="#ffedd5" stroke="#ea580c"/>
+  <text x="550" y="624" text-anchor="middle" class="head">Gated feed-forward network</text>
+  <text x="550" y="653" text-anchor="middle" class="small">gate and up: 8 → 12 features each</text>
+  <text x="550" y="682" text-anchor="middle" class="small">SiLU(gate) × up → down: 12 → 8</text>
+  <path d="M550 704V728" class="arrow"/>
+  <circle cx="550" cy="752" r="22" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="550" y="760" text-anchor="middle" class="title">+</text>
+  <text x="771" y="623" class="head">Transform each position</text>
+  <text x="771" y="656" class="body">Same weights at all positions.</text>
+  <text x="771" y="686" class="body">No cross-position attention.</text>
+  <path d="M550 774V809" class="arrow"/>
+  <rect x="365" y="815" width="370" height="55" rx="9" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="550" y="849" text-anchor="middle" class="mono">block output: [1, 3, 8]</text>
+  <text x="32" y="910" class="body">Each addition needs matching shapes. Internal attention and feed-forward widths may differ from H.</text>
+  <text x="32" y="943" class="small">Block-level norms act over H; the additional Q/K norms inside attention act over each head's d features.</text>
+</svg>

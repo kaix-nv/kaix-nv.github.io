@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1020" role="img" aria-labelledby="title desc">
+  <title id="title">From checkpoint files to one new token</title>
+  <desc id="desc">A checkpoint provides three distinct inputs: configuration selects the architecture, tokenizer files map text and token IDs, and weights provide learned parameter values. The prompt is encoded as a token history. A model forward embeds every input token, runs repeated pre-norm decoder blocks, applies final RMSNorm, and projects through the language-model head to vocabulary logits. Greedy generation selects the largest logit at the last input position, appends that token ID to the history, and repeats when more output is needed. Decoding the generated IDs produces the continuation text; a model forward itself returns scores rather than a sentence.</desc>
+  <defs>
+    <style>
+      text { font-family: system-ui, sans-serif; fill: #0f172a; }
+      .title { font-size: 28px; font-weight: 700; }
+      .subtitle { font-size: 17px; fill: #475569; }
+      .heading { font-size: 20px; font-weight: 700; }
+      .body { font-size: 17px; }
+      .small { font-size: 15px; fill: #475569; }
+      .mono { font-family: ui-monospace, monospace; font-size: 17px; }
+      .edge { fill: none; stroke: #64748b; stroke-width: 2.5; marker-end: url(#arrow); }
+      .setup { fill: none; stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 5 5; marker-end: url(#setup-arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <marker id="setup-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#94a3b8"/></marker>
+  </defs>
+  <rect width="1280" height="1020" rx="18" fill="#f8fafc"/>
+  <text x="40" y="48" class="title">A checkpoint is three inputs; generation is a repeated token decision</text>
+  <text x="40" y="81" class="subtitle">One request, dense pre-norm decoder, full-history forward, greedy next-token selection.</text>
+
+  <rect x="40" y="116" width="350" height="112" rx="12" fill="#fff" stroke="#94a3b8"/>
+  <text x="61" y="149" class="heading">Configuration</text>
+  <text x="61" y="181" class="body">Architecture, widths, layer count</text>
+  <text x="61" y="209" class="small">Construct the model's structure.</text>
+
+  <rect x="465" y="116" width="350" height="112" rx="12" fill="#fff" stroke="#94a3b8"/>
+  <text x="486" y="149" class="heading">Tokenizer files</text>
+  <text x="486" y="181" class="body">Text ↔ token IDs</text>
+  <text x="486" y="209" class="small">Vocabulary and encoding rules.</text>
+
+  <rect x="890" y="116" width="350" height="112" rx="12" fill="#fff" stroke="#94a3b8"/>
+  <text x="911" y="149" class="heading">Weights</text>
+  <text x="911" y="181" class="body">Learned parameter values</text>
+  <text x="911" y="209" class="small">Load tensors into the model.</text>
+
+  <path d="M60 229H20V449H39" class="setup"/>
+  <path d="M1220 229H1260V449H1241" class="setup"/>
+  <path d="M640 229V259H555V295" class="setup"/>
+
+  <rect x="40" y="298" width="290" height="72" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="185" y="328" text-anchor="middle" class="heading">Prompt text</text>
+  <text x="185" y="353" text-anchor="middle" class="small">The user's input string</text>
+  <path d="M337 334H391" class="edge"/>
+  <rect x="400" y="298" width="310" height="72" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="555" y="328" text-anchor="middle" class="heading">Encode with tokenizer</text>
+  <text x="555" y="353" text-anchor="middle" class="small">This does not run the model.</text>
+  <path d="M717 334H791" class="edge"/>
+  <rect x="800" y="298" width="410" height="72" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="1005" y="328" text-anchor="middle" class="heading">Input token history</text>
+  <text x="1005" y="353" text-anchor="middle" class="mono">IDs [1, T] · positions 0 … T−1</text>
+  <path d="M1005 377V397H175V416" class="edge"/>
+
+  <rect x="40" y="425" width="1200" height="230" rx="14" fill="#fff" stroke="#cbd5e1"/>
+  <text x="64" y="461" class="heading">One model forward</text>
+  <text x="470" y="461" class="small">T = input tokens · H = residual width · V = vocabulary size</text>
+  <rect x="70" y="500" width="210" height="112" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="175" y="534" text-anchor="middle" class="heading">Token embedding</text>
+  <text x="175" y="565" text-anchor="middle" class="body">IDs → vectors</text>
+  <text x="175" y="593" text-anchor="middle" class="mono">[1, T, H]</text>
+  <path d="M287 556H321" class="edge"/>
+  <rect x="330" y="500" width="300" height="112" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="480" y="534" text-anchor="middle" class="heading">Repeated decoder blocks</text>
+  <text x="480" y="565" text-anchor="middle" class="body">Pre-norm attention + MLP</text>
+  <text x="480" y="593" text-anchor="middle" class="mono">[1, T, H]</text>
+  <path d="M637 556H671" class="edge"/>
+  <rect x="680" y="500" width="200" height="112" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="780" y="534" text-anchor="middle" class="heading">Final RMSNorm</text>
+  <text x="780" y="565" text-anchor="middle" class="body">Normalize features</text>
+  <text x="780" y="593" text-anchor="middle" class="mono">[1, T, H]</text>
+  <path d="M887 556H921" class="edge"/>
+  <rect x="930" y="500" width="280" height="112" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+  <text x="1070" y="534" text-anchor="middle" class="heading">Language-model head</text>
+  <text x="1070" y="565" text-anchor="middle" class="body">Vocabulary projection</text>
+  <text x="1070" y="593" text-anchor="middle" class="mono">logits [1, T, V]</text>
+  <path d="M1070 619V685H200V712" class="edge"/>
+
+  <rect x="40" y="720" width="320" height="113" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  <text x="200" y="754" text-anchor="middle" class="heading">Select the last input row</text>
+  <text x="200" y="785" text-anchor="middle" class="mono">logits[:, −1, :] → [1, V]</text>
+  <text x="200" y="813" text-anchor="middle" class="small">Scores for the next token.</text>
+  <path d="M367 776H411" class="edge"/>
+  <rect x="420" y="720" width="330" height="113" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+  <text x="585" y="754" text-anchor="middle" class="heading">Greedy choice</text>
+  <text x="585" y="785" text-anchor="middle" class="mono">next_id = argmax(logits)</text>
+  <text x="585" y="813" text-anchor="middle" class="small">One token ID, not a sentence.</text>
+  <path d="M757 776H811" class="edge"/>
+  <rect x="820" y="720" width="390" height="113" rx="12" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="1015" y="754" text-anchor="middle" class="heading">Append the chosen ID</text>
+  <text x="1015" y="785" text-anchor="middle" class="mono">history = history + [next_id]</text>
+  <text x="1015" y="813" text-anchor="middle" class="small">Repeat the forward if more output is needed.</text>
+
+  <path d="M1015 840V865" class="edge"/>
+  <rect x="40" y="875" width="1170" height="105" rx="12" fill="#fff" stroke="#cbd5e1"/>
+  <text x="64" y="908" class="heading">Decode the generated continuation IDs with the same tokenizer</text>
+  <text x="64" y="941" class="body">Token IDs become text here. Token boundaries do not have to match words or characters.</text>
+  <text x="64" y="966" class="small">The model forward computes scores; the generation loop controls repetition, stopping, and output text.</text>
+</svg>
