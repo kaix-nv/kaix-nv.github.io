@@ -5,20 +5,20 @@ title: "Building tinyserve M8: Quantization—from bits and scales to serving pe
 date: 2026-09-15 15:55:00 -0700
 categories: [tinyserve, llm-serving]
 excerpt: "A practical guide to INT8, FP8, MXFP4, and NVFP4: exponent-versus-precision trade-offs, fake and real quantization, packed checkpoints, native arithmetic, and measured serving results."
+last_modified_at: 2026-10-05
+source_revision: 8e1849882b75725e9e357cbc136c9f7602c1fb79
+source_document: docs/m8-quantization.md
 ---
 
-<style>
-/* Keep wide format tables and equations scrollable within this article. */
-.post-content table { display: block; max-width: 100%; overflow-x: auto; }
-.post-content mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding: 0.2em 0; }
-.post-content :not(pre) > code { overflow-wrap: anywhere; }
-</style>
+{% include tinyserve-article-style.html %}
 
-*Milestone 8 of [building an LLM inference engine from scratch](/series/tinyserve/).
-Previous implementation chapter: [M7w — pay once, reuse eight times](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/m7w-kda-solve-factors.md).*
+*Part of [building an LLM inference engine from scratch](/series/tinyserve/).*
 
-Code and evidence: [`tinyserve` @ `3846ae7`](https://github.com/kaix-nv/tinyserve/tree/3846ae7c1883acfe483bc1c350db277d9d826ef0).
-This article covers M8a–M8d. Click any figure to open it at full size.
+Repository snapshot: [`tinyserve` @ `8e18498`](https://github.com/kaix-nv/tinyserve/tree/8e1849882b75725e9e357cbc136c9f7602c1fb79). Measurements below retain their original dates and acceptance limits. Click a figure to open it at full size.
+
+This updated article covers **M8a–M8e**, including packed NVFP4 weights with BF16 compute—not native FP4 arithmetic.
+
+Previous: [M7w — Pay once, reuse eight times]({% include tinyserve-post-url.html slug="building-tinyserve-m7w" fallback="https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/m7w-kda-solve-factors.md" %}) · Next: [M8f — Quantize the history, not just the weights]({% include tinyserve-post-url.html slug="building-tinyserve-m8f" fallback="https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/m8f-kv-cache-quantization.md" %})
 
 Tinyserve has so far loaded most model weights as BF16. That keeps the
 arithmetic easy to inspect, but it leaves a basic serving question unanswered:
@@ -56,16 +56,22 @@ then the [numerical limits](#numerical-limits-nans-infinities-normals-and-subnor
 and [format map](#a-map-of-the-formats-m8-needs-to-explain). The
 [performance model](#a-performance-model-for-quantization) explains what fewer
 bits can buy. The measured INT8 path follows it; [M8d](#m8d-make-the-fp8fp4-format-contract-executable)
-turns the floating-point formats into inspectable bytes.
+turns the floating-point formats into inspectable bytes. [M8e](#m8e-serve-packed-nvfp4-weights-with-bf16-compute)
+connects one of those layouts to the real serving loop.
+The separate [M8f chapter]({% include tinyserve-post-url.html slug="building-tinyserve-m8f" fallback="https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/m8f-kv-cache-quantization.md" %}) applies these ideas to
+request-owned K/V, with scale/page diagrams, a Q/DQ oracle, genuine compressed
+storage, and a separate correctness/quality/performance protocol.
 
 Here is the implementation boundary at this revision:
 
-| slice | implemented | not implied |
+| slice | implementation or design status | not implied |
 |---|---|---|
 | M8a | packed INT8 weights, BF16 tile multiply (W8A16) | native INT8 arithmetic or a speedup |
 | M8b | offline INT8 export and direct packed loading | support for arbitrary quantized checkpoints |
 | M8c | opt-in native INT8 W8A8 on A6000 | better quality or speed than BF16 |
 | M8d | FP8/MXFP8/MXFP4/NVFP4 reference codecs and metadata/header inspection | packed or native FP8/FP4 serving |
+| M8e | offline NVFP4 export, direct packed loading, tile-local BF16 W4A16 | native FP4 arithmetic, arbitrary ModelOpt imports, or a speedup |
+| M8f | per-token/head INT8 KV storage with FP32 scales, Q/DQ oracle, eager reader | fused INT8 attention, broad quality certification, or a speedup |
 
 ## Why serving cares about fewer bits
 
@@ -345,7 +351,7 @@ separate export step must still create packed codes and checkpoint metadata.
 ### Real quantization starts at packing
 
 The following snippets illustrate the separation used by M8a in
-[`tinyserve/quantization.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quantization.py). The implementation
+[`tinyserve/quantization.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/quantization.py). The implementation
 keeps the codec, the full Q/DQ oracle, and the packed serving path separate so
 their tensor lifetimes can be inspected directly. The generic `spec` and
 `quantized_linear` below are schematic interfaces, not Tinyserve APIs: the
@@ -415,10 +421,10 @@ the running kernel must actually consume those packed operands.
 
 ### What changes in Tinyserve
 
-The current [`dequantize_mxfp4()` loader path](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/loader.py) reads
+The current [`dequantize_mxfp4()` loader path](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/loader.py) reads
 two packed E2M1 values per byte, expands E8M0 scales, and returns one complete
 model-dtype tensor. `load_model()` then assigns it to an ordinary
-[`nn.Linear` projection](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/models/kimi.py) before moving the model
+[`nn.Linear` projection](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/models/kimi.py) before moving the model
 to the GPU. This is useful checkpoint-decoding evidence, but the runtime is
 BF16: packed-on-disk does not mean packed-in-VRAM.
 
@@ -431,8 +437,8 @@ The intended multi-format serving design changes that boundary in four steps:
 4. dispatch the Q/DQ oracle, packed fallback, or native kernel by format,
    device capability, and supported shape.
 
-M8a–M8c implement this separation for INT8, not a general multi-format
-dispatcher. M8d's floating-point codecs and inspector are standalone reference
+M8a–M8c implement this separation for INT8; M8e adds one canonical NVFP4
+weight-only layout, not a general multi-format dispatcher. M8d's floating-point codecs and inspector are standalone reference
 tools; they do not replace the existing Kimi loader or its BF16 execution.
 
 The oracle remains available for parity tests. The packed path is accepted as
@@ -836,7 +842,7 @@ nonfinite scales. Inspecting four-bit data alone cannot establish that the
 decoded tensor is finite.
 
 The endpoint and rounding examples are checked against actual code patterns
-in [`tests/test_quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tests/test_quant_formats.py). They test
+in [`tests/test_quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tests/test_quant_formats.py). They test
 representation and conversion, not preservation by an unimplemented FP4
 serving kernel.
 
@@ -1521,8 +1527,8 @@ llama.cpp, and 215 for Ollama. M8a INT8 reaches 185 tok/s under Tinyserve's
 more favorable engine-internal timer, so it does not close the external-engine
 gap. Those engines use different kernels and, for some lanes, different
 quantization/layout contracts; this comparison must not be used to attribute
-the difference to INT8 alone. The [structured M8a evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8a-int8-a6000-2026-09-14.json)
-and the [frozen cross-engine protocol](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/cross-engine-a6000-2026-08-29.md)
+the difference to INT8 alone. The [structured M8a evidence](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/m8a-int8-a6000-2026-09-14.json)
+and the [frozen cross-engine protocol](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/cross-engine-a6000-2026-08-29.md)
 retain the boundaries.
 
 ### M8b result: the checkpoint now matches the runtime representation
@@ -1530,7 +1536,7 @@ retain the boundaries.
 M8a proved that GPU-resident weights can remain packed, but its input artifact
 was still BF16. Every process had to read the larger matrix, allocate the
 packed replacement, and temporarily hold both. M8b moves that conversion to
-[`examples/export_int8.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/examples/export_int8.py), outside the serving
+[`examples/export_int8.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/examples/export_int8.py), outside the serving
 startup path.
 
 [![M8a repacks BF16 weights during every startup, while M8b stores canonical
@@ -1600,7 +1606,7 @@ reaches 184.93 tok/s, versus M8a runtime packing's 185.32 tok/s under the same
 settings: a 0.2% difference around the unchanged execution path. M8b changes
 storage and startup—not request execution or M8a's losing latency result.
 
-The [structured M8b evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8b-packed-checkpoint-a6000-2026-09-14.json)
+The [structured M8b evidence](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/m8b-packed-checkpoint-a6000-2026-09-14.json)
 retains hashes, raw samples, measurement boundaries, and the local artifact
 path.
 
@@ -1669,7 +1675,7 @@ and model quality are different tests.
 ### Follow one projection through the implementation
 
 `QuantizedLinear.forward()` flattens the leading dimensions and selects
-`w8a8_linear()` in [`int8_kernels.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/int8_kernels.py):
+`w8a8_linear()` in [`int8_kernels.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/int8_kernels.py):
 
 1. `_quantize_rows_kernel` reduces each row to its maximum absolute value,
    writes INT8 activation codes, and writes an FP32 scale. These temporary
@@ -1819,7 +1825,7 @@ for default promotion. Use the paired table for the two tested causal
 comparisons; do not mix its different profiling/KV settings with this table.
 
 The external-engine figures in the
-[August calibration](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/cross-engine-a6000-2026-08-29.md) are still
+[August calibration](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/cross-engine-a6000-2026-08-29.md) are still
 historical references, **not fresh M8c runs** of llama.cpp, Ollama, FreeToken,
 or vLLM. They also differ in format and timing boundary. M8c's evidence does
 not establish an apples-to-apples INT8 ranking against those engines.
@@ -1838,7 +1844,7 @@ been established. The existing driver/NVML mismatch also prevents recording
 the clock and thermal envelope; the paired intervals describe variation
 within these runs, not that unmeasured source of uncertainty.
 
-The [structured M8c evidence](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8c-native-int8-a6000-2026-09-15.json)
+The [structured M8c evidence](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/m8c-native-int8-a6000-2026-09-15.json)
 retains checkpoint/source hashes, instruction excerpts, the literal quality
 corpus, microbench samples, fixed-phase measurements, paired samples, and
 all six calibration conditions. The full regression run passes 159 tests
@@ -1847,7 +1853,7 @@ with 9 skipped; correctness and performance were checked on physical GPU 1.
 ## M8d: make the FP8/FP4 format contract executable
 
 The format map is useful only if we can follow its bits back to numbers.
-[`quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quant_formats.py) adds a small reference
+[`quant_formats.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/quant_formats.py) adds a small reference
 implementation with a deliberately ordinary layout: row-major bytes, blocks
 along the input dimension $K$, and the first FP4 value in the low nibble.
 It is not a ModelOpt checkpoint loader or a tensor-core layout adapter.
@@ -1935,7 +1941,7 @@ that this canonical layout deliberately does not claim to provide.
 
 ### Inspect declarations without pretending they are execution
 
-[`quant_inspect.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/tinyserve/quant_inspect.py) reads ModelOpt JSON and
+[`quant_inspect.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/quant_inspect.py) reads ModelOpt JSON and
 safetensors headers without importing model code or materializing weights.
 It keeps three questions separate:
 
@@ -1960,10 +1966,10 @@ block FP8 weight-only, not automatically MXFP8. No weights are downloaded and
 the conversion report remains producer-provided evidence, not an independent
 verification of tensor values.
 
-[`examples/inspect_quantization.py`](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/examples/inspect_quantization.py)
+[`examples/inspect_quantization.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/examples/inspect_quantization.py)
 provides both a small `--demo` matrix and `--model` header inspection. The
 `M8d: FP8/FP4 codecs and checkpoint metadata` entry in
-[launch.json](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/.vscode/launch.json) runs both on the CPU. Useful breakpoints
+[launch.json](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/.vscode/launch.json) runs both on the CPU. Useful breakpoints
 are scale selection in `quantize_matrix()`, `pack_nibbles()`, and
 `resolve_rule()`; no serving process or native FP4 GPU is required.
 
@@ -1972,9 +1978,255 @@ all finite-code round trips and rounding midpoints, all E2M1 codes, E8M0 edge
 values, odd-column packing, block boundaries, scale underflow, and header-only
 inspection. With the numerical-limit checks added, the full regression suite
 passes **205 tests, with 9 skipped**; the format/inspection subset passes 46.
-The [M8d evidence receipt](https://github.com/kaix-nv/tinyserve/blob/3846ae7c1883acfe483bc1c350db277d9d826ef0/docs/benchmarks/m8d-format-contract-2026-09-15.json)
-records the local inspection boundary. No FP8/FP4 serving performance has been
-measured: M8d changes neither the serving loader nor its kernels.
+The [M8d evidence receipt](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/m8d-format-contract-2026-09-15.json)
+records the local inspection boundary. M8d itself measures no FP8/FP4 serving
+performance: it changes neither the serving loader nor its kernels. M8e below
+adds that execution path for one canonical NVFP4 layout.
+
+## M8e: serve packed NVFP4 weights with BF16 compute
+
+M8d can show which values a packed tensor represents. M8e asks the next
+systems question: **can that tensor stay packed while a real model serves
+requests?** Its answer is a deliberately small W4A16 path: four-bit weight
+codes, BF16 activations, and BF16 matrix instructions with FP32 accumulation.
+There is no activation quantizer and no native FP4 instruction in this path.
+
+The scope is one GPU and the seven bias-free transformer projections of a
+dense Qwen model. On Qwen3-0.6B, that is 28 layers × 7 = 196 projections.
+Embeddings, normalization, the LM head, and the KV cache retain their existing
+floating-point representations. MoE, hybrid recurrent models, TP/PP/EP/CP,
+and importing another producer's packed layout are not included.
+
+[![An NVFP4 checkpoint stays packed in GPU memory; each CUDA program decodes
+only a weight tile before a BF16 dot product, with a concrete byte-address
+example](/assets/tinyserve/m8e-packed-nvfp4.svg)](/assets/tinyserve/m8e-packed-nvfp4.svg)
+
+### The offline artifact is an explicit contract
+
+[`export_nvfp4.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/examples/export_nvfp4.py) calls M8d's reference codec
+once per eligible weight matrix and writes three tensors in place of
+`<module>.weight`. For a logical weight $W\in\mathbb{R}^{N\times K}$, let
+$G=\lceil K/16\rceil$:
+
+| checkpoint tensor suffix | physical shape | stored dtype | meaning |
+|---|---|---|---|
+| `weight_packed` | `[N, G*8]` | `uint8` | two E2M1 codes per byte; even K is the low nibble |
+| `weight_scale` | `[N, G]` | `uint8` | one finite, nonnegative E4M3 scale per 16 columns |
+| `weight_global_scale` | `[]` | FP32 | one positive scalar shared by the matrix |
+
+The version-2 `tinyserve_quantization.json` fixes the logical shape, block
+axis, element and scale formats, rounding recipe, and
+`row-major-low-nibble-first-v1` layout. Its explicit `format: nvfp4` selects
+the loader; a directory name or a four-bit tensor is not sufficient. M8b's
+INT8 version-1 format remains supported unchanged.
+
+The exporter uses absmax scaling and round-to-nearest-even, with FP64
+reference intermediates and the stored rounded scales as described in M8d.
+It does **not** calibrate on a dataset, rotate weights, run AWQ, or retrain
+the model. Numerical format compatibility is not quality-recipe equivalence.
+An already quantized source is rejected, rather than silently treating its
+codes as floating weights.
+
+At load time, [`loader.py`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/loader.py) builds empty
+[`NVFP4Linear`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/tinyserve/fp4.py) modules on the meta device. Safetensors
+bytes are assigned directly to their registered buffers. The loader checks
+the exact eligible-module set, logical and physical shapes, dtypes, scale
+validity, and missing tensors. It also rejects an artifact containing both
+packed and full floating projection weights. CPU loading is useful for
+inspection; execution requires CUDA BF16 on SM80 or newer. The measured
+hardware here is an A6000, not a native-FP4 GPU.
+
+### One projection, from byte address to output
+
+Suppose $K=64$, and a kernel needs $W[2,19]$. Each row has four blocks, or
+32 code bytes:
+
+1. Read code byte `2*32 + 19//2 = 73`.
+2. Channel 19 is odd, so take the high nibble. If the byte is `0xD2`, that
+   nibble is `0xD`, whose E2M1 value is $-3$.
+3. Read scale byte `2*4 + 19//16 = 9`. A scale code of `0x38` means $1$.
+4. With global scale $0.25$, reconstruct
+   $\hat W[2,19]=\operatorname{BF16}((-3\times1)\times0.25)=-0.75$.
+
+The kernel performs this mapping for a tile of 32 output channels and 64
+input channels at a time. Each program handles 16 or 32 token rows, iterates
+over K, and accumulates its output tile in FP32. Only the final BF16 output
+is written to global memory. **It never allocates an $N\times K$ BF16 weight
+tensor.** Padding to whole 16-element blocks is part of storage, but channels
+beyond the logical K are masked out of the dot product.
+
+The same module works during prefill and decode. Larger prefill batches
+launch more token-row tiles; decode usually has only a few rows. The
+implementation does not introduce a second dequantization kernel or keep a
+second floating copy for prefill. This simple choice also means repeated
+weight decoding across token-row tiles: packing saves bytes, but unpacking
+and scale decoding still cost instructions.
+
+The serving oracle reconstructs `(element * block_scale) * global_scale` in
+FP32, casts each weight to BF16, and then accumulates the dot in FP32. This
+execution contract is distinct from M8d's general FP64 numerical oracle.
+It is also distinct from a cuBLAS BF16 call allowed to reduce partial sums
+in BF16. Parity tests align the accumulation policy and allow the small
+rounding difference caused by different FP32 reduction orders; the exhaustive
+code/scale decoding test itself is exact.
+
+### Where to step through the implementation
+
+Export the artifact once; the exporter refuses to overwrite an existing
+directory:
+
+```bash
+.venv/bin/python examples/export_nvfp4.py \
+  --model /home/scratch.kaix_coreai/models/Qwen3-0.6B \
+  --output .tinyserve-models/Qwen3-0.6B-nvfp4
+```
+
+The **M8e: packed NVFP4 weights, BF16 compute** entry in
+[`.vscode/launch.json`](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/.vscode/launch.json) opens `generate.py` with that
+artifact and CUDA graphs disabled, so Python breakpoints run on every step.
+Set `CUDA_VISIBLE_DEVICES` to an available device; this entry currently uses
+device 0. Useful breakpoints are `load_quant_manifest`,
+`prepare_dense_qwen_nvfp4`, and `NVFP4Linear.forward`. The byte-address mapping
+and tile loop are in `_w4a16_kernel`; a Python debugger cannot step through
+individual GPU threads. Normal serving can still capture and replay this
+path with CUDA graphs.
+
+For controlled measurement, `bench_nvfp4.py` records Q/DQ parity, fixed-text
+drift, matrix timings, allocator peaks, and compiled instruction evidence.
+`bench_quantization.py --nvfp4-model <artifact>` adds NVFP4 to the resident,
+rotating-order BF16/INT8 serving comparison. These serve different purposes:
+matching a Q/DQ oracle proves implementation correctness, not task quality
+or a performance win.
+
+### What the A6000 measurements establish
+
+On September 17, 2026, the dense Qwen3-0.6B checkpoint had the following
+resident model-state sizes. These count tensors, not CUDA context, KV-cache,
+graph-pool, or allocator-reservation memory:
+
+| representation | model-state bytes | change from BF16 |
+|---|---:|---:|
+| BF16 | 1,503,264,768 | baseline |
+| INT8 W8A16 / W8A8 | 1,064,239,104 | −29.2% |
+| NVFP4 W4A16 | 870,187,792 | **−42.1%** |
+
+The eligible projections alone fall from 880,803,840 to 247,726,864 bytes.
+That is approximately 4.5 bits per weight: four code bits plus one eight-bit
+scale per sixteen weights, with a small global-scale overhead. It is a
+3.56× projection-storage reduction, **not a 3.56× whole-model reduction**.
+The unchanged embedding and vocabulary head explain the difference.
+The exported directory falls from 1,519,197,900 to 886,228,068 bytes.
+An independent CUDA-storage check matches these state-byte totals. Although
+the checkpoint declares tied embeddings, the current loader retains separate
+CUDA embedding/head allocations in all three representations; M8e does not
+change that existing behavior. The percentages describe this implementation,
+not an idealized model with every possible storage optimization applied.
+
+The warmed `[1,3072] × [1024,3072]` projection allocated only its 2,048-byte
+BF16 output. Each packed module had zero floating weight parameters. The
+compiled instruction evidence is `mma.sync...f32.bf16.bf16.f32` in PTX and
+`HMMA.16816.F32.BF16` in SASS. Together, these establish **packed storage with
+BF16 arithmetic**, not native FP4 acceleration. No DRAM-traffic measurement
+is claimed from the allocator result.
+
+Numerical checks deliberately separate three questions:
+
+- The byte decoder exactly matches all 16 E2M1 codes crossed with all 127
+  finite nonnegative E4M3 scale codes at four tested global scales.
+- All 196 real-model projections pass an independent Q/DQ FP32-dot comparison
+  on the same activations. The diagnostic budget is one BF16 rounding step
+  (`0.008 * abs(reference)`) plus an FP32 cancellation allowance
+  (`8 * eps32 * sum(abs(x*w))`). This is a stated empirical gate, not a
+  worst-case floating-point proof. Synthetic shape and graph tests also use
+  tighter fixed absolute tolerances for their bounded inputs.
+- On six teaching texts / 192 logit positions, the packed model versus a
+  complete Q/DQ model has mean KL **0.000961** and top-1 agreement **99.48%**.
+  Maximum absolute logit difference is **0.46875**: different FP32 reduction
+  orders can still cross BF16 rounding boundaries and propagate through the
+  network. Full-model logits are **not bit-identical**.
+
+Against the **original BF16 model**, the same fixed-text diagnostic gives
+mean KL **0.2513**, top-1 agreement **72.40%**, and top-5 overlap **78.23%**.
+The corresponding INT8 W8A16 figures are 0.0252, 92.71%, and 94.27%.
+That is a material quantization change, not a kernel-parity failure. The
+fixture is too small to establish task accuracy, and a plausible generated
+sentence or correct arithmetic smoke does not qualify this absmax recipe
+for general use.
+
+Packing also has an instruction cost. For the first layer's Q projection,
+graph-timed `[M,N,K]=[1,2048,1024]` latency is 7.29 μs for BF16 versus
+20.91 μs for NVFP4; at `M=2048`, it is 83.92 versus 313.29 μs. These isolated
+matrix timings include tile decoding but exclude Python submission overhead.
+They show that this small fallback kernel loses latency despite retaining
+fewer weight bytes; they do not identify a hardware bottleneck without a
+profiler. End-to-end serving measurements below use resident controls and
+rotating order instead of multiplying this isolated-kernel ratio by the
+number of layers.
+
+The paired serving test keeps BF16, INT8 W8A16, INT8 W8A8, and NVFP4 resident
+in the same process. It rotates execution order over seven measured
+repetitions after two warmups, enables CUDA graphs and phase profiling,
+disables prefix caching, and uses a chunk budget of 8,192 with 32,768 KV
+tokens per model. All variants process the same prompts and forced output
+lengths; all pass the arithmetic smoke.
+
+| workload | BF16 tok/s | INT8 W8A16 tok/s | INT8 W8A8 tok/s | NVFP4 tok/s | paired NVFP4 / BF16, 95% bootstrap interval |
+|---|---:|---:|---:|---:|---|
+| p128 / o128 / B1 | 232.8 | 184.8 | 215.1 | 94.5 | 0.406× [0.405, 0.412] |
+| p2048 / o32 / B8 | 381.1 | 206.5 | 352.2 | 179.7 | 0.472× [0.471, 0.473] |
+
+This is a **53–59% throughput loss versus BF16**, not an improvement. The
+lesson is the complete packed execution path and its measured trade-offs.
+M8e stays opt-in and BF16 remains the default. Further kernel tuning and a
+better quantization recipe are separate work; neither is implied by this
+implementation's format label.
+
+### Fresh cross-engine calibration
+
+These are **new September 17 runs**, not the historical references in M8c.
+Each condition uses two warmups and five measured repetitions on the same
+A6000. The three decode columns are output tokens/s for p128/o128; the three
+prefill columns are median request TTFT in milliseconds for p2048/o32.
+
+| serving path | decode B1 | decode B8 | decode B32 | TTFT B1 | TTFT B8 | TTFT B32 |
+|---|---:|---:|---:|---:|---:|---:|
+| Tinyserve BF16 | 239.2 | 1,693.4 | 4,734.8 | 56.9 | 415.0 | 1,060.5 |
+| Tinyserve NVFP4 W4A16 | 95.8 | 731.1 | 3,282.9 | 105.0 | 974.9 | 2,471.1 |
+| llama.cpp, BF16 GGUF | 283.6 | 890.7 | 1,005.8 | 227.7 | 1,514.0 | 5,573.0 |
+| FreeToken, BF16 | 347.7 | 2,318.6 | 4,133.3 | 54.2 | 204.1 | 592.1 |
+
+Tinyserve uses engine-internal timing, CUDA graphs, no prefix cache, an
+8,192-token chunk budget, and a 131,072-token KV pool. Phase profiling is off
+in this suite, unlike the paired diagnostic above. llama.cpp and FreeToken
+include streaming HTTP overhead; llama.cpp disables prompt caching, and
+FreeToken uses its `naive` cache policy with the same 8,192 prefill budget and
+131,072 KV capacity. These are **system calibration points**, not equivalent
+quantization recipes or a pure kernel A/B. The paired Tinyserve comparison
+above remains the evidence for this feature's effect.
+
+Ollama retains its native prompt-cache policy, so it stays in a separate
+lane: decode throughput is **287.1 / 984.8 / 1,208.1 tok/s**, and long-prompt
+TTFT is **137.4 / 468.1 / 1,691.9 ms**, for B1/B8/B32 respectively. The local
+ninfer checkout explicitly requires `sm_120a`; this SM86 host cannot supply
+a valid ninfer performance sample. No vLLM or SGLang rerun is claimed here.
+
+The HTTP client now requests and records server-reported completion-token
+usage, falling back to re-tokenized text only when a server omits usage.
+FreeToken reports **127/31 completion tokens per request** for the 128/32
+caps in this run; the other reported paths return 128/32. Throughput uses
+the reported counts, not the requested caps, and this is not a claim of
+identical decoder-step counts across engines. The initial FreeToken request
+arrived during graph capture and returned 503; that attempt is excluded.
+The successful rerun waited for `/health` to report `status: ok`, not just
+HTTP 200.
+
+The [M8e evidence receipt](https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/benchmarks/m8e-nvfp4-a6000-2026-09-17.json)
+retains commands, revisions, checkpoint and kernel hashes, paired samples,
+telemetry ranges, numerical drift, actual reported output counts, and raw
+artifact hashes. Validation finished with **238 tests passed, 9 skipped**;
+the saved M8e debugger command also completed with the correct arithmetic
+answer. This closes the packed-serving slice without promoting a slower,
+unqualified four-bit recipe to the default.
 
 ## How M8 measures correctness
 
@@ -2045,21 +2297,30 @@ A6000 execution measurement. M8b completes the offline artifact, versioned
 metadata, and direct loader. M8c adds dynamic activation quantization and an
 opt-in native INT8 dot while retaining the same packed artifact. M8d adds a
 standalone FP8/MXFP8/MXFP4/NVFP4 representation, reference codecs, Q/DQ, and
-read-only ModelOpt metadata/header inspection. Later slices remain bounded:
+read-only ModelOpt metadata/header inspection. M8e connects its canonical
+NVFP4 representation to offline export, strict direct loading, and a BF16
+W4A16 CUDA kernel. [M8f]({% include tinyserve-post-url.html slug="building-tinyserve-m8f" fallback="https://github.com/kaix-nv/tinyserve/blob/8e1849882b75725e9e357cbc136c9f7602c1fb79/docs/m8f-kv-cache-quantization.md" %}) adds a bounded
+quantization slice: a Q/DQ oracle and genuine INT8 KV storage with explicit
+scales through an eager reference attention path. Its dedicated chapter
+keeps storage savings separate from quality and serving performance.
+M8a–M8e remain complete and do not acquire these new acceptance gates.
+Other possible follow-ups remain bounded:
 
-- adapt one explicitly identified checkpoint layout to packed modules;
+- adapt another explicitly identified checkpoint layout only when needed;
 - extend reference coverage when that layout requires it, such as generic
   two-dimensional block FP8 or a specific INT4 recipe;
-- packed CUDA fallbacks that never materialize the complete BF16 weight;
+- retain packed CUDA fallbacks without complete BF16 weight materialization;
 - architecture-gated native NVIDIA paths only when the required GPU is
   available for correctness, SASS, memory, and latency validation.
 
 Further INT8 kernel tuning is deferred; its measured-losing paths remain
 opt-in rather than delaying the rest of the format work.
 
-Embeddings, normalization, and initially the LM head remain BF16. KV-cache,
-GDN/KDA recurrent-state, and attention-probability quantization are separate
-stateful problems and stay out of M8. INT4/AWQ/GPTQ performance kernels and QAT
+Embeddings, normalization, and initially the LM head remain BF16. KV-cache
+quantization was outside the completed M8a–M8e weight/format slices; it now
+belongs to M8f, with its own stateful correctness and quality checks.
+GDN/KDA recurrent-state and attention-probability quantization remain deferred.
+INT4/AWQ/GPTQ performance kernels and QAT
 also remain future work even though this chapter explains where they fit.
 
 That boundary gives the project breadth at the format layer and depth at one

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">M7m narrows Kimi prefill from the whole model to KDA launch overhead and selects a 64-token chunk</title>
+  <desc id="desc">Four prompt-length bars show KDA growing to 87 percent of model time at 2048 tokens. A KDA breakdown shows 976 of 999 milliseconds inside the chunkwise rule. An isolated operator profile shows 70.7 milliseconds of CPU dispatch around 16.8 milliseconds of CUDA work and many small launches, while triangular solve is only 0.5 milliseconds. A controlled geometry sweep selects chunk size 64 over 32 and 128.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8fafc}.panel{fill:#fff;stroke:#94a3b8;stroke-width:2}.kda{fill:#7c3aed}.moe{fill:#2563eb}.other{fill:#cbd5e1}.hot{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.control{fill:#dcfce7;stroke:#16a34a;stroke-width:2}.warn{fill:#fef3c7;stroke:#d97706;stroke-width:2}.title{font:700 28px system-ui,sans-serif;fill:#0f172a}.head{font:700 20px system-ui,sans-serif;fill:#0f172a}.label{font:600 15px system-ui,sans-serif;fill:#0f172a}.small{font:14px system-ui,sans-serif;fill:#334155}.tiny{font:12px ui-monospace,SFMono-Regular,monospace;fill:#334155}.white{font:700 13px system-ui,sans-serif;fill:#fff}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#head)}
+    </style>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#334155"/></marker>
+  </defs>
+  <rect class="bg" width="1200" height="800"/>
+  <text x="48" y="48" class="title">M7m: narrow the next Kimi prefill optimization with evidence</text>
+  <text x="48" y="78" class="small">Module attribution → KDA internals → operator trace → controlled chunk-size decision</text>
+
+  <rect x="48" y="106" width="536" height="330" rx="16" class="panel"/>
+  <text x="72" y="142" class="head">1. Which module grows with the prompt?</text>
+  <text x="72" y="166" class="small">Median share of model CUDA-event interval</text>
+  <text x="72" y="205" class="label">T=32</text>
+  <rect x="140" y="184" width="190" height="30" class="kda"/><rect x="330" y="184" width="101" height="30" class="moe"/><rect x="431" y="184" width="88" height="30" class="other"/>
+  <text x="235" y="204" text-anchor="middle" class="white">KDA 50.1%</text><text x="380" y="204" text-anchor="middle" class="white">MoE 26.7%</text>
+  <text x="72" y="255" class="label">T=128</text>
+  <rect x="140" y="234" width="153" height="30" class="kda"/><rect x="293" y="234" width="194" height="30" class="moe"/><rect x="487" y="234" width="32" height="30" class="other"/>
+  <text x="216" y="254" text-anchor="middle" class="white">40.2%</text><text x="390" y="254" text-anchor="middle" class="white">MoE 51.0%</text>
+  <text x="72" y="305" class="label">T=512</text>
+  <rect x="140" y="284" width="258" height="30" class="kda"/><rect x="398" y="284" width="106" height="30" class="moe"/><rect x="504" y="284" width="15" height="30" class="other"/>
+  <text x="269" y="304" text-anchor="middle" class="white">KDA 67.9%</text><text x="451" y="304" text-anchor="middle" class="white">27.8%</text>
+  <text x="72" y="355" class="label">T=2048</text>
+  <rect x="140" y="334" width="331" height="30" class="kda"/><rect x="471" y="334" width="36" height="30" class="moe"/><rect x="507" y="334" width="12" height="30" class="other"/>
+  <text x="305" y="354" text-anchor="middle" class="white">KDA 87.0%</text>
+  <rect x="140" y="386" width="14" height="14" class="kda"/><text x="162" y="398" class="tiny">KDA</text>
+  <rect x="226" y="386" width="14" height="14" class="moe"/><text x="248" y="398" class="tiny">MoE</text>
+  <rect x="312" y="386" width="14" height="14" class="other"/><text x="334" y="398" class="tiny">MLA + AttnRes + rest</text>
+
+  <rect x="608" y="106" width="544" height="330" rx="16" class="panel"/>
+  <text x="632" y="142" class="head">2. What inside KDA owns T=2048?</text>
+  <rect x="642" y="184" width="466" height="66" rx="12" class="hot"/>
+  <text x="875" y="211" text-anchor="middle" class="label">chunkwise rule: 976.0 ms</text>
+  <text x="875" y="234" text-anchor="middle" class="tiny">97.7% of KDA · 84.7% of the model</text>
+  <path d="M875 250 V290" class="arrow"/>
+  <rect x="642" y="302" width="220" height="82" rx="12" class="warn"/>
+  <text x="752" y="329" text-anchor="middle" class="label">CPU dispatch</text>
+  <text x="752" y="354" text-anchor="middle" class="tiny">70.7 ms self time</text>
+  <text x="752" y="374" text-anchor="middle" class="tiny">one isolated T=2048 rule</text>
+  <rect x="888" y="302" width="220" height="82" rx="12" class="control"/>
+  <text x="998" y="329" text-anchor="middle" class="label">CUDA operators</text>
+  <text x="998" y="354" text-anchor="middle" class="tiny">16.8 ms self time</text>
+  <text x="998" y="374" text-anchor="middle" class="tiny">useful kernels are short</text>
+  <text x="632" y="416" class="tiny">Other KDA: projections 5.0 · conv 4.6 · Q/K norm 3.5 · remainder 10.2 ms</text>
+
+  <rect x="48" y="464" width="536" height="288" rx="16" class="panel"/>
+  <text x="72" y="500" class="head">3. The launch storm, not the solve</text>
+  <text x="72" y="530" class="label">Per isolated T=2048 call, C=32:</text>
+  <text x="90" y="564" class="tiny">1,153 × multiply</text>
+  <text x="90" y="592" class="tiny">  512 × reduction</text>
+  <text x="90" y="620" class="tiny">  256 × batched matmul</text>
+  <text x="90" y="648" class="tiny">  448 × exponential</text>
+  <text x="90" y="676" class="tiny">   64 × triangular solve</text>
+  <rect x="314" y="538" width="226" height="72" rx="10" class="warn"/>
+  <text x="427" y="566" text-anchor="middle" class="label">triangular solve</text>
+  <text x="427" y="590" text-anchor="middle" class="tiny">0.516 ms = 3.1% CUDA</text>
+  <text x="72" y="716" class="small">Replacing only the solve cannot materially fix prefill.</text>
+
+  <rect x="608" y="464" width="544" height="288" rx="16" class="panel"/>
+  <text x="632" y="500" class="head">4. Cheapest controlled intervention</text>
+  <text x="632" y="528" class="small">Unprofiled T=2048 prompt + one token</text>
+  <rect x="662" y="558" width="112" height="136" rx="8" class="hot"/><text x="718" y="630" text-anchor="middle" class="label">C=32</text><text x="718" y="654" text-anchor="middle" class="tiny">780.0 ms</text>
+  <rect x="824" y="615" width="112" height="79" rx="8" class="control"/><text x="880" y="646" text-anchor="middle" class="label">C=64</text><text x="880" y="670" text-anchor="middle" class="tiny">455.8 ms</text>
+  <rect x="986" y="605" width="112" height="89" rx="8" class="warn"/><text x="1042" y="640" text-anchor="middle" class="label">C=128</text><text x="1042" y="664" text-anchor="middle" class="tiny">485.1 ms</text>
+  <path d="M774 626 H812" class="arrow"/>
+  <text x="880" y="724" text-anchor="middle" class="label">M7n: promote C=64, verify, then re-profile</text>
+</svg>

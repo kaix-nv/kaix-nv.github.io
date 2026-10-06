@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="730" viewBox="0 0 1280 730" role="img" aria-labelledby="title desc">
+<title id="title">A partially rejected round: shifted mask and KV rollback</title>
+<desc id="desc">With five cached tokens and pending token four, draft proposes seven, nine, two. Target predicts seven, eight, thirteen, eleven. Only seven is accepted. Both valid cache lengths become seven, and correction eight remains pending. Query rows see prefix lengths six, seven, eight, and nine.</desc>
+<rect width="1280" height="730" fill="#fff"/>
+<g font-family="Arial,sans-serif" fill="#0f172a">
+<text x="46" y="48" font-size="28" font-weight="700">Accept 7, reject 9: the correction 8 becomes pending</text>
+<text x="46" y="80" font-size="18" fill="#475569">Illustrative token IDs • C=5 cached positions • 3 draft proposals • one target verification</text>
+<rect x="46" y="111" width="1187" height="202" rx="12" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="68" y="148" font-size="19" font-weight="700">Logical position</text>
+<text x="350" y="148" font-size="19">0 … 4</text><text x="595" y="148" font-size="19">5</text><text x="760" y="148" font-size="19">6</text><text x="925" y="148" font-size="19">7</text><text x="1090" y="148" font-size="19">8</text>
+<text x="68" y="193" font-size="19" font-weight="700">Target inputs</text>
+<text x="330" y="193" font-size="19">cached prefix</text><text x="555" y="193" font-size="19">pending 4</text><text x="735" y="193" font-size="19">draft 7</text><text x="900" y="193" font-size="19">draft 9</text><text x="1065" y="193" font-size="19">draft 2</text>
+<text x="68" y="238" font-size="19" font-weight="700">Predicts next token</text>
+<text x="595" y="238" font-size="21" fill="#15803d" font-weight="700">7</text><text x="760" y="238" font-size="21" fill="#c2410c" font-weight="700">8</text><text x="925" y="238" font-size="19" fill="#94a3b8">13</text><text x="1090" y="238" font-size="19" fill="#94a3b8">11</text>
+<text x="68" y="282" font-size="19" font-weight="700">Comparison</text>
+<text x="551" y="282" font-size="18" fill="#15803d">7 = 7: accept</text><text x="720" y="282" font-size="18" fill="#c2410c">9 ≠ 8: stop</text><text x="922" y="282" font-size="18" fill="#64748b">wrong history → discard</text>
+<rect x="46" y="341" width="601" height="235" rx="12" fill="#eff6ff" stroke="#93c5fd"/>
+<text x="67" y="377" font-size="22" font-weight="700">Valid cache lengths</text>
+<text x="67" y="415" font-size="19">Target: 5 → 9 temporary → 7 committed</text>
+<text x="67" y="452" font-size="19">Draft:   5 → 8 temporary → 7 committed</text>
+<text x="67" y="492" font-size="19">Keep: [five old tokens, 4, 7]</text>
+<text x="67" y="528" font-size="19">Next input: 8 at logical position 7</text>
+<text x="67" y="556" font-size="16" fill="#475569">The draft never processed its final proposal 2.</text>
+<rect x="679" y="341" width="554" height="235" rx="12" fill="#f0fdf4" stroke="#86efac"/>
+<text x="701" y="377" font-size="22" font-weight="700">Offset causal mask: key j ≤ C+i</text>
+<g font-family="monospace" font-size="18">
+<text x="701" y="417">query 4 @5:  1 1 1 1 1 1 · · ·</text>
+<text x="701" y="452">query 7 @6:  1 1 1 1 1 1 1 · ·</text>
+<text x="701" y="487">query 9 @7:  1 1 1 1 1 1 1 1 ·</text>
+<text x="701" y="522">query 2 @8:  1 1 1 1 1 1 1 1 1</text>
+</g>
+<text x="701" y="556" font-size="16" fill="#475569">1 = visible key; · = hidden future key</text>
+<rect x="46" y="607" width="1187" height="86" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+<text x="68" y="642" font-size="20" font-weight="700">Rollback is a cursor change, not a buffer copy.</text>
+<text x="68" y="673" font-size="18">KV at positions ≥7 may still contain rejected values. New writes replace them before they become visible again.</text>
+</g>
+</svg>

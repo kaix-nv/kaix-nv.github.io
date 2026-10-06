@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="710" viewBox="0 0 1200 710" role="img" aria-labelledby="title desc">
+<title id="title">M9d: compare the same history before predictions branch</title>
+<desc id="desc">The prefill predicts y0. One-token steps and a three-token causal append produce predictions for the same output positions. Candidate predictions are recorded but the reference tokens are fed back. Comparing query size holds the reader fixed; comparing readers holds query size fixed.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9" fill="none" stroke="#50647a" stroke-width="1.5"/></marker></defs>
+<rect width="1200" height="710" fill="#fff"/>
+<g font-family="Arial, sans-serif" fill="#182b42">
+<text x="40" y="46" font-size="26" font-weight="700">Same history. Different execution shape or reader.</text>
+<text x="40" y="78" font-size="17">Reference continuation: y0, y1, y2, y3, y4. Output row i predicts yi from prompt + y[:i].</text>
+<rect x="40" y="108" width="1120" height="85" rx="10" fill="#edf3fb" stroke="#aac0db"/>
+<text x="60" y="143" font-size="19" font-weight="700">Shared starting point</text>
+<text x="60" y="173" font-size="17">Prompt prefill → keep the final logit row → prediction y0 (output row 0)</text>
+<text x="40" y="235" font-size="20" font-weight="700">T = 1: four cached forwards</text>
+<g fill="#edf8f3" stroke="#83bda3"><rect x="40" y="253" width="245" height="92" rx="8"/><rect x="327" y="253" width="245" height="92" rx="8"/><rect x="614" y="253" width="245" height="92" rx="8"/><rect x="901" y="253" width="259" height="92" rx="8"/></g>
+<g font-size="18"><text x="61" y="287">input y0 → predict y1</text><text x="348" y="287">input y1 → predict y2</text><text x="635" y="287">input y2 → predict y3</text><text x="921" y="287">input y3 → predict y4</text></g>
+<g font-size="16" fill="#426154"><text x="61" y="322">output row 1</text><text x="348" y="322">output row 2</text><text x="635" y="322">output row 3</text><text x="921" y="322">output row 4</text></g>
+<g stroke="#50647a" stroke-width="2" marker-end="url(#arrow)"><path d="M287 299H318"/><path d="M574 299H605"/><path d="M861 299H892"/></g>
+<text x="40" y="394" font-size="20" font-weight="700">T = 3: one causal append, then a short tail</text>
+<rect x="40" y="412" width="819" height="95" rx="8" fill="#f1edfb" stroke="#b2a1d1"/>
+<rect x="901" y="412" width="259" height="95" rx="8" fill="#f1edfb" stroke="#b2a1d1"/>
+<text x="61" y="447" font-size="18">inputs [y0, y1, y2] → predict [y1, y2, y3]</text>
+<text x="61" y="482" font-size="16">output rows 1–3; each query can see its prefix, never a future input</text>
+<text x="921" y="447" font-size="18">input y3 → predict y4</text><text x="921" y="482" font-size="16">output row 4</text>
+<path d="M861 457H892" stroke="#50647a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="533" width="1120" height="64" rx="8" fill="#fff6e7" stroke="#d7b476"/>
+<text x="61" y="559" font-size="17" font-weight="700">If a candidate predicts z instead of yi, record the disagreement.</text>
+<text x="61" y="584" font-size="17">Still feed the reference yi next. Otherwise later rows would compare different text.</text>
+<text x="40" y="636" font-size="18">Shape comparison: keep the reader fixed, change T. Backend comparison: keep T fixed, change the reader.</text>
+<text x="40" y="672" font-size="16" fill="#50647a">Fixed-history diagnostic only: no draft proposals, rejection, rollback schedule, or throughput claim.</text>
+</g></svg>

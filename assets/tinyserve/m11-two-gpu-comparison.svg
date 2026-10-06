@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="590" viewBox="0 0 1120 590" role="img" aria-labelledby="title desc">
+<title id="title">M11: compare phase separation with two ordinary replicas</title>
+<desc id="desc">Measured throughput and first-text latency for short, long, and mixed eight-request cohorts. Both modes use two A6000s and the same per-GPU KV budget. Bars show medians and whiskers observed ranges, not confidence intervals.</desc>
+<rect width="1120" height="590" rx="16" fill="#f8fafc"/>
+<g font-family="sans-serif" fill="#172b4d">
+<text x="35" y="42" font-size="25" font-weight="bold">M11: the trade-off against two ordinary replicas</text>
+<text x="35" y="74" font-size="17" >Qwen3-4B BF16 · two A6000s · 16,384 KV tokens/GPU · private KV · host-staged handoff</text>
+<rect x="35" y="96" width="20" height="20" rx="3" fill="#2563eb"/>
+<text x="65" y="113" font-size="17" >Two ordinary replicas</text>
+<rect x="315" y="96" width="20" height="20" rx="3" fill="#059669"/>
+<text x="345" y="113" font-size="17" >Prefill/decode pair</text>
+<text x="60" y="158" font-size="19" font-weight="bold">Output tokens / second ↑</text>
+<path d="M60 442.0 h450" stroke="#cbd5e1"/>
+<text x="52" y="447" font-size="13" text-anchor="end">0</text>
+<path d="M60 380.0 h450" stroke="#cbd5e1"/>
+<text x="52" y="385.0" font-size="13" text-anchor="end">131</text>
+<path d="M60 318.0 h450" stroke="#cbd5e1"/>
+<text x="52" y="323.0" font-size="13" text-anchor="end">262</text>
+<path d="M60 256.0 h450" stroke="#cbd5e1"/>
+<text x="52" y="261.0" font-size="13" text-anchor="end">392</text>
+<path d="M60 194.0 h450" stroke="#cbd5e1"/>
+<text x="52" y="199" font-size="13" text-anchor="end">523</text>
+<text x="135" y="470" font-size="17" text-anchor="middle">Short</text>
+<rect x="84" y="240.4" width="43" height="201.6" fill="#2563eb"/>
+<path d="M105.5 244.1 V230.0 M99 244.1 h13 M99 230.0 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="105.5" y="221.03418803418805" font-size="15" text-anchor="middle">425</text>
+<rect x="139" y="272.5" width="43" height="169.5" fill="#059669"/>
+<path d="M160.5 275.6 V266.1 M154 275.6 h13 M154 266.1 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="160.5" y="257.0578295953367" font-size="15" text-anchor="middle">358</text>
+<text x="285" y="470" font-size="17" text-anchor="middle">Long</text>
+<rect x="234" y="361.9" width="43" height="80.1" fill="#2563eb"/>
+<path d="M255.5 363.7 V360.2 M249 363.7 h13 M249 360.2 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="255.5" y="351.1577694448802" font-size="15" text-anchor="middle">169</text>
+<rect x="289" y="412.6" width="43" height="29.4" fill="#059669"/>
+<path d="M310.5 413.1 V412.3 M304 413.1 h13 M304 412.3 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="310.5" y="403.326451946984" font-size="15" text-anchor="middle">62</text>
+<text x="435" y="470" font-size="17" text-anchor="middle">Mixed</text>
+<rect x="384" y="331.7" width="43" height="110.3" fill="#2563eb"/>
+<path d="M405.5 336.3 V329.8 M399 336.3 h13 M399 329.8 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="405.5" y="320.7825739493071" font-size="15" text-anchor="middle">233</text>
+<rect x="439" y="354.1" width="43" height="87.9" fill="#059669"/>
+<path d="M460.5 357.0 V352.3 M454 357.0 h13 M454 352.3 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="460.5" y="343.3463182549804" font-size="15" text-anchor="middle">185</text>
+<text x="615" y="158" font-size="19" font-weight="bold">First visible text, milliseconds ↓</text>
+<path d="M615 442.0 h450" stroke="#cbd5e1"/>
+<text x="607" y="447" font-size="13" text-anchor="end">0</text>
+<path d="M615 380.0 h450" stroke="#cbd5e1"/>
+<text x="607" y="385.0" font-size="13" text-anchor="end">672</text>
+<path d="M615 318.0 h450" stroke="#cbd5e1"/>
+<text x="607" y="323.0" font-size="13" text-anchor="end">1344</text>
+<path d="M615 256.0 h450" stroke="#cbd5e1"/>
+<text x="607" y="261.0" font-size="13" text-anchor="end">2016</text>
+<path d="M615 194.0 h450" stroke="#cbd5e1"/>
+<text x="607" y="199" font-size="13" text-anchor="end">2687</text>
+<text x="690" y="470" font-size="17" text-anchor="middle">Short</text>
+<rect x="639" y="428.2" width="43" height="13.8" fill="#2563eb"/>
+<path d="M660.5 431.1 V426.2 M654 431.1 h13 M654 426.2 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="660.5" y="417.2326309054464" font-size="15" text-anchor="middle">150</text>
+<rect x="694" y="406.1" width="43" height="35.9" fill="#059669"/>
+<path d="M715.5 410.5 V401.7 M709 410.5 h13 M709 401.7 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="715.5" y="392.6951511114191" font-size="15" text-anchor="middle">389</text>
+<text x="840" y="470" font-size="17" text-anchor="middle">Long</text>
+<rect x="789" y="360.2" width="43" height="81.8" fill="#2563eb"/>
+<path d="M810.5 379.8 V356.9 M804 379.8 h13 M804 356.9 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="810.5" y="347.8592115587053" font-size="15" text-anchor="middle">886</text>
+<rect x="844" y="233.6" width="43" height="208.4" fill="#059669"/>
+<path d="M865.5 237.8 V230.0 M859 237.8 h13 M859 230.0 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="865.5" y="221.03418803418805" font-size="15" text-anchor="middle">2259</text>
+<text x="990" y="470" font-size="17" text-anchor="middle">Mixed</text>
+<rect x="939" y="418.1" width="43" height="23.9" fill="#2563eb"/>
+<path d="M960.5 419.2 V413.3 M954 419.2 h13 M954 413.3 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="960.5" y="404.29225852644646" font-size="15" text-anchor="middle">258</text>
+<rect x="994" y="375.6" width="43" height="66.4" fill="#059669"/>
+<path d="M1015.5 380.9 V372.3 M1009 380.9 h13 M1009 372.3 h13" stroke="#172b4d" stroke-width="1.5"/>
+<text x="1015.5" y="363.34215652651955" font-size="15" text-anchor="middle">719</text>
+<text x="35" y="512" font-size="16" >10 measured cohorts per workload and mode, across two fresh processes; 2 warmups per process.</text>
+<text x="35" y="540" font-size="16" >Bars: medians of cohort metrics. Whiskers: observed min–max, not confidence intervals.</text>
+<text x="35" y="568" font-size="16" >Short: 128/128 prompt/output tokens. Long: 2,048/32. Mixed: four short, then four staggered long requests.</text>
+</g></svg>

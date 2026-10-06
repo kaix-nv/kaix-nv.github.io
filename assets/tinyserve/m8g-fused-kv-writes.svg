@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="480" viewBox="0 0 1080 480" role="img" aria-labelledby="title desc">
+  <title id="title">M8g: checked fused KV writes</title>
+  <desc id="desc">Both paths check real input before changing the cache. The reference materializes codes and scales before scattering. The candidate validates first, then quantizes and scatters in one kernel. Both use the same paged reader.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#475569"/></marker></defs>
+  <rect width="1080" height="480" fill="#f8fafc"/>
+  <g font-family="Arial, sans-serif" fill="#0f172a">
+    <text x="32" y="38" font-size="23" font-weight="bold">Same INT8 pages. Fewer intermediate tensors on the write path.</text>
+    <text x="32" y="76" font-size="17">K, V: [new tokens, KV heads, channels] + physical slot IDs</text>
+    <text x="32" y="124" font-size="18" font-weight="bold">M8f reference</text>
+    <g fill="#e2e8f0" stroke="#94a3b8"><rect x="32" y="142" width="210" height="70" rx="8"/><rect x="283" y="142" width="230" height="70" rx="8"/><rect x="554" y="142" width="235" height="70" rx="8"/><rect x="830" y="142" width="215" height="70" rx="8"/></g>
+    <g font-size="16" text-anchor="middle"><text x="137" y="170">Filter scratch; stack K/V</text><text x="137" y="195">temporary FP32 values</text><text x="398" y="170">Reduce; check finite</text><text x="398" y="195">host synchronization</text><text x="671" y="170">Scale, divide, round</text><text x="671" y="195">temporary codes/scales</text><text x="937" y="170">Scatter codes + scales</text><text x="937" y="195">persistent paged pool</text></g>
+    <text x="32" y="262" font-size="18" font-weight="bold">M8g candidate</text>
+    <g fill="#dbeafe" stroke="#60a5fa"><rect x="32" y="280" width="265" height="86" rx="8"/><rect x="360" y="280" width="365" height="86" rx="8"/><rect x="788" y="280" width="257" height="86" rx="8"/></g>
+    <g font-size="16" text-anchor="middle"><text x="164" y="307">GPU validation + host check</text><text x="164" y="332">Ignore scratch; reject real NaN/Inf</text><text x="164" y="355">No cache mutation yet</text><text x="542" y="309">Fused quantize-and-scatter kernel</text><text x="542" y="334">one program per token / K-or-V / head</text><text x="542" y="357">guarded scale + ties-to-even codes</text><text x="916" y="314">Same INT8 codes + FP32 scales</text><text x="916" y="343">same physical page ownership</text></g>
+    <rect x="32" y="405" width="1013" height="47" rx="8" fill="#ecfdf5" stroke="#6ee7b7"/>
+    <text x="538" y="435" font-size="17" text-anchor="middle">Unchanged reader: gather pages → reconstruct BF16/FP32 history → floating-point attention</text>
+  </g>
+  <g fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"><path d="M242 178 H277"/><path d="M513 178 H548"/><path d="M789 178 H824"/><path d="M297 323 H354"/><path d="M725 323 H782"/><path d="M937 212 V240 H1060 V429 H1050"/><path d="M916 366 V399"/></g>
+</svg>

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="720" viewBox="0 0 1120 720" role="img" aria-labelledby="title desc">
+  <title id="title">Batch filtering without sharing random streams</title>
+  <desc id="desc">The scalar control repeats filtering and a private draw for each stochastic request. M10d gathers stochastic rows into shared filtering operations. Both paths use the same deterministic top-p scan. Request-owned generators remain separate, and token IDs scatter back to the original rows. Greedy rows bypass the random path. Batched dispatch is not yet enabled in serving.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L7 4 L0 8" fill="none" stroke="#52647c" stroke-width="1.5"/></marker>
+  </defs>
+  <rect width="1120" height="720" rx="16" fill="#f6f8fc"/>
+  <g font-family="sans-serif" fill="#23354d">
+    <text x="32" y="39" font-size="23" font-weight="700">Batch the filtering, keep the randomness private</text>
+    <text x="32" y="66" font-size="15">M10d deterministic revision · B = all rows · S = stochastic rows · V = vocabulary size</text>
+    <rect x="24" y="88" width="526" height="482" rx="12" fill="#fff" stroke="#bdcadd"/>
+    <rect x="570" y="88" width="526" height="482" rx="12" fill="#fff" stroke="#bdcadd"/>
+    <text x="44" y="119" font-size="19" font-weight="700">Scalar: repeat the filtering per row</text>
+    <text x="590" y="119" font-size="19" font-weight="700">M10d: share filtering operations</text>
+
+    <rect x="44" y="142" width="486" height="52" rx="8" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="60" y="173" font-size="16">Model logits [B,V] · row order [A, B, C]</text>
+    <rect x="590" y="142" width="486" height="52" rx="8" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="606" y="173" font-size="16">Same logits and copied request parameters</text>
+
+    <text x="44" y="232" font-size="16" font-weight="700">A</text>
+    <rect x="78" y="208" width="238" height="56" rx="8" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="94" y="232" font-size="15">temperature → k → p</text>
+    <text x="94" y="252" font-size="14">softmax over V tokens</text>
+    <rect x="348" y="208" width="182" height="56" rx="8" fill="#f1e6f5" stroke="#ac8aba"/>
+    <text x="362" y="232" font-size="15">draw with RNG A</text>
+    <text x="362" y="252" font-size="14">one [1,V] row</text>
+    <text x="44" y="310" font-size="16" font-weight="700">B</text>
+    <rect x="78" y="286" width="452" height="48" rx="8" fill="#fff0d9" stroke="#ceaa68"/>
+    <text x="94" y="315" font-size="15">greedy argmax · no generator</text>
+    <text x="44" y="380" font-size="16" font-weight="700">C</text>
+    <rect x="78" y="356" width="238" height="56" rx="8" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="94" y="380" font-size="15">temperature → k → p</text>
+    <text x="94" y="400" font-size="14">softmax over V tokens</text>
+    <rect x="348" y="356" width="182" height="56" rx="8" fill="#f1e6f5" stroke="#ac8aba"/>
+    <text x="362" y="380" font-size="15">draw with RNG C</text>
+    <text x="362" y="400" font-size="14">one [1,V] row</text>
+    <text x="44" y="452" font-size="15">More stochastic rows repeat the entire chain.</text>
+    <text x="44" y="476" font-size="15">Each call keeps its own generator.</text>
+    <rect x="44" y="504" width="486" height="44" rx="8" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="60" y="532" font-size="15">stack token IDs → one host readback</text>
+
+    <rect x="590" y="216" width="310" height="54" rx="8" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="606" y="239" font-size="15">gather rows [0,2] → [S,V]</text>
+    <text x="606" y="259" font-size="14">carry request IDs [A,C]</text>
+    <rect x="930" y="216" width="146" height="118" rx="8" fill="#fff0d9" stroke="#ceaa68"/>
+    <text x="944" y="241" font-size="15" font-weight="700">B: greedy</text>
+    <text x="944" y="266" font-size="14">argmax</text>
+    <text x="944" y="291" font-size="14">no RNG</text>
+    <text x="944" y="316" font-size="14">token 2</text>
+    <rect x="590" y="294" width="310" height="84" rx="8" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="606" y="318" font-size="15">batched temperature, k, softmax</text>
+    <text x="606" y="341" font-size="14">top-p: shared fixed-order scan [S,V]</text>
+    <text x="606" y="364" font-size="14">batched mask · vocabulary order</text>
+    <rect x="590" y="402" width="310" height="76" rx="8" fill="#f1e6f5" stroke="#ac8aba"/>
+    <text x="606" y="426" font-size="15">A row [1,V] + RNG A → a0</text>
+    <text x="606" y="450" font-size="15">C row [1,V] + RNG C → c0</text>
+    <text x="606" y="469" font-size="13">Private draw loop remains.</text>
+    <rect x="590" y="504" width="486" height="44" rx="8" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="606" y="532" font-size="15">scatter [a0, 2, c0] → one host readback</text>
+
+    <rect x="24" y="590" width="1072" height="102" rx="12" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="44" y="619" font-size="17" font-weight="700">Next batch [C,A]? Look up RNGs by request ID, not the old row number.</text>
+    <text x="44" y="646" font-size="15">Keep RNG state through preemption. Partial prefill and greedy rows consume no random draw.</text>
+    <text x="44" y="672" font-size="15">Reference shortcuts remain. Both paths share the scan policy; ordinary sessions still dispatch row by row.</text>
+  </g>
+  <g fill="none" stroke="#52647c" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M316 236 H342"/><path d="M316 384 H342"/>
+    <path d="M745 194 V210"/><path d="M1003 194 V210"/>
+    <path d="M745 270 V288"/><path d="M745 378 V396"/>
+    <path d="M745 478 V498"/><path d="M1003 334 V498"/>
+  </g>
+</svg>

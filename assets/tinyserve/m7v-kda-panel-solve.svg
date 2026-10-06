@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">M7v panelizes the KDA causal solve but increases spill traffic</title>
+  <desc id="desc">A 64-row unit-lower triangular solve is divided into four 16-row panels. Each solved panel updates future right-hand sides, output, and recurrent state before being discarded. Although the source names a smaller solved tile, the compiled candidate keeps 255 registers per thread, increases local-memory instructions by 58.84 percent, and regresses ordinary tail and full-model latency, so the row solve remains the default.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 25px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 17px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px ui-sans-serif, system-ui, sans-serif; fill: #334155; }
+      .mono { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #1e293b; }
+      .small { font: 12px ui-sans-serif, system-ui, sans-serif; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 12; }
+      .blue { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.5; rx: 7; }
+      .violet { fill: #ede9fe; stroke: #8b5cf6; stroke-width: 1.5; rx: 7; }
+      .green { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.5; rx: 7; }
+      .amber { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.5; rx: 7; }
+      .red { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.5; rx: 7; }
+      .gray { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1; }
+      .empty { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="800" fill="#ffffff"/>
+  <text x="40" y="42" class="title">M7v: a smaller source tile does not guarantee fewer spills</text>
+
+  <rect x="35" y="70" width="1130" height="155" class="box"/>
+  <text x="55" y="101" class="head">One exact C64 system becomes four dependent C16 panels</text>
+  <text x="55" y="128" class="mono">L X = B</text>
+  <text x="55" y="151" class="small">L is unit-lower triangular.</text>
+  <text x="55" y="174" class="small">Each panel depends on earlier panels.</text>
+
+  <g transform="translate(330 110)">
+    <rect x="0" y="0" width="46" height="26" class="blue"/><text x="10" y="18" class="small">L00</text>
+    <rect x="48" y="0" width="46" height="26" class="empty"/><rect x="96" y="0" width="46" height="26" class="empty"/><rect x="144" y="0" width="46" height="26" class="empty"/>
+    <rect x="0" y="28" width="46" height="26" class="gray"/><text x="10" y="46" class="small">L10</text><rect x="48" y="28" width="46" height="26" class="blue"/><text x="58" y="46" class="small">L11</text><rect x="96" y="28" width="46" height="26" class="empty"/><rect x="144" y="28" width="46" height="26" class="empty"/>
+    <rect x="0" y="56" width="46" height="26" class="gray"/><rect x="48" y="56" width="46" height="26" class="gray"/><rect x="96" y="56" width="46" height="26" class="blue"/><text x="106" y="74" class="small">L22</text><rect x="144" y="56" width="46" height="26" class="empty"/>
+    <rect x="0" y="84" width="46" height="26" class="gray"/><rect x="48" y="84" width="46" height="26" class="gray"/><rect x="96" y="84" width="46" height="26" class="gray"/><rect x="144" y="84" width="46" height="26" class="blue"/><text x="154" y="102" class="small">L33</text>
+  </g>
+  <text x="550" y="128" class="mono">X0 = solve(L00, B0)</text>
+  <text x="550" y="154" class="mono">X1 = solve(L11, B1 - L10 X0)</text>
+  <text x="550" y="180" class="mono">X2 = solve(L22, B2 - L20 X0 - L21 X1)</text>
+  <text x="550" y="206" class="mono">X3 = …</text>
+
+  <rect x="35" y="250" width="525" height="315" class="box"/>
+  <text x="55" y="283" class="head">M7q row solve: complete result stays live</text>
+  <rect x="65" y="310" width="92" height="190" class="violet"/>
+  <text x="84" y="338" class="mono">row 0</text><text x="84" y="366" class="mono">row 1</text><text x="84" y="394" class="mono">row 2</text><text x="93" y="425" class="mono">…</text><text x="79" y="478" class="mono">row 63</text>
+  <path d="M 157 405 L 205 405" class="line"/>
+  <rect x="215" y="310" width="190" height="82" class="red"/>
+  <text x="235" y="340" class="mono">solved_rows</text>
+  <text x="235" y="367" class="mono">[64,16]</text>
+  <rect x="215" y="418" width="140" height="58" class="amber"/>
+  <text x="235" y="443" class="mono">output</text><text x="235" y="465" class="small">[64,16]</text>
+  <rect x="375" y="418" width="140" height="58" class="amber"/>
+  <text x="395" y="443" class="mono">state</text><text x="395" y="465" class="small">[128,16]</text>
+  <path d="M 310 392 L 285 418" class="line"/><path d="M 340 392 L 435 418" class="line"/>
+  <text x="55" y="535" class="small">The solve, output, and state tiles overlap for the whole chunk.</text>
+
+  <rect x="640" y="250" width="525" height="315" class="box"/>
+  <text x="660" y="283" class="head">M7v intent: solve, consume, discard one panel</text>
+  <rect x="665" y="314" width="80" height="54" class="blue"/><text x="687" y="346" class="mono">B0</text>
+  <path d="M 745 341 L 778 341" class="line"/>
+  <rect x="787" y="304" width="114" height="74" class="green"/><text x="807" y="333" class="mono">solve</text><text x="807" y="358" class="mono">X0[16,V]</text>
+  <path d="M 901 341 L 941 341" class="line"/>
+  <rect x="950" y="304" width="180" height="74" class="violet"/><text x="971" y="333" class="mono">consume X0</text><text x="971" y="358" class="small">then discard panel</text>
+
+  <path d="M 1040 378 L 1040 414" class="line"/>
+  <rect x="675" y="425" width="140" height="58" class="amber"/><text x="694" y="450" class="mono">future RHS</text><text x="694" y="472" class="small">Bj -= Lj0 X0</text>
+  <rect x="835" y="425" width="140" height="58" class="amber"/><text x="858" y="450" class="mono">output</text><text x="850" y="472" class="small">O += P0 X0</text>
+  <rect x="995" y="425" width="140" height="58" class="amber"/><text x="1022" y="450" class="mono">state</text><text x="1008" y="472" class="small">S += K0ᵀ X0</text>
+  <path d="M 1040 414 L 745 425" class="dash"/><path d="M 1040 414 L 905 425" class="dash"/><path d="M 1040 414 L 1065 425" class="dash"/>
+  <text x="660" y="522" class="mono">repeat for X1 → X2 → X3</text>
+  <text x="660" y="545" class="small">Same equations, same grid, no added serving launch.</text>
+
+  <rect x="35" y="590" width="1130" height="170" class="box"/>
+  <text x="55" y="621" class="head">Compiled reality and promotion decision</text>
+  <rect x="55" y="642" width="205" height="82" class="red"/>
+  <text x="75" y="670" class="head">FAIL · registers</text><text x="75" y="697" class="mono">255 → 255</text><text x="75" y="717" class="small">live-range gate missed</text>
+  <rect x="278" y="642" width="205" height="82" class="red"/>
+  <text x="298" y="670" class="head">FAIL · spills</text><text x="298" y="697" class="mono">+58.84%</text><text x="298" y="717" class="small">local instructions</text>
+  <rect x="501" y="642" width="205" height="82" class="red"/>
+  <text x="521" y="670" class="head">FAIL · tail</text><text x="521" y="697" class="mono">4.78% slower</text><text x="521" y="717" class="small">ordinary T2048 timing</text>
+  <rect x="724" y="642" width="205" height="82" class="red"/>
+  <text x="744" y="670" class="head">FAIL · model</text><text x="744" y="697" class="mono">15.65% slower</text><text x="744" y="717" class="small">paired T2048 median</text>
+  <rect x="947" y="642" width="188" height="82" class="amber"/>
+  <text x="967" y="670" class="head">KEEP M7q</text><text x="967" y="697" class="mono">row default</text><text x="967" y="717" class="small">panel stays inspectable</text>
+</svg>

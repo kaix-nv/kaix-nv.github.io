@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">Kimi indexed MoE route sorting and two-kernel execution</title>
+  <desc id="desc">Four tokens with two routes each are flattened, sorted by expert, processed as expert GEMM tiles, scattered back to route order, then weighted and reduced per token.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 25px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 17px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #1e293b; }
+      .note { font: 14px ui-sans-serif, system-ui, sans-serif; fill: #475569; }
+      .small { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #334155; }
+      .box { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 12; }
+      .blue { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.5; rx: 6; }
+      .green { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.5; rx: 6; }
+      .amber { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.5; rx: 6; }
+      .violet { fill: #ede9fe; stroke: #8b5cf6; stroke-width: 1.5; rx: 6; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="620" fill="#ffffff"/>
+  <text x="40" y="42" class="title">M7s: turn token routes into two grouped GEMM launches</text>
+
+  <rect x="35" y="70" width="225" height="380" class="box"/>
+  <text x="55" y="100" class="head">1. Router output</text>
+  <text x="55" y="126" class="note">N=4 tokens, K=2 routes</text>
+  <rect x="55" y="150" width="180" height="48" class="blue"/>
+  <text x="70" y="180" class="body">t0 → e2, e5</text>
+  <rect x="55" y="210" width="180" height="48" class="green"/>
+  <text x="70" y="240" class="body">t1 → e2, e7</text>
+  <rect x="55" y="270" width="180" height="48" class="amber"/>
+  <text x="70" y="300" class="body">t2 → e5, e7</text>
+  <rect x="55" y="330" width="180" height="48" class="violet"/>
+  <text x="70" y="360" class="body">t3 → e2, e5</text>
+  <text x="55" y="410" class="small">flat assignment IDs:</text>
+  <text x="55" y="432" class="small">0 1 2 3 4 5 6 7</text>
+
+  <path d="M 260 255 L 310 255" class="line"/>
+
+  <rect x="315" y="70" width="270" height="380" class="box"/>
+  <text x="335" y="100" class="head">2. Sort IDs by expert</text>
+  <text x="335" y="126" class="note">GPU argsort + offsets</text>
+  <rect x="335" y="150" width="230" height="70" class="blue"/>
+  <text x="350" y="178" class="body">e2: [0, 2, 6]</text>
+  <text x="350" y="202" class="small">tokens: t0, t1, t3</text>
+  <rect x="335" y="232" width="230" height="70" class="amber"/>
+  <text x="350" y="260" class="body">e5: [1, 4, 7]</text>
+  <text x="350" y="284" class="small">tokens: t0, t2, t3</text>
+  <rect x="335" y="314" width="230" height="70" class="green"/>
+  <text x="350" y="342" class="body">e7: [3, 5]</text>
+  <text x="350" y="366" class="small">tokens: t1, t2</text>
+  <text x="335" y="412" class="small">expert offsets: [0, 3, 6, 8]</text>
+  <text x="335" y="432" class="small">tile offsets map task → expert</text>
+
+  <path d="M 585 255 L 635 255" class="line"/>
+
+  <rect x="640" y="70" width="260" height="380" class="box"/>
+  <text x="660" y="100" class="head">3. Two Triton kernels</text>
+  <rect x="660" y="140" width="220" height="120" class="violet"/>
+  <text x="680" y="171" class="head">Kernel 1</text>
+  <text x="680" y="199" class="body">X @ W1[e]ᵀ</text>
+  <text x="680" y="222" class="body">X @ W3[e]ᵀ</text>
+  <text x="680" y="245" class="body">then SiTU → [A,I]</text>
+  <rect x="660" y="290" width="220" height="120" class="green"/>
+  <text x="680" y="321" class="head">Kernel 2</text>
+  <text x="680" y="349" class="body">act @ W2[e]ᵀ</text>
+  <text x="680" y="372" class="body">scatter by assignment ID</text>
+  <text x="680" y="395" class="body">→ [N,K,D]</text>
+
+  <path d="M 900 255 L 950 255" class="line"/>
+
+  <rect x="955" y="70" width="210" height="380" class="box"/>
+  <text x="975" y="100" class="head">4. Route reduction</text>
+  <text x="975" y="132" class="note">Back in PyTorch</text>
+  <text x="975" y="173" class="body">selected[n,k,:]</text>
+  <text x="975" y="200" class="body">× weight[n,k]</text>
+  <text x="975" y="227" class="body">sum over K</text>
+  <rect x="975" y="270" width="170" height="62" class="blue"/>
+  <text x="995" y="307" class="body">routed [N,D]</text>
+  <text x="975" y="370" class="small">No [N,K,I,D]</text>
+  <text x="975" y="391" class="small">weight gather.</text>
+  <text x="975" y="420" class="small">No Python loop</text>
+  <text x="975" y="441" class="small">over active experts.</text>
+
+  <rect x="190" y="495" width="820" height="82" class="box"/>
+  <text x="215" y="526" class="head">Why sort?</text>
+  <text x="215" y="551" class="note">Rows for the same expert share one weight tile, so each Triton program performs a small matrix-matrix multiply.</text>
+  <text x="215" y="573" class="note">One program per assignment would repeatedly reload a 256×256 matrix just to compute one matrix-vector product.</text>
+</svg>

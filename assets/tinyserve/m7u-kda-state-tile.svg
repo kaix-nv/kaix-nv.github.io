@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7u splits each KDA state tile but does not pass the promotion gate</title>
+  <desc id="desc">The original tail assigns sixteen value channels to each eight-warp program, producing 64 blocks. The candidate assigns eight value channels to each four-warp program, producing 128 blocks. Chunks remain causally ordered. The candidate speeds up the isolated tail but retains register spills and improves full-model latency by less than the required five percent, so the original remains the default.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 25px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .head { font: 700 17px ui-sans-serif, system-ui, sans-serif; fill: #0f172a; }
+      .body { font: 14px ui-sans-serif, system-ui, sans-serif; fill: #334155; }
+      .mono { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #1e293b; }
+      .small { font: 12px ui-sans-serif, system-ui, sans-serif; fill: #475569; }
+      .box { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.5; rx: 12; }
+      .blue { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.5; rx: 7; }
+      .violet { fill: #ede9fe; stroke: #8b5cf6; stroke-width: 1.5; rx: 7; }
+      .green { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.5; rx: 7; }
+      .amber { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.5; rx: 7; }
+      .red { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.5; rx: 7; }
+      .line { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+      .thin { stroke: #94a3b8; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="40" y="42" class="title">M7u: more programs help, but the state tile still spills</text>
+
+  <rect x="35" y="70" width="1130" height="108" class="box"/>
+  <text x="55" y="100" class="head">The dependency does not change: one program carries its state through all 32 chunks</text>
+  <rect x="55" y="122" width="62" height="32" class="blue"/><text x="76" y="143" class="mono">c0</text>
+  <path d="M 117 138 L 142 138" class="line"/>
+  <rect x="147" y="122" width="62" height="32" class="blue"/><text x="168" y="143" class="mono">c1</text>
+  <path d="M 209 138 L 234 138" class="line"/>
+  <rect x="239" y="122" width="62" height="32" class="blue"/><text x="260" y="143" class="mono">c2</text>
+  <text x="322" y="143" class="mono">…</text>
+  <rect x="357" y="122" width="72" height="32" class="blue"/><text x="372" y="143" class="mono">c31</text>
+  <text x="475" y="132" class="mono">S(n+1) ← tail(cn, S(n))</text>
+  <text x="475" y="154" class="small">Only independent value columns are repartitioned; FP32 math and causal order stay fixed.</text>
+
+  <rect x="35" y="205" width="525" height="315" class="box"/>
+  <text x="55" y="238" class="head">M7q default: wide value ownership</text>
+  <text x="55" y="266" class="mono">BLOCK_V=16 · num_warps=8 · grid=64</text>
+  <rect x="65" y="292" width="180" height="154" class="violet"/>
+  <text x="88" y="321" class="mono">one program</text>
+  <text x="88" y="349" class="mono">state [128,16]</text>
+  <path d="M 88 368 L 222 368" class="thin"/>
+  <text x="88" y="394" class="small">16 value columns</text>
+  <text x="88" y="416" class="small">8 warps / 256 threads</text>
+  <text x="282" y="310" class="body">8 heads × 8 tiles</text>
+  <text x="282" y="338" class="mono">64 blocks</text>
+  <text x="282" y="370" class="small">20 of 84 SMs receive</text>
+  <text x="282" y="390" class="small">no first block.</text>
+  <rect x="282" y="414" width="230" height="50" class="red"/>
+  <text x="300" y="436" class="mono">255 registers/thread</text>
+  <text x="300" y="456" class="small">8.95M local instructions</text>
+  <text x="55" y="492" class="small">T=2,048 NCU baseline: 5.647 ms</text>
+
+  <path d="M 570 360 L 625 360" class="line"/>
+  <text x="574" y="338" class="small">split V</text>
+
+  <rect x="640" y="205" width="525" height="315" class="box"/>
+  <text x="660" y="238" class="head">M7u candidate: narrow value ownership</text>
+  <text x="660" y="266" class="mono">BLOCK_V=8 · num_warps=4 · grid=128</text>
+  <rect x="670" y="292" width="86" height="154" class="green"/>
+  <rect x="766" y="292" width="86" height="154" class="green"/>
+  <text x="689" y="321" class="mono">tile 0</text>
+  <text x="785" y="321" class="mono">tile 1</text>
+  <text x="684" y="350" class="mono">[128,8]</text>
+  <text x="780" y="350" class="mono">[128,8]</text>
+  <path d="M 684 368 L 742 368" class="thin"/>
+  <path d="M 780 368 L 838 368" class="thin"/>
+  <text x="684" y="394" class="small">4 warps</text>
+  <text x="780" y="394" class="small">4 warps</text>
+  <text x="884" y="310" class="body">8 heads × 16 tiles</text>
+  <text x="884" y="338" class="mono">128 blocks</text>
+  <text x="884" y="370" class="small">More blocks, but hardware</text>
+  <text x="884" y="390" class="small">can now resident two/SM.</text>
+  <rect x="884" y="414" width="230" height="50" class="red"/>
+  <text x="902" y="436" class="mono">255 registers/thread</text>
+  <text x="902" y="456" class="small">9.12M local instructions</text>
+  <text x="660" y="492" class="small">T=2,048 NCU candidate: 4.871 ms (1.16×)</text>
+
+  <rect x="35" y="550" width="1130" height="170" class="box"/>
+  <text x="55" y="582" class="head">Promotion gate: optimize the model, not one profiler row</text>
+
+  <rect x="55" y="605" width="255" height="78" class="green"/>
+  <text x="74" y="632" class="head">PASS · isolated tail</text>
+  <text x="74" y="657" class="mono">12.03% (9-repeat run)</text>
+  <text x="74" y="676" class="small">required ≥ 10%</text>
+
+  <rect x="330" y="605" width="255" height="78" class="red"/>
+  <text x="349" y="632" class="head">FAIL · spills</text>
+  <text x="349" y="657" class="mono">local ops +1.82%</text>
+  <text x="349" y="676" class="small">required: materially lower</text>
+
+  <rect x="605" y="605" width="255" height="78" class="red"/>
+  <text x="624" y="632" class="head">FAIL · full model</text>
+  <text x="624" y="657" class="mono">4.62% pooled median</text>
+  <text x="624" y="676" class="small">required ≥ 5%</text>
+
+  <rect x="880" y="605" width="255" height="78" class="amber"/>
+  <text x="899" y="632" class="head">DECISION · keep M7q</text>
+  <text x="899" y="657" class="mono">default stays 16 × 8</text>
+  <text x="899" y="676" class="small">profile the causal solve next</text>
+</svg>

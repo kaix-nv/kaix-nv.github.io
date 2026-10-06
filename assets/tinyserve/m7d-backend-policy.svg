@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">M7d separates paged attention mechanism from cache lifecycle policy</title>
+  <desc id="desc">A concrete sequence with block table 7,2 writes logical token 21 to physical slot 37. The scheduler reaches physical memory through PagedKVCache and an injected NoCache or PrefixCache policy. The Qwen model always projects QKV, applies RoPE, and writes KV before calling an injected Torch, FlashInfer, or context-parallel attention backend. Either side can change without editing the other.</desc>
+  <defs>
+    <style>
+      .title{font:700 29px system-ui,sans-serif;fill:#172033}.subtitle{font:15px system-ui,sans-serif;fill:#536078}.head{font:700 20px system-ui,sans-serif;fill:#172033}.label{font:600 15px system-ui,sans-serif;fill:#24304a}.small{font:13px system-ui,sans-serif;fill:#536078}.mono{font:14px ui-monospace,SFMono-Regular,monospace;fill:#24304a}.panel{fill:#f7f9fc;stroke:#cbd3e1;stroke-width:1.5}.engine{fill:#eaf2ff;stroke:#397fc3;stroke-width:1.5}.cache{fill:#fff8dd;stroke:#c79a28;stroke-width:1.5}.model{fill:#f2edff;stroke:#7557b8;stroke-width:1.5}.backend{fill:#eaf7ed;stroke:#4a9a61;stroke-width:1.5}.choice{fill:#fff;stroke:#8996aa;stroke-width:1.3}.pool{fill:#fff0e8;stroke:#d87847;stroke-width:1.5}.arrow{stroke:#66748d;stroke-width:2;fill:none;marker-end:url(#arrow)}.dashed{stroke:#8a96aa;stroke-width:1.7;stroke-dasharray:6 5;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#66748d"/></marker>
+  </defs>
+  <rect width="1200" height="760" rx="20" fill="#fbfcfe"/>
+  <text x="48" y="48" class="title">M7d: mechanism and policy are two different decisions</text>
+  <text x="48" y="77" class="subtitle">Concrete decode example: block size 16, sequence block table [7, 2], next logical position 21.</text>
+
+  <rect x="40" y="106" width="1120" height="112" rx="16" class="panel"/>
+  <rect x="68" y="136" width="218" height="54" rx="10" class="engine"/>
+  <text x="177" y="158" text-anchor="middle" class="label">Scheduler / engine</text>
+  <text x="177" y="178" text-anchor="middle" class="mono">seq: tokens 0..21</text>
+  <path d="M286 163 H353" class="arrow"/>
+  <rect x="358" y="130" width="300" height="66" rx="10" class="cache"/>
+  <text x="508" y="154" text-anchor="middle" class="label">PagedForwardContext</text>
+  <text x="508" y="177" text-anchor="middle" class="mono">bt=[7,2], ctx_len=22, slot=37</text>
+  <path d="M658 163 H725" class="arrow"/>
+  <rect x="730" y="136" width="392" height="54" rx="10" class="model"/>
+  <text x="926" y="158" text-anchor="middle" class="label">Qwen layer: project Q/K/V, norm, RoPE</text>
+  <text x="926" y="178" text-anchor="middle" class="small">Invariant model work; no backend or policy branch</text>
+
+  <rect x="40" y="248" width="545" height="438" rx="16" class="panel"/>
+  <text x="64" y="284" class="head">CachePolicy: what happens to blocks?</text>
+  <text x="64" y="309" class="small">The scheduler talks only to the PagedKVCache facade.</text>
+  <rect x="70" y="337" width="220" height="64" rx="10" class="cache"/>
+  <text x="180" y="362" text-anchor="middle" class="label">PagedKVCache</text>
+  <text x="180" y="383" text-anchor="middle" class="small">match, adopt, alloc, free</text>
+  <path d="M290 369 H343" class="arrow"/>
+  <rect x="348" y="337" width="205" height="64" rx="10" class="pool"/>
+  <text x="450" y="362" text-anchor="middle" class="label">BlockManager</text>
+  <text x="450" y="383" text-anchor="middle" class="small">free list + refcounts</text>
+
+  <rect x="70" y="444" width="220" height="102" rx="10" class="choice"/>
+  <text x="180" y="472" text-anchor="middle" class="label">NoCachePolicy</text>
+  <text x="180" y="497" text-anchor="middle" class="mono">refcount 0</text>
+  <text x="180" y="522" text-anchor="middle" class="small">return block directly to free list</text>
+  <path d="M180 444 V406" class="dashed"/>
+
+  <rect x="333" y="444" width="220" height="102" rx="10" class="choice"/>
+  <text x="443" y="472" text-anchor="middle" class="label">PrefixCachePolicy</text>
+  <text x="443" y="497" text-anchor="middle" class="mono">refcount 0</text>
+  <text x="443" y="522" text-anchor="middle" class="small">retain warm; reclaim by LRU</text>
+  <path d="M443 444 V406" class="dashed"/>
+
+  <rect x="70" y="579" width="483" height="73" rx="10" class="cache"/>
+  <text x="311" y="605" text-anchor="middle" class="label">Same scheduler under either policy</text>
+  <text x="311" y="627" text-anchor="middle" class="small">M7d removes the scheduler's one direct refcount read.</text>
+  <text x="311" y="645" text-anchor="middle" class="small">Later policy swaps need no scheduler edit.</text>
+
+  <rect x="615" y="248" width="545" height="438" rx="16" class="panel"/>
+  <text x="639" y="284" class="head">AttentionBackend: how does Q read KV?</text>
+  <text x="639" y="309" class="small">The model writes first, then makes exactly one backend call.</text>
+  <rect x="645" y="337" width="220" height="64" rx="10" class="model"/>
+  <text x="755" y="362" text-anchor="middle" class="label">cache.write(K,V)</text>
+  <text x="755" y="383" text-anchor="middle" class="mono">21 -> 2*16+5 = slot 37</text>
+  <path d="M865 369 H918" class="arrow"/>
+  <rect x="923" y="337" width="205" height="64" rx="10" class="backend"/>
+  <text x="1025" y="362" text-anchor="middle" class="label">attend(Q, ctx)</text>
+  <text x="1025" y="383" text-anchor="middle" class="small">returns attention output</text>
+
+  <rect x="645" y="444" width="145" height="102" rx="10" class="choice"/>
+  <text x="717" y="472" text-anchor="middle" class="label">Torch</text>
+  <text x="717" y="497" text-anchor="middle" class="small">gather pages</text>
+  <text x="717" y="519" text-anchor="middle" class="small">SDPA oracle</text>
+  <path d="M717 444 V406" class="dashed"/>
+
+  <rect x="814" y="444" width="145" height="102" rx="10" class="choice"/>
+  <text x="886" y="472" text-anchor="middle" class="label">FlashInfer</text>
+  <text x="886" y="497" text-anchor="middle" class="small">kernel walks</text>
+  <text x="886" y="519" text-anchor="middle" class="small">page table</text>
+  <path d="M886 444 V406" class="dashed"/>
+
+  <rect x="983" y="444" width="145" height="102" rx="10" class="choice"/>
+  <text x="1055" y="472" text-anchor="middle" class="label">Context parallel</text>
+  <text x="1055" y="497" text-anchor="middle" class="small">rank-local KV</text>
+  <text x="1055" y="519" text-anchor="middle" class="small">global softmax</text>
+  <path d="M1055 444 V406" class="dashed"/>
+
+  <rect x="645" y="579" width="483" height="73" rx="10" class="backend"/>
+  <text x="886" y="605" text-anchor="middle" class="label">Same Qwen layer under every backend</text>
+  <text x="886" y="627" text-anchor="middle" class="small">FlashInfer wrapper planning lives here.</text>
+  <text x="886" y="645" text-anchor="middle" class="small">The model never sees a wrapper or CSR branch.</text>
+
+  <text x="600" y="718" text-anchor="middle" class="label">Swap either axis independently; the physical paged-KV representation remains the shared contract.</text>
+</svg>

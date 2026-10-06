@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="510" viewBox="0 0 1120 510" role="img" aria-labelledby="title desc">
+  <title id="title">Request-local sampling lifecycle</title>
+  <desc id="desc">The HTTP worker copies each request's parameters. A single engine owner creates independent generators for requests A and B. Sampling advances only the owner's stream. Preemption keeps the generator; completion and cancellation release it.</desc>
+  <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#52647c" stroke-width="1.5"/></marker></defs>
+  <rect width="1120" height="510" rx="16" fill="#f6f8fc"/>
+  <g font-family="sans-serif" fill="#23354d">
+    <text x="36" y="40" font-size="23" font-weight="700">Randomness follows request identity, not the batch row</text>
+    <rect x="32" y="74" width="222" height="98" rx="10" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="48" y="100" font-size="17" font-weight="700">HTTP / live submission</text>
+    <text x="48" y="125" font-size="15">Copy temperature, k, p, seed</text>
+    <text x="48" y="149" font-size="15">Validate before registration</text>
+    <rect x="296" y="74" width="334" height="98" rx="10" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="314" y="100" font-size="17" font-weight="700">One engine owner</text>
+    <text x="314" y="125" font-size="15">A: seed 17 → generator A + request A</text>
+    <text x="314" y="149" font-size="15">B: seed 29 → generator B + request B</text>
+    <rect x="676" y="74" width="412" height="98" rx="10" fill="#e3ebf8" stroke="#8fa6c4"/>
+    <text x="694" y="100" font-size="17" font-weight="700">WAITING → PREFILLING → RUNNING</text>
+    <text x="694" y="125" font-size="15">Partial prompt chunks: no sampling</text>
+    <text x="694" y="149" font-size="15">Final prefill / decode: sample one output</text>
+    <rect x="296" y="218" width="334" height="108" rx="10" fill="#e1f1ed" stroke="#70a99c"/>
+    <text x="314" y="244" font-size="17" font-weight="700">Each row uses its owner's RNG</text>
+    <text x="314" y="270" font-size="15">A logits + generator A → A token</text>
+    <text x="314" y="296" font-size="15">B logits + generator B → B token</text>
+    <rect x="676" y="218" width="412" height="108" rx="10" fill="#fff0d9" stroke="#ceaa68"/>
+    <text x="694" y="244" font-size="17" font-weight="700">Preemption / recomputation</text>
+    <text x="694" y="270" font-size="15">Release KV, keep tokens and RNG state</text>
+    <text x="694" y="296" font-size="15">Never redraw already emitted tokens</text>
+    <rect x="296" y="372" width="792" height="94" rx="10" fill="#f1e6f5" stroke="#ac8aba"/>
+    <text x="314" y="399" font-size="17" font-weight="700">EOS / length / cancellation / failure / close</text>
+    <text x="314" y="425" font-size="15">Release that request's RNG and page ownership. Other RNG streams do not advance.</text>
+    <text x="314" y="449" font-size="15">Greedy stays batched argmax and needs no generator.</text>
+    <text x="34" y="249" font-size="15">A fixed seed isolates</text>
+    <text x="34" y="273" font-size="15">random draws.</text>
+    <text x="34" y="312" font-size="15">It cannot make different</text>
+    <text x="34" y="336" font-size="15">BF16 logits identical.</text>
+  </g>
+  <g fill="none" stroke="#52647c" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M254 123 H290"/><path d="M630 123 H670"/>
+    <path d="M740 172 V194 H464 V212"/>
+    <path d="M630 272 H670"/>
+    <path d="M1080 218 V184 H1040 V178"/>
+    <path d="M464 326 V366"/>
+  </g>
+</svg>

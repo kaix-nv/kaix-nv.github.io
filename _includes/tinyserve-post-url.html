@@ -1,0 +1,2 @@
+{%- assign linked_post = site.posts | where: "slug", include.slug | first -%}
+{%- if linked_post -%}{{- linked_post.url | relative_url -}}{%- else -%}{{- include.fallback -}}{%- endif -%}
