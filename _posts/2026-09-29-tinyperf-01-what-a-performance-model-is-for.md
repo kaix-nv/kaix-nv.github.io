@@ -139,14 +139,15 @@ so.
 tinyperf is that model: a Python package that needs nothing outside the
 standard library. Figure 1.1 shows how it is put together.
 
-![The seven layers of tinyperf from the device up to sweeps, with the
-module files of each layer and the chapters that build them, beside a
-calibration column and a validation column.](/assets/tinyperf-book/ch01-map.svg)
+![The seven layers of tinyperf from the device up to sweeps, each with
+what it takes in and gives out, its module files and the chapters that
+build it, beside a calibration column and a validation
+column.](/assets/tinyperf-book/ch01-map.svg)
 
-*Figure 1.1. tinyperf, layer by layer. The five blue layers price one
-step; the two orange layers use many step prices. Calibration attaches
-fitted constants to the lower layers. Validation checks every layer
-against measurements.*
+*Figure 1.1. tinyperf, layer by layer, with what each layer takes in and
+gives out. The five blue layers price one step; the two orange layers
+use many step prices. Calibration attaches fitted constants to the lower
+four layers. Validation checks every layer against measurements.*
 
 Read it from the bottom: each layer uses the ones below it.
 
