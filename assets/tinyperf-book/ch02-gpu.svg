@@ -1,15 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 480" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 500" role="img"
      aria-labelledby="title description">
-  <title id="title">An H100 SXM as its device file sees it</title>
+  <title id="title">An H100 SXM as its device file sees it, each number tagged with what it prices</title>
   <desc id="description">
-    A GPU drawn as the few rates a performance model keeps. 132 streaming
-    multiprocessors (SMs) run at 1.83 GHz. Each SM has four tensor cores, each
-    doing 512 fp16 multiply-accumulates per clock, 2,048 per SM, and 228 KB of
-    shared memory. The SMs share a 50 MB L2 cache, whose bandwidth, about
-    11,000 GB/s, is an estimate. Below it, 80 GB of HBM3 DRAM delivers
-    3,352 GB/s. NVLink connects the GPU to others at 450 GB/s each way.
-    Multiplying out gives a peak of 989 fp16 TFLOPS and a ridge point of 295
-    FLOPs per byte.
+    A GPU drawn as the few rates a performance model keeps, each tagged with the
+    group of Table 2.1 it prices. Math time: 132 streaming multiprocessors (SMs)
+    run at 1.83 GHz, and each SM has four tensor cores, each doing 512 fp16
+    multiply-accumulates per clock, 2,048 per SM. Memory time: 228 KB of shared
+    memory per SM, a 50 MB L2 cache shared by the SMs, whose bandwidth, about
+    11,000 GB/s, is an estimate, and DRAM at 3,352 GB/s. Memory capacity: the
+    DRAM's 80 GB of HBM3. Collectives: NVLink to the other GPUs of the node at
+    450 GB/s each way and 1 microsecond per hop, 8 GPUs per node, and InfiniBand
+    to other nodes at 50 GB/s per GPU and 5 microseconds per hop. Launch cost: a
+    fixed 3 microseconds per kernel. Multiplying out gives a peak of 989 fp16
+    TFLOPS and a ridge point of 295 FLOPs per byte.
   </desc>
   <defs>
     <style>
@@ -19,79 +22,100 @@
       .small { font: 500 14px system-ui, sans-serif; fill: #334155; }
       .tiny { font: 600 12px system-ui, sans-serif; fill: #334155; }
       .num { font: 700 14px ui-monospace, monospace; fill: #0f172a; }
+      .tag { font: 600 11.5px system-ui, sans-serif; fill: #ffffff; }
     </style>
     <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
     </marker>
   </defs>
-  <rect width="1100" height="480" rx="18" fill="#f8fafc"/>
+  <rect width="1100" height="500" rx="18" fill="#f8fafc"/>
   <text x="40" y="46" class="title">An H100 SXM, as its device file sees it</text>
-  <text x="40" y="72" class="subtitle">A performance model keeps rates, not structure: how fast each part multiplies or moves bytes.</text>
+  <text x="40" y="72" class="subtitle">A performance model keeps rates, not structure. Each dark tag names what a number prices (Table 2.1).</text>
 
   <!-- the GPU chip -->
-  <rect x="40" y="92" width="680" height="180" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
-  <text x="56" y="114" class="label">H100 SXM: <tspan class="num">132</tspan> SMs at <tspan class="num">1.83</tspan> GHz</text>
+  <rect x="40" y="100" width="680" height="180" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="364" y="90" width="82" height="20" rx="10" fill="#334155"/>
+  <text x="405" y="104" class="tag" text-anchor="middle">math time</text>
+  <text x="56" y="124" class="label">H100 SXM: <tspan class="num">132</tspan> SMs at <tspan class="num">1.83</tspan> GHz</text>
 
   <g fill="#dbeafe" stroke="#2563eb" stroke-width="1.5">
-    <rect x="56" y="126" width="58" height="56" rx="6"/><rect x="124" y="126" width="58" height="56" rx="6"/>
-    <rect x="192" y="126" width="58" height="56" rx="6"/><rect x="260" y="126" width="58" height="56" rx="6"/>
-    <rect x="328" y="126" width="58" height="56" rx="6"/><rect x="396" y="126" width="58" height="56" rx="6"/>
-    <rect x="464" y="126" width="58" height="56" rx="6"/>
+    <rect x="56" y="136" width="58" height="56" rx="6"/><rect x="124" y="136" width="58" height="56" rx="6"/>
+    <rect x="192" y="136" width="58" height="56" rx="6"/><rect x="260" y="136" width="58" height="56" rx="6"/>
+    <rect x="328" y="136" width="58" height="56" rx="6"/><rect x="396" y="136" width="58" height="56" rx="6"/>
+    <rect x="464" y="136" width="58" height="56" rx="6"/>
   </g>
-  <rect x="620" y="126" width="58" height="56" rx="6" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
+  <rect x="620" y="136" width="58" height="56" rx="6" fill="#2563eb" stroke="#2563eb" stroke-width="1.5"/>
   <g class="label" text-anchor="middle">
-    <text x="85" y="159">SM</text><text x="153" y="159">SM</text><text x="221" y="159">SM</text>
-    <text x="289" y="159">SM</text><text x="357" y="159">SM</text><text x="425" y="159">SM</text>
-    <text x="493" y="159">SM</text>
-    <text x="571" y="161" style="font-size:22px">⋯</text>
+    <text x="85" y="169">SM</text><text x="153" y="169">SM</text><text x="221" y="169">SM</text>
+    <text x="289" y="169">SM</text><text x="357" y="169">SM</text><text x="425" y="169">SM</text>
+    <text x="493" y="169">SM</text>
+    <text x="571" y="171" style="font-size:22px">⋯</text>
   </g>
-  <text x="649" y="159" class="label" text-anchor="middle" style="fill:#ffffff">SM</text>
+  <text x="649" y="169" class="label" text-anchor="middle" style="fill:#ffffff">SM</text>
 
   <!-- SMs to L2 -->
   <g stroke="#94a3b8" stroke-width="1.5">
-    <line x1="85" y1="182" x2="85" y2="208"/><line x1="153" y1="182" x2="153" y2="208"/>
-    <line x1="221" y1="182" x2="221" y2="208"/><line x1="289" y1="182" x2="289" y2="208"/>
-    <line x1="357" y1="182" x2="357" y2="208"/><line x1="425" y1="182" x2="425" y2="208"/>
-    <line x1="493" y1="182" x2="493" y2="208"/><line x1="649" y1="182" x2="649" y2="208"/>
+    <line x1="85" y1="192" x2="85" y2="216"/><line x1="153" y1="192" x2="153" y2="216"/>
+    <line x1="221" y1="192" x2="221" y2="216"/><line x1="289" y1="192" x2="289" y2="216"/>
+    <line x1="357" y1="192" x2="357" y2="216"/><line x1="425" y1="192" x2="425" y2="216"/>
+    <line x1="493" y1="192" x2="493" y2="216"/><line x1="649" y1="192" x2="649" y2="216"/>
   </g>
-  <rect x="56" y="208" width="648" height="48" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="380" y="238" class="small" text-anchor="middle"><tspan class="label">L2 cache</tspan>   <tspan class="num">50</tspan> MB, about <tspan class="num">11,000</tspan> GB/s to the SMs (an estimate: no datasheet gives it)</text>
+  <rect x="56" y="216" width="648" height="48" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <rect x="508" y="206" width="96" height="20" rx="10" fill="#334155"/>
+  <text x="556" y="220" class="tag" text-anchor="middle">memory time</text>
+  <text x="380" y="246" class="small" text-anchor="middle"><tspan class="label">L2 cache</tspan>   <tspan class="num">50</tspan> MB, about <tspan class="num">11,000</tspan> GB/s to the SMs (an estimate: no datasheet gives it)</text>
 
   <!-- L2 to DRAM -->
-  <line x1="380" y1="276" x2="380" y2="306" stroke="#64748b" stroke-width="2.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
-  <rect x="56" y="312" width="648" height="48" rx="8" fill="#fdba74" fill-opacity="0.45" stroke="#ea580c" stroke-width="1.5"/>
-  <text x="380" y="342" class="small" text-anchor="middle"><tspan class="label">DRAM (HBM3)</tspan>   <tspan class="num">80</tspan> GB at <tspan class="num">3,352</tspan> GB/s: the rate the roofline charges for bytes</text>
+  <line x1="380" y1="284" x2="380" y2="318" stroke="#64748b" stroke-width="2.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <rect x="56" y="330" width="648" height="48" rx="8" fill="#fdba74" fill-opacity="0.45" stroke="#ea580c" stroke-width="1.5"/>
+  <rect x="557" y="320" width="137" height="20" rx="10" fill="#334155"/>
+  <text x="625.5" y="334" class="tag" text-anchor="middle">GB/s: memory time</text>
+  <rect x="401" y="320" width="151" height="20" rx="10" fill="#334155"/>
+  <text x="476.5" y="334" class="tag" text-anchor="middle">GB: memory capacity</text>
+  <text x="380" y="360" class="small" text-anchor="middle"><tspan class="label">DRAM (HBM3)</tspan>   <tspan class="num">80</tspan> GB at <tspan class="num">3,352</tspan> GB/s: the rate the roofline charges for bytes</text>
 
   <!-- zoom into one SM -->
   <g stroke="#2563eb" stroke-width="1.2" stroke-dasharray="4 4">
-    <line x1="678" y1="126" x2="760" y2="92"/><line x1="678" y1="182" x2="760" y2="272"/>
+    <line x1="678" y1="136" x2="760" y2="100"/><line x1="678" y1="192" x2="760" y2="280"/>
   </g>
-  <rect x="760" y="92" width="300" height="180" rx="14" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="776" y="114" class="label">one SM</text>
+  <rect x="760" y="100" width="300" height="180" rx="14" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+  <rect x="964" y="90" width="82" height="20" rx="10" fill="#334155"/>
+  <text x="1005" y="104" class="tag" text-anchor="middle">math time</text>
+  <text x="776" y="124" class="label">one SM</text>
   <g fill="#2563eb">
-    <rect x="776" y="124" width="62" height="46" rx="6"/><rect x="846" y="124" width="62" height="46" rx="6"/>
-    <rect x="916" y="124" width="62" height="46" rx="6"/><rect x="986" y="124" width="62" height="46" rx="6"/>
+    <rect x="776" y="134" width="62" height="46" rx="6"/><rect x="846" y="134" width="62" height="46" rx="6"/>
+    <rect x="916" y="134" width="62" height="46" rx="6"/><rect x="986" y="134" width="62" height="46" rx="6"/>
   </g>
   <g class="tiny" text-anchor="middle" style="fill:#ffffff">
-    <text x="807" y="143" style="fill:#ffffff">tensor</text><text x="807" y="159" style="fill:#ffffff">core</text>
-    <text x="877" y="143" style="fill:#ffffff">tensor</text><text x="877" y="159" style="fill:#ffffff">core</text>
-    <text x="947" y="143" style="fill:#ffffff">tensor</text><text x="947" y="159" style="fill:#ffffff">core</text>
-    <text x="1017" y="143" style="fill:#ffffff">tensor</text><text x="1017" y="159" style="fill:#ffffff">core</text>
+    <text x="807" y="153" style="fill:#ffffff">tensor</text><text x="807" y="169" style="fill:#ffffff">core</text>
+    <text x="877" y="153" style="fill:#ffffff">tensor</text><text x="877" y="169" style="fill:#ffffff">core</text>
+    <text x="947" y="153" style="fill:#ffffff">tensor</text><text x="947" y="169" style="fill:#ffffff">core</text>
+    <text x="1017" y="153" style="fill:#ffffff">tensor</text><text x="1017" y="169" style="fill:#ffffff">core</text>
   </g>
-  <text x="776" y="192" class="small">each <tspan class="num">512</tspan> fp16 MACs per clock:</text>
-  <text x="776" y="211" class="small"><tspan class="num">2,048</tspan> per SM per clock</text>
-  <rect x="776" y="222" width="272" height="38" rx="6" fill="#e2e8f0" stroke="#94a3b8"/>
-  <text x="912" y="246" class="small" text-anchor="middle">shared memory <tspan class="num">228</tspan> KB</text>
+  <text x="776" y="200" class="small">each <tspan class="num">512</tspan> fp16 MACs per clock:</text>
+  <text x="776" y="218" class="small"><tspan class="num">2,048</tspan> per SM per clock</text>
+  <rect x="776" y="234" width="272" height="34" rx="6" fill="#e2e8f0" stroke="#94a3b8"/>
+  <rect x="944" y="224" width="96" height="20" rx="10" fill="#334155"/>
+  <text x="992" y="238" class="tag" text-anchor="middle">memory time</text>
+  <text x="912" y="257" class="small" text-anchor="middle">shared memory <tspan class="num">228</tspan> KB</text>
 
-  <!-- other GPUs -->
-  <rect x="760" y="312" width="300" height="48" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="916" y="342" class="small" text-anchor="middle"><tspan class="label">NVLink</tspan>, per direction: <tspan class="num">450</tspan> GB/s</text>
-  <line x1="720" y1="250" x2="740" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
-  <line x1="740" y1="250" x2="740" y2="336" stroke="#94a3b8" stroke-width="1.5"/>
-  <line x1="740" y1="336" x2="758" y2="336" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- links to other GPUs -->
+  <rect x="760" y="318" width="300" height="122" rx="10" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="950" y="308" width="96" height="20" rx="10" fill="#334155"/>
+  <text x="998" y="322" class="tag" text-anchor="middle">collectives</text>
+  <text x="776" y="342" class="label">NVLink, within a node</text>
+  <text x="776" y="362" class="small"><tspan class="num">450</tspan> GB/s per direction, <tspan class="num">1</tspan> µs per hop</text>
+  <text x="776" y="381" class="small"><tspan class="num">8</tspan> GPUs per node</text>
+  <text x="776" y="408" class="label">InfiniBand, to other nodes</text>
+  <text x="776" y="428" class="small"><tspan class="num">50</tspan> GB/s per GPU, <tspan class="num">5</tspan> µs per hop</text>
+  <line x1="720" y1="258" x2="740" y2="258" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="740" y1="258" x2="740" y2="342" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="740" y1="342" x2="758" y2="342" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- what the numbers give -->
-  <text x="56" y="400" class="small">peak fp16 = <tspan class="num">132</tspan> SMs × <tspan class="num">2,048</tspan> MACs per clock × <tspan class="num">2</tspan> FLOPs per MAC × <tspan class="num">1.83</tspan> GHz = <tspan class="num">989</tspan> TFLOPS</text>
-  <text x="56" y="426" class="small">ridge point = <tspan class="num">989</tspan> TFLOPS ÷ <tspan class="num">3,352</tspan> GB/s = <tspan class="num">295</tspan> FLOPs per byte</text>
-  <text x="56" y="452" class="small">and a fixed <tspan class="num">3</tspan> µs to launch each kernel</text>
+  <text x="56" y="414" class="small">peak fp16 = <tspan class="num">132</tspan> SMs × <tspan class="num">2,048</tspan> MACs per clock × <tspan class="num">2</tspan> FLOPs per MAC × <tspan class="num">1.83</tspan> GHz = <tspan class="num">989</tspan> TFLOPS</text>
+  <text x="56" y="440" class="small">ridge point = <tspan class="num">989</tspan> TFLOPS ÷ <tspan class="num">3,352</tspan> GB/s = <tspan class="num">295</tspan> FLOPs per byte</text>
+  <rect x="56" y="454" width="96" height="20" rx="10" fill="#334155"/>
+  <text x="104" y="468" class="tag" text-anchor="middle">launch cost</text>
+  <text x="164" y="468" class="small">a fixed <tspan class="num">3</tspan> µs to start and finish each kernel</text>
 </svg>

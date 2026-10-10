@@ -17,9 +17,10 @@ predicted time) is built from them. Which numbers, and what do they
 tell you before any detailed model exists?
 
 The short answer: about a dozen rates, nearly all from a public
-datasheet. How many multiply-accumulates the GPU's tensor cores do per
-clock, how fast its memory moves bytes, how much fast on-chip memory it
-has, and what it costs to start a kernel. Two of them, peak math and
+datasheet. How many multiply-accumulates the GPU's tensor cores (its
+matrix-multiply units) do per clock, how fast its memory moves bytes,
+how much fast on-chip memory it has, and what it costs to start a
+kernel, one function run on the GPU. Two of them, peak math and
 memory bandwidth, already give a price for any operation, the
 *roofline*, and their ratio says which of the two limits you. For LLM
 inference the answer is stark: decoding a single sequence can use less
@@ -37,8 +38,9 @@ By the end of this chapter you will know:
 - how to ask what-if questions of a device, and which operations each
   change helps;
 - what datasheet rates are worth on real GPUs: 0.72–0.77 of the peak
-  math in cuBLAS's best GEMM, and, on an RTX A6000 streaming for
-  seconds, 0.90 of the memory bandwidth.
+  math in the best GEMM of cuBLAS, NVIDIA's matrix-multiply library,
+  and, on an RTX A6000 streaming for seconds, 0.90 of the memory
+  bandwidth.
 
 ## What a GPU is, to a performance model
 
@@ -69,14 +71,17 @@ Data lives at three levels:
   of its matrices; chapter 3).
 
 ![An H100 SXM drawn as rates: 132 SMs, each with four tensor cores and
-shared memory, above an L2 cache and HBM DRAM, with NVLink to other
-GPUs.](/assets/tinyperf-book/ch02-gpu.svg)
+shared memory, above an L2 cache and HBM DRAM, with NVLink to the
+node's other GPUs and InfiniBand to other nodes; each number carries a
+tag naming what it prices.](/assets/tinyperf-book/ch02-gpu.svg)
 
 *Figure 2.1. An H100 SXM as tinyperf describes it. The model doesn't
 know how the SMs are wired. It knows how many there are, how fast each
-multiplies, how big and fast each memory level is, and what a kernel
-launch costs. The bottom lines multiply these into the two numbers the
-rest of the chapter uses.*
+multiplies, how big and fast each memory level is, how fast the links
+to other GPUs are, and what a kernel launch costs. Each dark tag names
+the group of Table 2.1, below, whose price the number feeds. The bottom
+lines multiply these into the two numbers the rest of the chapter
+uses.*
 
 ## The device file
 
@@ -106,37 +111,48 @@ Table 2.1  The H100 SXM as loaded: its file's fields and the class defaults, by 
   memory capacity  hbm_gb                    80
 ```
 
-**Math time.** The SM count, the clock and the tensor-core rate per SM
-per clock, one entry per data type. `sustained_clock_fraction` scales
-the clock for a GPU that can't hold it (below).
-`sparse_math_multiplier` is the speed-up the tensor cores give a weight
-matrix with 2:4 structured sparsity, two zeros in every four values
-(chapter 10).
+Each group, field by field:
 
-**Memory time.** DRAM bandwidth, the L2's size and bandwidth, and the
-shared memory per SM. Shared memory is a capacity, not a rate: it
-decides which tiles a GEMM kernel can use (chapter 3).
+- **Math time.** `sm_count` SMs run at `boost_clock_ghz`, and
+  `tensor_macs_per_sm_clk` says how many multiply-accumulates one SM's
+  tensor cores do per clock, one entry per data type; their product is
+  the peak (next section). `sustained_clock_fraction` scales the clock
+  for a GPU that can't hold it (below). `sparse_math_multiplier` is the
+  speed-up the tensor cores give a weight matrix with 2:4 structured
+  sparsity, two zeros in every four values (chapter 10).
+- **Memory time.** `dram_bw_gbps` is the rate every byte to or from
+  DRAM is charged. `l2_size_mb` decides how much data kernels can share
+  in the L2 without going back to DRAM, and `l2_bw_gbps` is the rate
+  from the L2 into the SMs. `smem_kb_per_sm` is a capacity, not a rate:
+  it decides which tiles a GEMM kernel can use (chapter 3). The section
+  after next takes these one by one.
+- **Launch cost.** `kernel_launch_us` is a fixed cost every kernel pays
+  to start and finish, 3 µs by default. A near-empty GEMM called from
+  PyTorch takes 18.6–34.3 µs (Table 2.7), far above that default;
+  chapter 4 fits the cost of a PyTorch call.
+- **Collectives**, the exchanges a group of GPUs sharing a model make
+  together (chapter 11). Within a node, GPUs talk over NVLink, NVIDIA's
+  direct link between them: `nvlink_bw_gbps` is each GPU's bandwidth in
+  one direction, and `nvlink_hop_latency_us` the fixed cost each time
+  data passes from one GPU to the next. `gpus_per_node` says how many
+  GPUs share that link, eight on an H100 server. A group larger than a
+  node also crosses InfiniBand, the network between nodes, at
+  `ib_bw_gbps` per GPU and `ib_latency_us` per hop.
+- **Memory capacity.** `hbm_gb`, the size of the DRAM, is not a time,
+  but it decides whether the weights and the KV cache fit (chapter 6).
 
-**Launch cost.** A fixed cost every kernel pays to start and finish,
-3 µs by default. A near-empty GEMM called from PyTorch takes 18.6–34.3
-µs (Table 2.7), far above that default; chapter 4 fits the cost of a
-PyTorch call.
-
-**Collectives.** NVLink, NVIDIA's direct link between the GPUs of a
-node, and InfiniBand, the network between nodes: they price the
-collectives, the exchanges a group of GPUs sharing a model make together
-(chapter 11).
-**Memory capacity** is not a time, but it decides whether the weights
-and the KV cache fit (chapter 6). A few more fields serve special cases:
-the host link for offloading, keeping weights or cache in the CPU's
-memory (chapter 17), and power and price for energy and cost
-(Appendix A).
+A few more fields serve special cases: the host link for offloading,
+keeping weights or cache in the CPU's memory (chapter 17); the NVLink
+domain, the GPUs one NVLink fabric connects when that is more than a
+node (72 in a GB200 NVL72 rack); and power and price for energy and
+cost (Appendix A).
 
 Notice what's missing. There is no rate for arithmetic off the tensor
 cores. Softmax, normalization and activation functions run on the SMs'
 ordinary arithmetic units, and tinyperf prices them by the bytes they
 move alone (chapter 5). There is no fp32 entry either: tensor cores take
-fp32 data through the tf32 format, which has its own entry.
+fp32 data through the tf32 format (TensorFloat-32: fp32's 8-bit
+exponent with a 10-bit mantissa), which has its own entry.
 
 ## Rates per SM per clock
 
@@ -155,13 +171,14 @@ a one-field edit:
 - **SM counts change.** Products of the same chip enable different
   numbers of SMs: the H100 PCIe has 114, the SXM part 132, with the same
   SM.
-- **Data types are entries.** On an H100, fp8 is one more entry, twice
-  fp16 per SM.
+- **Data types are entries.** On an H100, fp8 (8-bit floating point)
+  is one more entry, twice fp16 per SM.
 
 Table 2.2 derives the peaks and sets them against NVIDIA's figures: the
 A100, H100 and RTX A6000 datasheets, and the HGX B200, DGX B200 and
-GB200 NVL72 specification pages. The Blackwell figures are for whole
-systems, so the script divides them by 8 and by 72 GPUs. Most figures
+GB200 NVL72 specification pages. The B200 and GB200 figures (NVIDIA's
+Blackwell generation, after the H100's Hopper) are for whole systems,
+so the script divides them by 8 and by 72 GPUs. Most figures
 are quoted with 2:4 sparsity, twice the dense rate, and the script
 halves them.
 
@@ -301,7 +318,7 @@ whose bandwidth grew faster than its math (2.39 times against 2.24).
 What does move right every generation is the ridge of the narrowest
 floating-point format each one offers, because a new format doubles the
 math rate without adding bandwidth: 153 for the A100's fp16, 590 for the
-H100's fp8, 1,109 for the B200's fp4.
+H100's fp8, 1,109 for the B200's fp4 (4-bit floating point).
 
 A ridge moving right means more work falls to its left, where the math
 is mostly idle and what you have bought is bandwidth. It also means a
@@ -572,7 +589,8 @@ down by power, but not proof, since the tool's clock readings from this
 run are not usable.
 
 Another run does show the clock. While the same card served Qwen3-8B
-through vLLM, a monitor sampled nvidia-smi once a second
+through vLLM, an open-source serving engine, a monitor sampled
+nvidia-smi once a second
 (`data/validation/gpu_telemetry_long_varied_rtx_a6000.json`):
 
 ```
