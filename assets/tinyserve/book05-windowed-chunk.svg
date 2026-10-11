@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="710" viewBox="0 0 1100 710" role="img" aria-labelledby="title desc">
+<title id="title">One chunk, three different attention windows</title>
+<desc id="desc">With window four, queries eight, nine, and ten gather the union of keys five through ten. Each query applies its own causal window. A page table nine, two, seven maps those logical keys to slots nine, ten, eleven, twenty-eight, twenty-nine, thirty. Old page nine remains allocated but unread.</desc>
+<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0L8,3L0,6" fill="#48617a"/></marker></defs>
+<rect width="1100" height="710" rx="18" fill="#f5f8fc"/>
+<g font-family="Arial,sans-serif" fill="#172b43">
+<text x="35" y="46" font-size="28" font-weight="700">M13: select logical keys, then translate their addresses</text>
+<text x="35" y="83" font-size="21">Window W = 4 includes the current token. Chunk [8, 11) contains queries 8, 9, 10.</text>
+<rect x="35" y="108" width="1030" height="72" rx="10" fill="#e6edf8" stroke="#adc2d4"/>
+<text x="55" y="138" font-size="21" font-weight="700">Gather once per layer: logical keys [5, 6, 7, 8, 9, 10]</text>
+<text x="55" y="165" font-size="19">Union begins at max(0, start − W + 1). Gathering only the final four keys is wrong.</text>
+<g font-size="20" text-anchor="middle">
+<text x="275" y="216">key 5</text><text x="405" y="216">key 6</text><text x="535" y="216">key 7</text><text x="665" y="216">key 8</text><text x="795" y="216">key 9</text><text x="925" y="216">key 10</text>
+<g fill="#e3f0e8" stroke="#9dbba7">
+<rect x="218" y="232" width="504" height="42" rx="7"/>
+<rect x="348" y="290" width="504" height="42" rx="7"/>
+<rect x="478" y="348" width="504" height="42" rx="7"/>
+</g>
+<g fill="#edf0f4" stroke="#c7d0db">
+<rect x="738" y="232" width="244" height="42" rx="7"/>
+<rect x="218" y="290" width="114" height="42" rx="7"/>
+<rect x="868" y="290" width="114" height="42" rx="7"/>
+<rect x="218" y="348" width="244" height="42" rx="7"/>
+</g>
+<text x="113" y="260">query 8</text><text x="470" y="260">read 5 through 8</text><text x="860" y="260">future: masked</text>
+<text x="113" y="318">query 9</text><text x="275" y="318">too old</text><text x="600" y="318">read 6 through 9</text><text x="925" y="318">future</text>
+<text x="113" y="376">query 10</text><text x="340" y="376">too old: masked</text><text x="730" y="376">read 7 through 10</text>
+</g>
+<path d="M550 401v31" stroke="#48617a" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="35" y="445" width="1030" height="132" rx="10" fill="white" stroke="#adc2d4"/>
+<text x="55" y="478" font-size="21" font-weight="700">Page width 4; request block table [9, 2, 7]</text>
+<text x="55" y="513" font-size="20">Logical keys 5, 6, 7 → page 2, offsets 1, 2, 3 → physical slots 9, 10, 11</text>
+<text x="55" y="548" font-size="20">Logical keys 8, 9, 10 → page 7, offsets 0, 1, 2 → physical slots 28, 29, 30</text>
+<rect x="35" y="599" width="1030" height="79" rx="10" fill="#fff5df" stroke="#d4b77a"/>
+<text x="55" y="632" font-size="21" font-weight="700">Page 9 stays allocated. The final cache cursor is 11, not 4.</text>
+<text x="55" y="660" font-size="19">RoPE keeps absolute positions. M13 reduces selected reads; it does not evict KV.</text>
+</g></svg>

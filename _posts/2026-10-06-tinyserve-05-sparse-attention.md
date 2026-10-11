@@ -8,9 +8,9 @@ categories:
 - llm-serving
 excerpt: Which history should a query read and what does selection cost?
 book_chapter: 5
-source_revision: 14b0c8dbb975350bbd730ac0c702eafce36eb95c
+source_revision: 9de1765eb5ecc167dd5b46effba7792c5ada1a58
 source_document: docs/book/05-sparse-attention.md
-code_revision: e20a34815498560f9226a9e057ade31b2b62743f
+code_revision: 9de1765eb5ecc167dd5b46effba7792c5ada1a58
 ---
 
 {% include tinyserve-article-style.html %}
@@ -29,11 +29,12 @@ to choose those dots, reach their physical KV storage, and preserve the
 model behavior that matters while spending less time overall. We will
 follow an eight-token example through that complete chain.
 
-This chapter develops background and a possible design boundary. Runtime
-`e20a348` has no qualified Tinyserve sparse-attention implementation. In
-particular, `ModelConfig.is_sparse_layer()` selects mixture-of-experts
-feed-forward layers, not sparse attention. The hypothetical reader below
-is an explanatory design, not an available backend or a measured speedup.
+The chapter starts with the broader design space, then follows M13's bounded
+implementation: a fixed causal window over paged KV. Dynamic block selection
+remains background, not an implemented backend. M13 is qualified within the
+bounded tests below, but stays opt-in: its measured speed benefits do not
+preserve dense-model quality. `ModelConfig.is_sparse_layer()` selects mixture-of-experts
+feed-forward layers, not sparse attention.
 
 ## Restrict a single attention row
 
@@ -222,6 +223,85 @@ summaries or any irreversible evictions add state that must be restored
 consistently. Sparse attention does not remove request ownership or cache
 lifetime from the serving system.
 
+## Follow one windowed chunk through the implementation
+
+M13 exposes `LLM(..., attention_window=W)`. `None` keeps full attention;
+positive integer `W` includes the current token. The option deliberately
+requires private KV, unquantized weights and KV, eager single-device dense
+Qwen in FP32 or BF16, and greedy requests. Prefix sharing, graph replay,
+mixed M12 execution, speculation,
+disaggregation and distributed execution are not supported combinations.
+
+Take a sequence whose first eight tokens are already cached. The scheduler
+now selects the three-token chunk `[8,11)`, and `W=4`. The engine computes
+only the new tokens at absolute positions 8, 9 and 10. Their windows differ:
+
+| Query position | First allowed key | Last allowed key |
+|---|---:|---:|
+| 8 | 5 | 8 |
+| 9 | 6 | 9 |
+| 10 | 7 | 10 |
+
+The Torch reader gathers their union, keys 5 through 10. It then masks each
+row separately. Merely taking the final four keys, 7 through 10, would lose
+valid keys for query 8 and would expose future keys unless also masked.
+
+[![Three query windows share a gathered union of keys, then map through a noncontiguous block table. Old pages remain allocated and absolute positions do not change.](/assets/tinyserve/book05-windowed-chunk.svg)](/assets/tinyserve/book05-windowed-chunk.svg)
+
+The code path makes responsibility explicit:
+
+1. `LLM._paged_chunk_prefill()` supplies the original `start`, `end`, full
+   block table and absolute RoPE positions. It does not truncate history.
+2. `TorchAttentionBackend.prepare()` computes logical bounds, physical
+   token slots and the row masks once for this forward, shared by all layers.
+3. Each model layer writes its new K/V through the existing cache path.
+   `PagedKVCache.gather_slots()` then reads only the prepared token addresses.
+   It does not load every historical page and slice the resulting tensor.
+4. Attention normalizes over each row's permitted keys. The engine advances
+   `num_cached` from 8 to 11. All three history pages remain owned.
+
+With page width four and block table `[9,2,7]`, keys `[5,6,7,8,9,10]` map
+to slots `[9,10,11,28,29,30]`. Physical page 9 holds old keys 0 through 3;
+this chunk does not read it, but the allocator still counts it as occupied.
+The next decode query at position 11 needs only keys 8 through 11. Request
+completion or cancellation—not the attention window—releases its pages.
+
+Whole-prompt prefill uses in-flight K/V with a causal band mask. Left-padded
+batches intersect that band with the existing padding mask. If `W` covers
+the entire fresh row, the original causal kernel is already the correct
+operation and is retained. Cached chunks
+use the gathered union above; ragged decode gathers each request's last
+`min(length,W)` tokens and fills temporary row padding with finite zeros.
+No padded address points into unwritten tails or another request's history.
+
+The FlashInfer adapter expresses the same policy as `window_left=W-1` for
+native ragged prefill and windowed paged decode. Its block tables still
+describe the complete cache. When every decode row fits inside `W`, it
+retains the original full-context reader; once any row exceeds `W`, the
+whole decode batch uses the tensor-core window reader. That boundary does
+not change the attention equation: before it, there are no old keys to
+exclude. Ordinary chunks retain the readable Torch path. This is an adapter
+to existing native kernels, not a new CUDA implementation.
+
+Why distinguish the native readers? In the installed FlashInfer 0.6.14,
+the CUDA-core decode path can load excluded values before multiplying them
+by zero attention weights. Poisoned old KV then exposes `0 * NaN = NaN`.
+The tensor-core window path passes this poisoned-exclusion check; the test
+alone does not measure physical memory traffic. Conversely, changing the
+BF16 kernel when the window excludes
+nothing can introduce rounding differences that accumulate across model
+layers. Preserving the original full-context path addresses that separate
+compatibility problem. The two failed qualification attempts are retained
+in the [first](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-first-gate-a6000-2026-10-10.json)
+and [second](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-second-gate-a6000-2026-10-10.json)
+receipts; neither failure was repaired by widening a tolerance.
+
+There are useful limits to this first implementation. When `W<T`, Torch fresh
+prefill still constructs a quadratic mask, and chunk attention covers a union of
+up to `W+Q-1` keys for `Q` queries. Neither should be advertised as a
+specialized `Q×W` sparse prefill kernel. Decode cuts selected token reads,
+but resident KV capacity and preemption pressure are unchanged.
+
 ## Count selection and irregular access in the cost
 
 Let T be visible history length, b the selection-block width, k the number
@@ -290,25 +370,181 @@ by `2M(1-alpha)`. This is a one-layer bound under the stated norm
 assumption, not a bound on final text quality or the effect of repeated
 approximation through many layers.
 
-Independent checks would isolate causal visibility, selection overlap,
-page translation, poisoned unused storage, and output equivalence to a
-dense masked oracle. Only after those pass does an experiment meaningfully
-test whether selection overhead is repaid by skipped reads. Tinyserve
-has not carried out that qualification for a sparse-attention backend at
-the pinned runtime.
+Independent checks isolate causal visibility, page translation, poisoned
+unused storage, and output equivalence to a dense implementation of the same
+mask. Only after those pass does an experiment meaningfully test whether
+selection overhead is repaid by skipped reads. M13's frozen protocol applies
+these checks to its fixed window; it does not qualify the hypothetical
+content-dependent selector or its selection-overlap handling.
+
+## What the M13 measurements establish
+
+These are local RTX A6000 measurements on Qwen3-0.6B and Qwen3-8B, not a
+general recommendation to replace a dense model's attention. The window,
+inputs, numerical budgets and timing protocol were frozen before candidate
+execution. Runtime revision `c91f5b1` passed without changing those budgets.
+
+### Correctness of the selected operation
+
+The [numerical receipt](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-qualification-a6000-2026-10-10.json)
+records 350 passing same-mask attention checks: FP32 and BF16 on the small
+model's geometry, and BF16 on the 8B geometry. Windows 1, 15, 16, 17 and
+512 cover page boundaries, noncontiguous page order, chunks, unequal rows,
+and poisoned excluded storage. The logical-tensor oracle constructs each
+query's permitted keys independently of the candidate's address code.
+
+All 15 full-context model controls also pass, with bitwise-identical logits
+and valid KV. Those controls verify compatibility when the window excludes
+nothing. They do not establish that an active window preserves dense-model
+outputs; that is a different experiment.
+
+The broader [regression run](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-regression-a6000-2026-10-10.json)
+has 1,023 passing tests, including all 167 M13 tests. Four existing M12 BF16
+old-layout compatibility tests still fail; 15 tests are skipped and four
+requiring an unavailable model are deselected. This is not an all-green
+suite; the receipt preserves those boundaries and the earlier failed attempt.
+
+### The quality cost of dropping old keys
+
+For each model/backend pair, the quality diagnostic compares dense attention
+with `W=512` on exactly 256 teacher-forced next-token predictions. Four
+nonrepeated prose records are scored at context lengths 2,048 and 4,096,
+with 32 target tokens each. Every distribution is finite and accounted for.
+The backend arms are separate; their results are not averaged together.
+
+| Model | Reader | Dense NLL | Window NLL | Mean KL, dense to window | Top-1 agreement |
+|---|---|---:|---:|---:|---:|
+| Qwen3-0.6B | Torch gather | 3.718 | 7.008 | 3.378 | 32.4% |
+| Qwen3-0.6B | FlashInfer | 3.726 | 7.011 | 3.366 | 32.4% |
+| Qwen3-8B | Torch gather | 3.051 | 4.280 | 1.480 | 46.5% |
+| Qwen3-8B | FlashInfer | 3.049 | 4.282 | 1.479 | 46.9% |
+
+NLL is negative log probability of the actual next token, in nats/token;
+larger is worse. KL measures the change in the full next-token distribution.
+Top-1 agreement asks whether its highest-probability token stays the same,
+not whether a generated answer is correct. The substantial NLL increases
+show why a correctly implemented window is not a quality-preserving drop-in
+optimization for these dense checkpoints.
+
+The separate one-word password probe is inconclusive as a retrieval test.
+Every arm scores `0/16` under its frozen whole-response matcher, including
+the dense controls. Some dense answers begin with the correct password and
+then continue with unrelated text; rejecting that response does not prove
+the model could not retrieve the password. Each 8B windowed arm also has
+one whitespace-only decoded response. All 128 responses contain 32 generated
+token IDs. The harness did not retain finish reasons, so this is an
+at-budget count, not a measured rate of length-stopped responses.
+
+The [quality receipt](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-quality-a6000-2026-10-10.json)
+retains every answer, original score, coverage check and logit-artifact hash.
+There is no post-hoc prefix regrading, longer output budget, or tuned window.
+These project-specific fixtures have no external benchmark corroboration.
+The teacher-forced diagnostic establishes a quality cost on these inputs;
+the answer probe does not establish retrieval preservation.
+
+### Fewer reads help most when there is enough history and concurrency
+
+The reader comparison holds the attention equation fixed. Its baseline
+gathers the full history, zeros excluded copies and applies the same
+`W=512` mask. The candidates use exact-slot Torch gathers or native
+FlashInfer window reads. This is not a comparison against a dense
+FlashInfer kernel, and it does not isolate memory traffic from the other
+reader costs.
+
+All reader arms first pass the independent same-mask numerical gate.
+Timing then includes context construction, planning, address translation,
+gathering and attention, but excludes projections, KV writes, and initial
+workspace allocation. Each measurement repeats the same fixture 20 times;
+two warmup pairs precede six measured pairs with alternating execution order.
+The table shows the median **paired baseline/candidate time ratio**, with
+the full measured minimum–maximum in parentheses. Above 1 means faster.
+
+| Qwen3-8B head geometry | Batch | Exact-slot Torch | FlashInfer window reader |
+|---|---:|---:|---:|
+| 2,048 cached tokens | 1 | 0.75 (0.65–0.81) | 0.99 (0.85–1.62) |
+| 2,048 cached tokens | 8 | 1.86 (1.72–2.02) | 1.48 (1.44–2.72) |
+| 8,192 cached tokens | 1 | 1.15 (1.10–1.29) | 1.22 (1.11–1.68) |
+| 8,192 cached tokens | 8 | 9.56 (6.65–9.99) | 5.23 (4.27–8.90) |
+
+At 8,192 tokens and batch 8, the full-gather baseline takes about 7.43 ms
+per reader call, versus 0.78 ms for exact-slot Torch and 1.42 ms for
+FlashInfer. At 2,048 tokens and batch 1, selected-slot Torch is slower despite
+reading fewer keys. Address preparation and small-kernel overhead are possible
+costs, but this measurement does not attribute time among them.
+The spread is part of the result, not a reason
+to discard slower pairs. These are repeated-fixture reader measurements,
+not a universal ranking of attention kernels.
+
+### A reader improvement is not the whole serving improvement
+
+Next, both serving arms use `W=512`, the same frozen 2,048-token prompts,
+512-token prefill chunks, private pages and eager execution. This comparison
+changes only the backend from the selected-slot Torch path to FlashInfer;
+it does **not** use the full-gather baseline above. Timing includes the
+request lifecycle and all model layers, but excludes model loading and
+tokenization. Planning is shared across layers in a forward.
+
+| Model | Batch | Torch median time | FlashInfer median time | Paired time ratio, median (range) |
+|---|---:|---:|---:|---:|
+| Qwen3-0.6B | 1 | 0.967 s | 0.896 s | 1.09 (1.02–1.12) |
+| Qwen3-0.6B | 4 | 1.660 s | 1.542 s | 1.08 (1.07–1.12) |
+| Qwen3-8B | 1 | 1.567 s | 1.433 s | 1.09 (1.08–1.11) |
+| Qwen3-8B | 4 | 3.431 s | 3.152 s | 1.09 (1.08–1.10) |
+
+Every request produces 32 tokens and ends at its length limit. The single-
+request pairs produce identical token IDs; the four-request pairs do not.
+Thus the work counts match, but this is not identical-output qualification.
+Passing a BF16 numerical budget does not guarantee identical greedy choices
+through an entire generated sequence. The median ratio is computed within
+each pair, so it need not equal the ratio of the two marginal medians.
+
+The [performance receipt](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/benchmarks/m13-windowed-performance-a6000-2026-10-10.json)
+retains every warmup and measured pair, actual token IDs, termination reasons
+and telemetry provenance. These serving ratios measure a separate backend
+substitution, not how the full-gather-to-window reader gain carries through
+end to end. In general, optimizing attention cannot remove projection, MLP,
+scheduler or other model costs; measuring that dilution requires matching
+the baseline substitution at both levels. Resident KV is unchanged here.
+
+### Check that the default path has not become a different experiment
+
+The unchanged full-attention Qwen3-8B standard suite uses graph-enabled
+decode, a prefill token budget of 8,192, no prefix sharing and five measured
+repeats per condition. Its output throughput is 37.99, 283.57 and 907.93
+tokens/s for 128-token prompts and 128-token outputs at batches 1, 8 and 32.
+For 2,048-token prompts and 32-token outputs, the corresponding values are
+26.70, 68.18 and 80.67 tokens/s. Every measured request reaches its specified
+output count; the small arithmetic smoke check also passes.
+
+Compared with the retained October 5 full-attention Tinyserve run, the six
+throughput deltas range from -0.45% to +0.11%. These are separate runs under
+dynamic clocks, not a paired demonstration of improvement or equivalence.
+The October 10 results are also calibrated against the dated vLLM,
+llama.cpp and Ollama runs after checking reference revisions, dependencies,
+model artifacts and hardware conditions. Their raw comparisons and clock
+ranges are in the same performance receipt. FreeToken's short-output
+failure remains excluded; no new reference-engine run is claimed.
+
+Tinyserve's engine-internal timing and the reference engines' streaming
+HTTP timing have different boundaries, and their cache policies differ.
+This calibration checks the surrounding serving baseline; it is not evidence
+that a quality-changing window beats those engines at equivalent work.
+M13 therefore ends as an explicit educational option, not a new default.
 
 ## Source map
 
 | Source | What it establishes |
 |---|---|
-| [config.py](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/tinyserve/config.py) | `is_sparse_layer()` chooses MoE feed-forward layers. |
-| [models/qwen3_moe.py](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/tinyserve/models/qwen3_moe.py) | Expert sparsity retains the ordinary attention implementation. |
-| [attention.py](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/tinyserve/attention.py) | Existing dense attention reader boundary. |
-| [paged.py](https://github.com/kaix-nv/tinyserve/blob/e20a34815498560f9226a9e057ade31b2b62743f/tinyserve/paged.py) | The page-table address translation a future reader would consume. |
+| [config.py](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/tinyserve/config.py) | `is_sparse_layer()` chooses MoE feed-forward layers. |
+| [models/qwen3_moe.py](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/tinyserve/models/qwen3_moe.py) | Expert sparsity retains the ordinary attention implementation. |
+| [attention.py](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/tinyserve/attention.py) | Window bounds, prepared token addresses, masks, and the FlashInfer adapter. |
+| [paged.py](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/tinyserve/paged.py) | Exact-slot gathers; page ownership remains independent of selection. |
+| [engine.py](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/tinyserve/engine.py) | Absolute chunk positions and configured backend propagation. |
+| [M13 validation contract](https://github.com/kaix-nv/tinyserve/blob/9de1765eb5ecc167dd5b46effba7792c5ada1a58/docs/design/m13-windowed-attention.md) | Supported scope and frozen numerical/quality/timing boundaries. |
 
-The local source boundary is runtime `e20a348`; those links require
-repository access. The hypothetical sparse reader and all numerical
-examples are fully specified above and make no Tinyserve implementation
-or performance claim.
+These source links require repository access. M13's local window is distinct
+from the hypothetical content-dependent selector discussed earlier. The
+worked examples and figures stand alone; the receipts preserve measured
+benefits, quality costs, failed attempts and the limits of each comparison.
 
 {% include tinyserve-book-nav.html %}

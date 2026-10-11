@@ -64,7 +64,7 @@ chapters:
   slug: tinyserve-05-sparse-attention
   title: Sparse attention
   question: Which history should a query read and what does selection cost?
-  implementation_boundary: Background and design material until a separate Tinyserve implementation is qualified.
+  implementation_boundary: M13 implements an opt-in fixed window over paged KV, with measured quality costs and no eviction; dynamic selection remains background.
   legacy_posts: []
   status: published
   source_document: docs/book/05-sparse-attention.md

@@ -11,5 +11,5 @@
 <g font-family="monospace" font-size="21"><text x="58" y="350">position p          0       1       6       7</text><text x="58" y="389">physical slot      36      37      10      11</text></g><text x="727" y="355" font-size="20">slot = 4 × table[p // 4]</text><text x="792" y="390" font-size="20">+ p % 4</text>
 <path d="M590 427v53" stroke="#48617a" stroke-width="3" marker-end="url(#a)"/>
 <rect x="200" y="493" width="800" height="82" rx="12" fill="#e3f0e8" stroke="#9dbba7"/><text x="225" y="529" font-size="22" font-weight="700">Load selected K/V and normalize across their union</text><text x="225" y="557" font-size="18">Stored position-6 key stays position 6, even if packed into temporary row 2.</text>
-<text x="35" y="622" font-size="21">Unselected blocks remain resident if future queries may select them.</text><text x="35" y="657" font-size="20">Background design only: no qualified Tinyserve sparse-attention backend at e20a348.</text>
+<text x="35" y="622" font-size="21">Unselected blocks remain resident if future queries may select them.</text><text x="35" y="657" font-size="20">Dynamic selection remains conceptual; M13 implements only a fixed local window.</text>
 </g></svg>
