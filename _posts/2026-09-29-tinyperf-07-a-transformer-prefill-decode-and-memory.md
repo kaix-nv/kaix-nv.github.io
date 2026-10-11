@@ -1,18 +1,19 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 6: A transformer: prefill, decode and memory"
-date: 2026-09-29 12:06:00 -0700
+title: "Building tinyperf, chapter 7: A transformer: prefill, decode and memory"
+date: 2026-09-29 12:07:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/06-a-transformer-prefill-decode-and-memory/
-excerpt: "Chapter 3 priced one GEMM, and chapter 5 turned a list of operations into a time. This chapter writes the list for a whole language model and answers three questions. What does a forward pass cost when it reads a prompt (prefill)? What does it cost when it generates one token for each sequence in a batch (decode)? And how many requests fit on one GPU?"
+permalink: /tinyperf/book/07-a-transformer-prefill-decode-and-memory/
+excerpt: "Chapter 4 priced one GEMM, and chapter 6 turned a list of operations into a time. This chapter writes the list for a whole language model and answers three questions. What does a forward pass cost when it reads a prompt (prefill)? What does it cost when it generates one token for each sequence in a batch (decode)? And how many requests fit on one GPU?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m5.html
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m8.html
+  - /tinyperf/book/06-a-transformer-prefill-decode-and-memory/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`, and [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `max_batch` · Every table and the plot in this chapter come from `python3 book/scripts/ch06_transformer.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`, and [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `max_batch` · Every table and the plot in this chapter come from `python3 book/scripts/ch07_transformer.py`.*
 
-Chapter 3 priced one GEMM, and chapter 5 turned a list of operations
+Chapter 4 priced one GEMM, and chapter 6 turned a list of operations
 into a time. This chapter writes the list for a whole language model
 and answers three questions. What does a forward pass cost when it
 reads a prompt (prefill)? What does it cost when it generates one token
@@ -25,7 +26,7 @@ keeps the tensor cores busy. A decode step costs one read of the weights
 plus one read of every sequence's KV cache, and it keeps the memory bus
 busy. Adding sequences to a decode step is nearly free for the weights
 until the batch nears the GPU's ridge point (where math, not memory,
-starts to set the time; chapter 2), about 128 sequences on the GPUs
+starts to set the time; chapter 3), about 128 sequences on the GPUs
 here. It is never free for the KV cache, which each sequence reads for
 itself. And the requests that fit are the memory left after the weights,
 divided by one request's cache.
@@ -47,8 +48,8 @@ By the end of this chapter you will know:
 
 To a performance model, a dense transformer is its shape. tinyperf
 describes one with a dataclass, shown here with only the fields a dense
-model uses (the rest describe the attention variants of chapter 8 and
-the experts of chapter 9):
+model uses (the rest describe the attention variants of chapter 9 and
+the experts of chapter 10):
 
 ```python
 @dataclass
@@ -97,10 +98,10 @@ parameters = layers · (attention + ffn)  +  2 · vocab · hidden
 ```
 
 The norms' weights are left out: a few million at most, under 0.01%.
-Table 6.1 checks the arithmetic against published counts.
+Table 7.1 checks the arithmetic against published counts.
 
 ```
-Table 6.1  Dense models from their released configs: parameters in billions
+Table 7.1  Dense models from their released configs: parameters in billions
   model        layers hidden heads q/kv head dim    FFN   vocab stored public non-emb public
   llama2-7b        32   4096      32/32      128  11008   32000   6.74   6.74    6.48      -
   llama2-13b       40   5120      40/40      128  13824   32000  13.02  13.02   12.69      -
@@ -128,19 +129,19 @@ the model, and the embedding does no math: it is a lookup.
 
 ![One decoder layer: RMSNorm, QKV projection, RoPE, attention reading the
 KV cache, output projection, residual; then RMSNorm, gate-up projection,
-SwiGLU, down projection, residual.](/assets/tinyperf-book/ch06-layer.svg)
+SwiGLU, down projection, residual.](/assets/tinyperf-book/ch07-layer.svg)
 
-*Figure 6.1. A decoder layer as the model builds it. Blue boxes are
+*Figure 7.1. A decoder layer as the model builds it. Blue boxes are
 GEMMs, grey boxes are memory-bound operations, orange is attention and
 its cache. Every GEMM runs T rows, one per token in the step: the whole
 prompt in prefill, one token per sequence in decode.*
 
 `build_llm_graph(p, phase, batch, seq_len)` turns this layer into a
-graph (chapter 5): it emits one operator per box, each marked
+graph (chapter 6): it emits one operator per box, each marked
 `count=36` so the scheduler prices one layer and multiplies, then the
 head's operators. This chapter needs only where the shapes come from.
-The function also builds chapter 8's attention variants, chapter 9's
-experts and the parallel layouts of chapters 11 and 12, so we quote only
+The function also builds chapter 9's attention variants, chapter 10's
+experts and the parallel layouts of chapters 12 and 13, so we quote only
 the lines we explain:
 
 ```python
@@ -163,9 +164,9 @@ the lines we explain:
 ```
 
 On one GPU the parallel degrees `tp`, `cp` and `dp` (how many GPUs
-split the weights, each sequence's tokens and the batch; chapters 11
-and 12) are 1 and `b_local` is the batch; `chunk` is 1 in an ordinary
-decode step (chapter 14's chunked prefill, which feeds a prompt into
+split the weights, each sequence's tokens and the batch; chapters 12
+and 13) are 1 and `b_local` is the batch; `chunk` is 1 in an ordinary
+decode step (chapter 15's chunked prefill, which feeds a prompt into
 the steps a chunk at a time, uses more). Two cases remain:
 
 - **Prefill** of a prompt of s tokens: `tokens = batch · s`. Attention
@@ -188,17 +189,17 @@ a tensor, only as that length (below). The head adds one decision:
 
 A serving engine needs logits only for the next token, so in prefill the
 LM head runs on one row per sequence. Training needs every position
-(`logits="all"`, chapter 13). A pass (a rewrite of the graph; chapter 5)
+(`logits="all"`, chapter 14). A pass (a rewrite of the graph; chapter 6)
 fuses attention's three operators into one FlashAttention-style kernel
-before pricing (`attn_fmha` below); chapter 7 prices it, and here we
+before pricing (`attn_fmha` below); chapter 8 prices it, and here we
 take its price as given.
 
-Table 6.2 prices one prompt and one decode step on an A100 at its
+Table 7.2 prices one prompt and one decode step on an A100 at its
 datasheet rates. Its bound columns name what set each price: math,
-DRAM traffic or L2 traffic (chapter 5).
+DRAM traffic or L2 traffic (chapter 6).
 
 ```
-Table 6.2  One Qwen3-8B layer op by op, and the head: A100 SXM, datasheet rates
+Table 7.2  One Qwen3-8B layer op by op, and the head: A100 SXM, datasheet rates
   prefill: one 2048-token prompt; decode: one sequence, context 2048
   op              prefill GFLOP      us  bound  decode MB     us  bound
   embed                     0.0    19.5  dram         0.0    3.0  dram
@@ -222,7 +223,7 @@ Table 6.2  One Qwen3-8B layer op by op, and the head: A100 SXM, datasheet rates
 
 The two columns are the same ops on opposite sides of the roofline (an
 op's time as the larger of its math time and its memory time;
-chapter 2). In prefill the GEMMs are bound by math, or by chapter 3's L2
+chapter 3). In prefill the GEMMs are bound by math, or by chapter 4's L2
 traffic, and the prefill runs at 260 of the A100's 312 TFLOP/s. In
 decode every op is bound by memory. A GEMM's time is its weights over
 the bandwidth plus a launch, the fixed cost of starting a kernel: the
@@ -268,7 +269,7 @@ prefill FLOPs ≈ 2 · non-embedding parameters · s  +  2 · layers · heads ·
 The first term grows with the prompt; the second with its square.
 
 ```
-Table 6.3  Prefill of one prompt by length: Qwen3-8B, A100 SXM, datasheet rates
+Table 7.3  Prefill of one prompt by length: Qwen3-8B, A100 SXM, datasheet rates
   tokens  GFLOP/token: weights  attention        ms  TFLOP/s  attention share of time
      512                 13.89       0.15      31.5      228                     1.6%
     2048                 13.89       0.60     114.2      260                     5.4%
@@ -283,7 +284,7 @@ Per token, the weights cost the same at every length while attention
 grows linearly. The two are equal at `non-embedding parameters /
 (layers · heads · head_dim)`, 47,104 tokens. By 32,768 tokens attention
 is half the time, more than its share of the FLOPs, because the model
-runs fused attention at 0.65 of the tensor cores' peak (chapter 7).
+runs fused attention at 0.65 of the tensor cores' peak (chapter 8).
 Throughout, prefill runs at 73–84% of peak.
 
 The last line is a trap worth remembering. Eight prompts of 2,048
@@ -295,10 +296,10 @@ prompt's attention sees only its own tokens, so they cost 850 ms, not
 
 In decode, M is the batch. A weight GEMM with M rows does `2·M·N·K`
 FLOPs and reads `2·N·K` bytes of 16-bit weights, so its arithmetic
-intensity is about M FLOPs per byte. Chapter 2's ridge point for the
+intensity is about M FLOPs per byte. Chapter 3's ridge point for the
 A100 is 312 TFLOP/s ÷ 2,039 GB/s = 153 FLOPs per byte. Below that, a
 weight GEMM is memory-bound: its time is the weight read, however many
-rows share it. That is why serving engines batch decodes. Chapter 3
+rows share it. That is why serving engines batch decodes. Chapter 4
 left one question open: how many sequences can share a weight read
 before the math catches up? The cache decides part of the answer.
 
@@ -312,13 +313,13 @@ keeps every past token's key and value for each KV head:
 ```
 
 (Docstring trimmed. For a plain transformer `n_full_layers` is the layer
-count and `mtp_layers` is 0; chapter 19 adds prediction heads.)
+count and `mtp_layers` is 0; chapter 20 adds prediction heads.)
 
 ![Thirty-two query heads in eight groups of four, each group sharing one
 key and value head; the cache stores only the eight KV
-heads.](/assets/tinyperf-book/ch06-gqa.svg)
+heads.](/assets/tinyperf-book/ch07-gqa.svg)
 
-*Figure 6.2. Grouped-query attention (GQA). Groups of query heads share
+*Figure 7.2. Grouped-query attention (GQA). Groups of query heads share
 one key head and one value head, so the cache stores `kv_heads`, not
 `heads`. The model batches attention per KV head, which reads each
 cached head once for its whole group.*
@@ -343,7 +344,7 @@ Early transformers gave every query head its own key and value heads
 ratio:
 
 ```
-Table 6.4  The KV cache: bytes per token, 16-bit, and what grouped-query attention saves
+Table 7.4  The KV cache: bytes per token, 16-bit, and what grouped-query attention saves
   model           heads q/kv bytes/token/layer MB/token if q = kv saving GB at 32k tokens
   llama2-7b            32/32            16,384    0.524     0.524     1x             17.2
   qwen3-8b              32/8             4,096    0.147     0.590     4x              4.8
@@ -369,14 +370,14 @@ as much cache as weights.
 
 ## Where decode batching stops being free
 
-Table 6.5 prices Qwen3-8B decode steps at 1,024 tokens of context, by
+Table 7.5 prices Qwen3-8B decode steps at 1,024 tokens of context, by
 batch, on two GPUs: an A100 at its datasheet rates, and an RTX A6000 at
-the rates chapter 4 fits to it, with its kernels issued from a CUDA
-graph (launches recorded once and replayed as one; chapter 4) as a
+the rates chapter 5 fits to it, with its kernels issued from a CUDA
+graph (launches recorded once and replayed as one; chapter 5) as a
 serving engine issues them.
 
 ```
-Table 6.5  Decode steps by batch: Qwen3-8B, context 1024
+Table 7.5  Decode steps by batch: Qwen3-8B, context 1024
   A100 SXM at datasheet rates; RTX A6000 at its fitted rates, in a CUDA graph
                         A100                             RTX A6000             
   batch   step ms  GEMMs attention   tok/s    step ms  GEMMs attention   tok/s
@@ -390,7 +391,7 @@ Table 6.5  Decode steps by batch: Qwen3-8B, context 1024
     192     29.53  13.83     14.38    6502      84.57  37.60     44.24    2270*
     256     36.58  15.90     19.14    6998     108.14  45.88     58.86    2367*
     512     70.67  30.06     38.17    7245*    196.90  73.53    117.34    2600*
-  * more sequences of 1024 tokens than fit in the GPU's memory (Table 6.6)
+  * more sequences of 1024 tokens than fit in the GPU's memory (Table 7.6)
   A100: ridge point 153 FLOP/byte
   RTX A6000: ridge point 168 FLOP/byte
   RTX A6000 GEMMs without the measured row curve: 128 rows 25.39 ms, 129 rows 25.95 ms
@@ -400,7 +401,7 @@ Table 6.5  Decode steps by batch: Qwen3-8B, context 1024
 
 Read the GEMM columns first. On the A100 the weight GEMMs cost 7.87 ms
 for one sequence and 8.01 ms for 64, 2% more for 64 times the tokens. By
-128 they cost 19% more, as chapter 3's tile effects start to show (a
+128 they cost 19% more, as chapter 4's tile effects start to show (a
 kernel computes its output in fixed-size blocks, or tiles, and a partial
 tile costs a whole one): padded math and L2 traffic begin to outlast
 some GEMMs' weight read. At 129 the GEMMs jump by 47%. One row past a
@@ -410,8 +411,8 @@ the ridge point says it should, a little early (129 against 153) because
 tiles come in multiples of 128. On the A6000, whose fitted ridge point
 is 168, the GEMM column above 32 rows carries cuBLAS's measured row
 curve (a correction to the GEMM price, measured by row count;
-chapter 3), so its 32% jump at 129 is measured, not predicted: without
-the curve, the tile model (chapter 3's GEMM price alone) moves only from
+chapter 4), so its 32% jump at 129 is measured, not predicted: without
+the curve, the tile model (chapter 4's GEMM price alone) moves only from
 25.39 to 25.95 ms.
 
 Now read the attention columns. They grow from the first sequence,
@@ -425,9 +426,9 @@ it comes much sooner.
 
 ![Microseconds per generated token against batch on an A100: the weight
 GEMMs fall as one over the batch to about 128 sequences, then flatten;
-whole steps flatten sooner at longer contexts.](/assets/tinyperf-book/ch06-decode-batch.svg)
+whole steps flatten sooner at longer contexts.](/assets/tinyperf-book/ch07-decode-batch.svg)
 
-*Figure 6.3. The cost of one generated token, Qwen3-8B on an A100 at
+*Figure 7.3. The cost of one generated token, Qwen3-8B on an A100 at
 datasheet rates. The dashed line is the roofline of the weight GEMMs:
 one weight read shared by the batch (falling as 1/batch) until it meets
 the math of one token (48.5 µs, flat) at the ridge point. The tile
@@ -436,7 +437,7 @@ edge or where the cache read overtakes the weights, whichever comes
 first: about 128 sequences at 512 tokens (the tile edge), 50 at 2,048,
 13 at 8,192.*
 
-So chapter 3's question has a two-part answer. For the weights, a
+So chapter 4's question has a two-part answer. For the weights, a
 decode batch is nearly free up to about the ridge point, rounded down
 to the last full 128-row tile: about 128 sequences on these GPUs. For
 the cache, a decode batch is never free, and it stops being cheap at
@@ -445,7 +446,7 @@ token falls only slowly: the A100 makes 6,377 tokens/s at 128 sequences
 of 1,024 tokens, 6,998 at 256 and 7,245 at 512 (more than fit). Each
 doubling past 128 buys 10%, then 4%.
 
-The asterisks point at the other limit, memory (Table 6.6). On the
+The asterisks point at the other limit, memory (Table 7.6). On the
 A6000, 177 sequences of 1,024 tokens fit: past both the cache's
 crossing (100) and the tile edge (129), so the rows beyond 177 are
 hypothetical. At 2,048 tokens only 88 fit, before the math catches up
@@ -472,12 +473,12 @@ def max_batch(p, device, context_len):
 `kv_local_bytes` is `kv_bytes_per_token × context` for a plain
 transformer. The working memory, `_activation_bytes`, is the live
 activation and residual at the step's widest point plus one row of
-logits per sequence: 0.01 GB for 32 decodes (Table 6.6). The 10%
+logits per sequence: 0.01 GB for 32 decodes (Table 7.6). The 10%
 headroom stands in for fragmentation, library workspaces and the CUDA
 context, stated rather than hidden.
 
 ```
-Table 6.6  The largest decode batch that fits, by context: weights + KV + working memory <= 90% of memory
+Table 7.6  The largest decode batch that fits, by context: weights + KV + working memory <= 90% of memory
   model      GPU              weights GB   1024   2048   4096   8192  32768
   llama2-7b  RTX A6000 48 GB        13.5     55     27     13      6      1
   llama2-7b  A100 80 GB             13.5    108     54     27     13      3
@@ -486,7 +487,7 @@ Table 6.6  The largest decode batch that fits, by context: weights + KV + workin
   qwen3-14b  RTX A6000 48 GB        29.5     81     40     20     10      2
   qwen3-14b  A100 80 GB             29.5    252    126     63     31      7
   qwen3-8b, RTX A6000, 32 x 2048: weights   16.4 + kv    9.7 + act  0.01 =   26.1 GB on 48 GB (fits)
-  KV room on the RTX A6000: 181,879 tokens at 90% of 48 GB; vLLM's pool as chapter 17 prices it: 189,072 tokens
+  KV room on the RTX A6000: 181,879 tokens at 90% of 48 GB; vLLM's pool as chapter 18 prices it: 189,072 tokens
 ```
 
 The KV cache is the capacity story: double the context and the batch
@@ -497,18 +498,18 @@ A6000, leaving room for 81 sequences of 1,024 tokens.
 
 The 90% rule is an estimate. A serving engine sizes its KV pool from
 the memory it measures at start-up; on this GPU vLLM's pool holds 4%
-more tokens than the rule (the table's last line). Chapter 17 prices
+more tokens than the rule (the table's last line). Chapter 18 prices
 the pool the way vLLM allocates it.
 
 ## How close is it?
 
 The evidence is Qwen3-8B, bf16, served by vLLM on one RTX A6000 at eight
 cells: batches of 1, 8 and 32 sequences, prompts of 512, 2,048 and 8,192
-tokens (32 × 8,192 would not fit: Table 6.6). Every prompt is distinct
+tokens (32 × 8,192 would not fit: Table 7.6). Every prompt is distinct
 random token ids, so the engine's prefix cache (which skips the prefill
-of a prompt start it has already seen; chapter 17) cannot reuse
+of a prompt start it has already seen; chapter 18) cannot reuse
 anything; decoding is greedy, with CUDA graphs on. Two numbers per cell,
-both defined properly in chapter 14:
+both defined properly in chapter 15:
 
 - **TTFT**, time to first token: here, the wall time for the batch of
   requests to produce one token each. The model prices it as the
@@ -520,14 +521,14 @@ both defined properly in chapter 14:
 
 The code follows the repository's test for this grid: `m.prefill_us(b *
 s, n_seqs=b)` and `m.decode_us(b, s + 64)`, from the `StepLatencyModel`
-of chapter 14 (the class that prices a serving step), on the calibrated
-A6000 (its rates fitted to kernels timed on it; chapter 4). Each ratio
+of chapter 15 (the class that prices a serving step), on the calibrated
+A6000 (its rates fitted to kernels timed on it; chapter 5). Each ratio
 is predicted ÷ measured, so above 1 the model reads high; a set of
 ratios is summarized by its range and its *typical error*, the geometric
-mean distance from 1 (chapter 3).
+mean distance from 1 (chapter 4).
 
 ```
-Table 6.7  Qwen3-8B served by vLLM on one RTX A6000: model/measured, calibrated model
+Table 7.7  Qwen3-8B served by vLLM on one RTX A6000: model/measured, calibrated model
   batch prompt   TTFT ms model/meas   TPOT ms model/meas  attention share
       1    512      79.6      0.967     23.87      1.010               2%
       1   2048     291.3      1.002     24.30      1.007               3%
@@ -551,9 +552,9 @@ batch, as math does.
 Which constants were fitted, and where? None to this grid. The GPU's
 math and memory rates and its L2 bandwidth were fitted to 27 cuBLAS
 GEMMs timed alone, and the per-kernel cost inside a CUDA graph was
-measured separately (chapter 4). The decode attention kernel's
+measured separately (chapter 5). The decode attention kernel's
 per-call cost and its rate of reading the cache were fitted to vLLM's
-attention kernel timed alone (chapter 7). Chapter 3's measured row
+attention kernel timed alone (chapter 8). Chapter 4's measured row
 curve, cuBLAS on this model's own layer GEMMs timed alone at 32 to
 1,280 rows, touches only one cell: the 1 × 512 prefill, 512 rows. The
 other prefills have 2,048 rows or more and are priced by the tile model;
@@ -584,7 +585,7 @@ Recorded  Predictions committed before the measurement, model/measured
 > prompts within 5%. Batched prompts read up to 2.79. The serving model
 > had priced a batch's prefill as one sequence, so 32 prompts of 2,048
 > tokens were priced as one of 65,536, with 32 times the attention (the
-> trap of Table 6.3's last line). The fix was to pass the number of
+> trap of Table 7.3's last line). The fix was to pass the number of
 > sequences (`n_seqs`), and the error's shape named the cause: exact for
 > one sequence, worse with every sequence added, worst where attention's
 > share was largest.
@@ -594,18 +595,18 @@ Recorded  Predictions committed before the measurement, model/measured
 - **Fixed batches only.** Every price here is one step of a batch that
   starts together. A server admits requests as they come, mixes prompt
   chunks into decode steps and pads batches to CUDA-graph sizes;
-  chapters 14–16 build those steps.
-- **One kernel per op.** The model launches every op in Figure 6.1 as a
+  chapters 15–17 build those steps.
+- **One kernel per op.** The model launches every op in Figure 7.1 as a
   kernel of its own. An engine can fuse some, and may run kernels the
   graph leaves out. Launches are 14% of the worked example's decode
   step, so a different fusion plan moves the price.
 - **Prefill memory.** The working memory in `max_batch` is a decode
   step's; a long prefill needs far more (`llm_memory` with
   `phase="prefill"` prices it).
-- **Datasheet rates.** Tables 6.2–6.5 on the A100 use no measurement.
-  They rank and explain; chapter 4's calibrated tier is what predicts.
+- **Datasheet rates.** Tables 7.2–7.5 on the A100 use no measurement.
+  They rank and explain; chapter 5's calibrated tier is what predicts.
 - **One validated model and GPU.** The grid is one dense model on one
-  GPU. Long prompts rest on chapter 7's attention price, whose 1 ×
+  GPU. Long prompts rest on chapter 8's attention price, whose 1 ×
   8,192 cell already reads 5% high.
 
 ## What you built
@@ -634,15 +635,15 @@ Recorded  Predictions committed before the measurement, model/measured
    H100 and a B200 (`data/devices/`). Compare each with its ridge point.
    Which GPU gains the most from batching, and at what context does the
    cache take that gain away?
-3. Store the KV cache in fp8 (chapter 10's recipes set it). How do Table
-   6.6's A6000 rows change? At what context does an fp8 cache let the
+3. Store the KV cache in fp8 (chapter 11's recipes set it). How do Table
+   7.6's A6000 rows change? At what context does an fp8 cache let the
    math catch up with the weights before memory runs out?
 4. Price Qwen3-8B and Llama-2-7B prefills of 2,048 tokens with
    `logits="all"`. Which grows more, and why?
-5. Table 6.7's worst TPOT cell is 32 × 2,048, at 0.958, with 38% of the
+5. Table 7.7's worst TPOT cell is 32 × 2,048, at 0.958, with 38% of the
    step in attention. Which half of the step would have to be priced
    low to explain the gap, and what would you time to find out?
 
 ---
 
-*[← Chapter 5: Graphs and the scheduler]({% post_url 2026-09-29-tinyperf-05-graphs-and-the-scheduler %}) · [Contents](/series/tinyperf/) · [Chapter 7: Attention →]({% post_url 2026-09-29-tinyperf-07-attention %})*
+*[← Chapter 6: Graphs and the scheduler]({% post_url 2026-09-29-tinyperf-06-graphs-and-the-scheduler %}) · [Contents](/series/tinyperf/) · [Chapter 8: Attention →]({% post_url 2026-09-29-tinyperf-08-attention %})*

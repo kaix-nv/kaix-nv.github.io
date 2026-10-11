@@ -56,7 +56,7 @@
     <text x="476" y="50" class="fit">put down to unpacking 4-bit weights</text>
     <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
     <text x="774" y="28" class="meas">decode: a fair router's count of experts,</text>
-    <text x="774" y="50" class="meas">derived, not fitted (chapter 9)</text>
+    <text x="774" y="50" class="meas">derived, not fitted (chapter 10)</text>
   </g>
 
   <!-- 2 -->
@@ -103,7 +103,7 @@
     <text x="476" y="50" class="gone">rates, the curve, "in company"</text>
     <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
     <text x="774" y="28" class="meas">each launch paired with its routing:</text>
-    <text x="774" y="50" class="meas">full rate; 0.70 past 32 tokens (ch. 9)</text>
+    <text x="774" y="50" class="meas">full rate; 0.70 past 32 tokens (ch. 10)</text>
   </g>
 
   <!-- 6 -->
@@ -113,8 +113,8 @@
     <text x="92" y="28" class="run">First online sweep</text>
     <text x="92" y="50" class="body">9 of 18 values inside their frozen intervals</text>
     <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
-    <text x="774" y="28" class="meas">KV pool at 4.25 bits (ch. 10); online</text>
-    <text x="774" y="50" class="meas">routing (ch. 9); Triton packs heads (ch. 7)</text>
+    <text x="774" y="28" class="meas">KV pool at 4.25 bits (ch. 11); online</text>
+    <text x="774" y="50" class="meas">routing (ch. 10); Triton packs heads (ch. 8)</text>
   </g>
 
   <!-- 7 -->
@@ -128,7 +128,7 @@
     <text x="476" y="50" class="gone">0.44 stays, not taken apart</text>
     <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
     <text x="774" y="28" class="meas">Marlin alone on the engine's routing;</text>
-    <text x="774" y="50" class="meas">Triton's prefill at a third (ch. 7, 10)</text>
+    <text x="774" y="50" class="meas">Triton's prefill at a third (ch. 8, 11)</text>
   </g>
 
   <!-- 8 -->
@@ -149,7 +149,7 @@
     <text x="92" y="28" class="run">Not the context: short replies</text>
     <text x="92" y="50" class="body">early in a reply, decodes touch fewer experts</text>
     <rect x="760" y="4" width="310" height="60" rx="9" fill="#dcfce7" stroke="#86c29b"/>
-    <text x="774" y="28" class="meas">routing by reply position (ch. 9):</text>
+    <text x="774" y="28" class="meas">routing by reply position (ch. 10):</text>
     <text x="774" y="50" class="meas">six sweeps, 103 of 108 values inside</text>
   </g>
 

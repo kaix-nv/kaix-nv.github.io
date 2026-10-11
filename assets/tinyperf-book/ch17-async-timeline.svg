@@ -33,7 +33,7 @@
   </defs>
   <rect width="1100" height="500" rx="18" fill="#f8fafc"/>
   <text x="40" y="46" class="title">The model admits an arrival at step k+2</text>
-  <text x="40" y="72" class="subtitle">40 sequences decode; a 4,000-token prompt arrives 3.3 ms into step k. The model's steps (Table 16.4), not to scale.</text>
+  <text x="40" y="72" class="subtitle">40 sequences decode; a 4,000-token prompt arrives 3.3 ms into step k. The model's steps (Table 17.4), not to scale.</text>
 
   <!-- row labels -->
   <text x="40" y="132" class="row">client</text>

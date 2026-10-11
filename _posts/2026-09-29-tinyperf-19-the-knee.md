@@ -1,17 +1,18 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 18: The knee"
-date: 2026-09-29 12:18:00 -0700
+title: "Building tinyperf, chapter 19: The knee"
+date: 2026-09-29 12:19:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/18-the-knee/
-excerpt: "Chapter 14's load curve is flat, then it isn't. Serving Qwen3-8B on one RTX A6000, the median time to first token (TTFT) is 0.44 s at 3.5 requests per second and 1.15 s at 4. That bend is the knee. Near it, three things go wrong for anyone predicting latency: the answer depends on exactly when the requests arrived, a step price (the model's time for one step) 2% off moves the tail by tens of percent, and a single number stops being an honest prediction. Why, and how should a model report what it predicts there?"
+permalink: /tinyperf/book/19-the-knee/
+excerpt: "Chapter 15's load curve is flat, then it isn't. Serving Qwen3-8B on one RTX A6000, the median time to first token (TTFT) is 0.44 s at 3.5 requests per second and 1.15 s at 4. That bend is the knee. Near it, three things go wrong for anyone predicting latency: the answer depends on exactly when the requests arrived, a step price (the model's time for one step) 2% off moves the tail by tens of percent, and a single number stops being an honest prediction. Why, and how should a model report what it predicts there?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/09/27/building-tinyperf-m79.html
+  - /tinyperf/book/18-the-knee/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, `simulate(step_scale=)` and `bench_requests`, and `Calibration.serving_error_band` in [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py) · Every table and both plots in this chapter come from `python3 book/scripts/ch18_knee.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, `simulate(step_scale=)` and `bench_requests`, and `Calibration.serving_error_band` in [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py) · Every table and both plots in this chapter come from `python3 book/scripts/ch19_knee.py`.*
 
-Chapter 14's load curve is flat, then it isn't. Serving Qwen3-8B on one
+Chapter 15's load curve is flat, then it isn't. Serving Qwen3-8B on one
 RTX A6000, the median time to first token (TTFT) is 0.44 s at 3.5
 requests per second and 1.15 s at 4. That bend is the *knee*. Near it,
 three things go wrong for anyone predicting latency: the answer depends
@@ -45,7 +46,7 @@ By the end of this chapter you will know:
 
 ## Where the knee is
 
-Price a serving step (chapters 15 and 16) in three parts:
+Price a serving step (chapters 16 and 17) in three parts:
 
 - **a**, a step with one sequence in it: mostly the weight read, which
   every step pays once for everyone;
@@ -76,18 +77,18 @@ step pays it whatever the batch. Every other microsecond is a request's
 own work, and ρ is its share of the time. As ρ grows the step
 stretches, each request stays longer, and more are in flight. An
 engine caps that number: vLLM's `max_num_seqs`, 64 in every run here
-(`VLLM.with_(max_num_seqs=64)`, chapter 14's engine preset, the
+(`VLLM.with_(max_num_seqs=64)`, chapter 15's engine preset, the
 simulator set up as vLLM runs), which we call its *seats*. When B
 reaches the seats, a new request waits for one. That is the knee.
 
-Table 18.1 takes Table 1.4's workload, 1,024-token prompts and
+Table 19.1 takes Table 1.4's workload, 1,024-token prompts and
 128-token replies, derives the constants from the step model, and puts
 the envelope's step time beside the simulator's time per output token
 (TPOT) on the benchmark's trace. The measured column is
 in-sample: the simulator was built with this sweep in view.
 
 ```
-Table 18.1  The step stretches with the load: the envelope against the simulator, Qwen3-8B on one RTX A6000, 1024 tokens in, 128 out (measured: in-sample)
+Table 19.1  The step stretches with the load: the envelope against the simulator, Qwen3-8B on one RTX A6000, 1024 tokens in, 128 out (measured: in-sample)
   req/s   rho  TPOT ms: envelope  simulator  measured  decodes: envelope  simulator  seat queue
     1.0  0.20               30.9       31.1      30.6                3.9        4.0         0.0
     2.0  0.40               41.2       39.9      39.5               10.5        9.9         0.0
@@ -98,7 +99,7 @@ Table 18.1  The step stretches with the load: the envelope against the simulator
     8.0  1.60              125.8      113.8     111.4           64, full       55.4        45.6
   a = 24.71 ms a step for the weights, shared; b = 0.356 ms per sequence; c_p = 152 us per prompt token
   one request's own work: prefill 1024 x 152 us = 155 ms, its share of 127 steps 127 x 0.356 = 45 ms; rho = 1 at 4.99 req/s
-  simulator, all 240 requests at once: 3.97 completed per second; measured TPOT at 3.5 req/s from Table 18.8's re-run
+  simulator, all 240 requests at once: 3.97 completed per second; measured TPOT at 3.5 req/s from Table 19.8's re-run
   the envelope's knee, where the batch fills 64 seats (measured: p95 / median TTFT first passes 3x its lightest load between): 1024/128 4.01 (3.5-3.75 / 3.75-4); 512/384 3.05 (2.75-3 / 3.25-3.5); 1536/192 2.52 (2.25-2.5 / 2.25-2.5)
   simulator at 4, 5 and 8 req/s, while requests queue for a seat: 62.2-62.8 decoding, 1.2-1.8 prefilling; with no queue (23-48% of the run, its start and drain): 30-35 decoding
 ```
@@ -125,14 +126,14 @@ busy, one or two of them prefilling; the average counts the run's start
 and drain.
 
 This is why TTFT is flat, then steep. Below the knee a request waits a
-step or two (chapter 16), then for its prefill, all growing smoothly
+step or two (chapter 17), then for its prefill, all growing smoothly
 with the step. Past it, it first waits for a seat, for as long as
 requests arrive faster than they finish.
 
 ## Queue amplification
 
 Past the knee, arrivals at λ exceed completions at μ, the most the
-server finishes per second with every seat full (3.97, Table 18.1), and
+server finishes per second with every seat full (3.97, Table 19.1), and
 the queue grows at λ − μ. Near the knee the two are nearly equal. A
 step error ε changes μ by a fraction ε, and λ − μ by a fraction
 ε·μ/(λ − μ): at λ = 1.02·μ, a 2% error either doubles the excess or
@@ -153,21 +154,21 @@ wait about 4%.
 ![Three linked boxes: every step 2% longer, each burst drains later, the
 queue's waits add up in the tail. Below, requests queued or prefilling
 over a 70-second run for three step prices, and every request's TTFT
-sorted, with p95 at 2.4, 3.1 and 3.9 s.](/assets/tinyperf-book/ch18-amplification.svg)
+sorted, with p95 at 2.4, 3.1 and 3.9 s.](/assets/tinyperf-book/ch19-amplification.svg)
 
-*Figure 18.1. Queue amplification at 4 requests per second in the
+*Figure 19.1. Queue amplification at 4 requests per second in the
 simulator: the same arrivals, every step 2% faster (blue), at the
 model's price (grey) and 2% slower (orange). Left: requests without
 their first token (queued or prefilling). Right: the fastest fifth of
 requests barely move; the tail moves by about a quarter each way.*
 
-Chapter 14's serving simulator, `simulate`, takes `step_scale=s`, which
-multiplies every step's GPU time by s. Table 18.2 runs it across the
+Chapter 15's serving simulator, `simulate`, takes `step_scale=s`, which
+multiplies every step's GPU time by s. Table 19.2 runs it across the
 knee on the benchmark's trace, extending Table 1.4 to the median and to
 the queue itself:
 
 ```
-Table 18.2  Every step 2% faster or slower: the simulator on the same trace, 1024 tokens in, 128 out
+Table 19.2  Every step 2% faster or slower: the simulator on the same trace, 1024 tokens in, 128 out
   req/s  TTFT p50 ms  x0.98  x1.02  TTFT p95 ms  x0.98  x1.02  longest seat queue at 0.98 / 1.00 / 1.02
    3.00          355   0.92   1.03          787   0.92   1.07              0 / 0 / 0
    3.50          437   0.94   1.08         1076   0.94   1.06              0 / 0 / 1
@@ -187,11 +188,11 @@ and the 95th percentile by about a quarter, as the longest queue for a
 seat grows from 11 to 15.
 
 The server shows it too. The server sampled with top-p, whose sampler
-sorts every row's logits (chapter 15); a second run of the same trace
+sorts every row's logits (chapter 16); a second run of the same trace
 asked for greedy decoding. Both runs are in-sample.
 
 ```
-Table 18.3  Steps 2-4% longer, measured: top-p against greedy sampling on one trace, 1024 tokens in, 128 out (in-sample)
+Table 19.3  Steps 2-4% longer, measured: top-p against greedy sampling on one trace, 1024 tokens in, 128 out (in-sample)
          top-p adds  top-p over greedy:
   req/s     (model)  TTFT p50 meas  model  TTFT p95 meas  model  TPOT meas  model
       1        2.2%           1.00   1.01           1.01   1.00      1.027  1.029
@@ -212,17 +213,17 @@ the server and 1.86 times in the model.
 
 ## The trace decides
 
-Benchmarks send Poisson arrivals (chapter 14): random, at a fixed
+Benchmarks send Poisson arrivals (chapter 15): random, at a fixed
 average rate, so they come in bursts and lulls. Near the knee a burst
 is a moment when λ runs above μ, and the queue it leaves depends on its
-size and on how soon the next one comes. Chapter 14's Table 14.5
-showed the effect on the median; Table 18.4 follows the tail. `vllm
+size and on how soon the next one comes. Chapter 15's Table 15.5
+showed the effect on the median; Table 19.4 follows the tail. `vllm
 bench serve`, vLLM's benchmark client, draws its arrivals from a seed,
 and traces 0, 1 and 2 are its seeds, rebuilt request for request by
 `tools/bench_trace.py`. Trace 0 was run several times.
 
 ```
-Table 18.4  One process, many traces: TTFT p95 in ms, Qwen3-8B, RTX A6000, 240 requests of 1024 in, 128 out (trace 0 in-sample; traces 1 and 2 held out)
+Table 19.4  One process, many traces: TTFT p95 in ms, Qwen3-8B, RTX A6000, 240 requests of 1024 in, 128 out (trace 0 in-sample; traces 1 and 2 held out)
                        measured on trace        model on trace  model, 12 other traces  model, trace 0
   req/s         0 (runs)       1       2       0       1       2           range  tipped    steps +-1.7%
     3.0      769-790 (3)     806     880     787     833     868     560 to 1868    3/12         722-834
@@ -230,7 +231,7 @@ Table 18.4  One process, many traces: TTFT p95 in ms, Qwen3-8B, RTX A6000, 240 r
     4.0    2693-2830 (4)    2468    3609    3126    2764    3850    880 to 11097   10/12       2546-3744
     4.5         7728 (1)    6465    7206    8305    6927    7714   3343 to 16197   12/12       7361-9539
     5.0  12250-12309 (3)   10687   11594   12896   11140   11888   8177 to 20066   12/12     11967-13916
-  tipped: p95 above 1100 ms (3x the measured p95 at 1 req/s); other traces: poisson_requests seeds 1000-1011; trace 0's runs on a slowed GPU left out (Table 18.8)
+  tipped: p95 above 1100 ms (3x the measured p95 at 1 req/s); other traces: poisson_requests seeds 1000-1011; trace 0's runs on a slowed GPU left out (Table 19.8)
 ```
 
 Read the 4-request row. The same trace, run four times, gave a p95 of
@@ -246,7 +247,7 @@ line.
 Two rules follow.
 
 - **To predict a measured run, replay its arrivals.** `bench_requests`
-  (chapter 14) does, and every comparison here uses it.
+  (chapter 15) does, and every comparison here uses it.
 - **One simulation of random arrivals is one draw.** For unrecorded
   traffic, a single seed's p95 is an ensemble member, not the answer.
   Report the spread over many traces, or the share that tip
@@ -256,13 +257,13 @@ Two rules follow.
 
 With the trace fixed, what is left is the model's own error. Its step
 prices land within a few percent of the engine's clock (its own GPU
-timing of each step; chapter 15), −1.9% to +2.6% in Table 18.5, the
-error Table 18.2 prices at the knee. So a prediction becomes an
+timing of each step; chapter 16), −1.9% to +2.6% in Table 19.5, the
+error Table 19.2 prices at the knee. So a prediction becomes an
 interval: the simulator with every step scaled across the model's step
 error, widened by what that error doesn't explain.
 
 The band lives in the calibration (the GPU's record of fitted
-constants; chapter 4), since it describes one GPU type under one engine
+constants; chapter 5), since it describes one GPU type under one engine
 version:
 
 ```
@@ -270,11 +271,11 @@ version:
 ```
 
 It was fitted on the 13 online runs (a server fed a stream of requests)
-before Table 18.7's sweeps, 52 cells (a cell is one rate of one run),
-each held out from the step model, among them Table 18.4's traces 1–2
-and both runs of Table 18.6: Qwen3-8B on one and two GPUs, and the
+before Table 19.7's sweeps, 52 cells (a cell is one rate of one run),
+each held out from the step model, among them Table 19.4's traces 1–2
+and both runs of Table 19.6: Qwen3-8B on one and two GPUs, and the
 mixture-of-experts (MoE) Qwen3-30B-A3B on two. The engine logged every
-step (chapter 15's step timing), and a cell's *step bias* is the
+step (chapter 16's step timing), and a cell's *step bias* is the
 model's price for its steps, at their logged composition, over the
 engine's clock. `step` is the 90th percentile of `|bias − 1|`.
 Scaling each cell's steps by its own bias removes the step error; the
@@ -298,7 +299,7 @@ class _ScaledSteps:
 
 `simulate` wraps its step model in it when `step_scale != 1.0`: decode,
 mixed and prefill steps and the sampler scale; the per-request overhead
-of chapter 16, not a GPU step, doesn't. The interval (docstring
+of chapter 17, not a GPU step, doesn't. The interval (docstring
 trimmed):
 
 ```python
@@ -322,7 +323,7 @@ Five runs span 1 − d to 1 + d, the middle one the model itself. The
 interval takes the smallest and largest of all five, not the two ends:
 on one trace TTFT need not rise with the step price, consistent with
 arrivals landing in different steps as the steps shift, and in 7 of
-Table 18.7's 24 TTFT intervals the five runs are out of order. Each end
+Table 19.7's 24 TTFT intervals the five runs are out of order. Each end
 is then widened by the metric's residual. Off the knee the five runs
 barely differ and the interval is little wider than the residual; at
 the knee they spread, and it opens.
@@ -332,7 +333,7 @@ each run's cells getting intervals from a band estimated on the other
 twelve runs:
 
 ```
-Table 18.5  The model's step error on 52 held-out online cells (13 runs), and the intervals it gives, one run left out at a time
+Table 19.5  The model's step error on 52 held-out online cells (13 runs), and the intervals it gives, one run left out at a time
   step bias, the model's steps over the engine's per cell: 0.981-1.026; 90th percentile of |bias - 1|: 0.017
              90th percentile error                              interval, one run left out  flat +-15%
   metric                 the model   own bias applied    inside  median width       widest      / +-5%
@@ -357,14 +358,14 @@ Table 18.5  The model's step error on 52 held-out online cells (13 runs), and th
   0.981–0.983); two are residual misses. The recorded scales reach only
   ±1.5%, inside the band, so the coverage is if anything conservative.
 
-Chapter 16's backends make a good test. In a mixed step (prompt chunks
+Chapter 17's backends make a good test. In a mixed step (prompt chunks
 beside decodes), vLLM's FlashInfer reads the decode caches once, where
 FlashAttention-2 re-reads them per query head, so beside many long
 decodes its mixed step can cost half as much. The same trace ran under
 both:
 
 ```
-Table 18.6  One trace, two attention backends: Qwen3-8B, RTX A6000, 1024 tokens in (+-50%), 256 out (held out)
+Table 19.6  One trace, two attention backends: Qwen3-8B, RTX A6000, 1024 tokens in (+-50%), 256 out (held out)
                  FlashAttention-2                               FlashInfer                     
             measured, ms   model/measured     measured, ms   model/measured    step    p95 at
   req/s      p50     p95      p50     p95      p50     p95      p50     p95    bias  own bias
@@ -390,12 +391,12 @@ One cell stands out: FlashInfer's p95 at 3 requests per second reads
 0.72. The model's FlashInfer steps run 1.7–1.9% short of the engine's
 clock in every cell, and at the knee that is worth a lot: with every
 step 2% slower, the model's p95 moves from 852 to 1,218 ms, 43%. Scaled
-by the cell's own bias it reads 1.02. It is also one of Table 18.5's
+by the cell's own bias it reads 1.02. It is also one of Table 19.5's
 misses: left out, its run's bias lies past the others' smallest.
 
 ## How close is it?
 
-The band was then tested as chapter 21 tests everything: on runs nobody
+The band was then tested as chapter 22 tests everything: on runs nobody
 had seen, with the predictions *frozen*, committed to the repository
 before the measurement ran. Two sweeps put most of their rates around
 their knees: a decode-heavy one (512 tokens in, 384 out, each ±50%) and
@@ -406,7 +407,7 @@ inside their intervals, and TTFT intervals narrower than a flat ±15%
 band, 1.35 times, in at least half the cells, but wider at the knee.
 
 ```
-Table 18.7  Frozen intervals on two sweeps planned around their knees: Qwen3-8B on one RTX A6000 (held out)
+Table 19.7  Frozen intervals on two sweeps planned around their knees: Qwen3-8B on one RTX A6000 (held out)
   measured, and the interval [low point high] as ratios to it; * outside
   512 in, 384 out
   req/s                TTFT p50 ms                 TTFT p95 ms                   TPOT ms  step bias
@@ -433,15 +434,15 @@ Table 18.7  Frozen intervals on two sweeps planned around their knees: Qwen3-8B 
 ![Two panels of TTFT against request rate on a log scale, median and
 95th percentile as shaded interval bands with dashed point predictions
 and measured dots; the bands open where the curves turn upward, and one
-measured median sits just above its band.](/assets/tinyperf-book/ch18-intervals.svg)
+measured median sits just above its band.](/assets/tinyperf-book/ch19-intervals.svg)
 
-*Figure 18.2. Table 18.7 as curves. The bands are narrow on the flat
+*Figure 19.2. Table 19.7 as curves. The bands are narrow on the flat
 part, widest where TTFT turns upward, and narrow again far past it. The
 open circle is the one value outside.*
 
 Both criteria were met: 35 of 36 values inside, where a flat band on
 the point prediction holds 33. The flat band misses exactly the
-decode-heavy sweep's knee cells, chapter 14's worst held-out cells: the
+decode-heavy sweep's knee cells, chapter 15's worst held-out cells: the
 p95 at 2.75 requests per second, where the median is still a calm
 224 ms but the tail has begun to queue, reads 0.72; the p95 at 3 reads
 0.76; the median at 3.5, where the run tipped into saturation, 0.79.
@@ -458,7 +459,7 @@ within the band. Two things break that claim.
 does, its step bias leaves the band, and the interval misses by as much
 as the queue amplifies. Two held-out sweeps of gpt-oss-20b, an MoE
 with 4-bit experts, frozen after a first had exposed three missing
-mechanisms (chapter 22), show it. Their results are recorded: stored
+mechanisms (chapter 23), show it. Their results are recorded: stored
 when the runs were measured, not recomputed by today's model.
 
 ```
@@ -470,7 +471,7 @@ Recorded  gpt-oss-20b served online on one RTX A6000: two held-out sweeps with f
 
 With the long prompts the steps were within 2% of the engine's, and 17
 of 18 values landed inside. With the short prompts they ran 1.7–3.5%
-short, mostly outside the band, and 8 of 18 values missed. Chapter 22
+short, mostly outside the band, and 8 of 18 values missed. Chapter 23
 tells what the model was missing. Measure the step bias on every run;
 when it leaves the band, look for a mechanism before trusting an
 interval.
@@ -494,7 +495,7 @@ looks like a strange queue.
 > cause is not known.
 
 ```
-Table 18.8  One trace, run twice: the first sweep through the knee and its re-run, Qwen3-8B, RTX A6000, 1024 tokens in, 128 out (trace 0, in-sample)
+Table 19.8  One trace, run twice: the first sweep through the knee and its re-run, Qwen3-8B, RTX A6000, 1024 tokens in, 128 out (trace 0, in-sample)
   req/s  TTFT p50 ms: first run  re-run   model  TPOT ms: first run  re-run   model
    3.25                     415     360     391                84.6    64.7    68.2
    3.50                    4602     437     437               133.4    80.0    81.1
@@ -515,7 +516,7 @@ the step bias stayed 0.993–1.007. The step bias is the check.
   composition, read off one GPU type, one engine version and two
   models. A new GPU or engine version needs its own held-out runs first.
 - **Step error only.** Not a missing mechanism, a slowed GPU or another
-  trace (Table 18.4).
+  trace (Table 19.4).
 - **Few runs.** 52 cells in 13 runs, and a run's cells share its bias,
   so a run-level miss takes several cells at once.
 
@@ -537,21 +538,21 @@ the step bias stayed 0.993–1.007. The step bias is the check.
 
 ## Exercises
 
-1. **More seats.** Rerun Table 18.2 with 256 seats, vLLM's own default
+1. **More seats.** Rerun Table 19.2 with 256 seats, vLLM's own default
    (`VLLM` as shipped). Where does the knee move, and what limits it
-   now: ρ, or chapter 17's KV pool?
+   now: ρ, or chapter 18's KV pool?
    Compare with the envelope at S = 256.
 2. **A band by composition.** Fit the step bias separately for steps
    that carry prefill and steps that don't, from the recorded cells of
    the serving-error retrospective in `data/validation`. Do Table
-   18.7's knee intervals narrow, and does coverage hold?
+   19.7's knee intervals narrow, and does coverage hold?
 3. **The knee as a probability.** Plot `tip_fraction` over 48 traces
    from 2.5 to 5 requests per second. How does the transition's width
    change with the number of requests per run?
 4. **Unrecorded traffic.** Build an interval that also covers the trace:
    the step band's range over 12 Poisson traces. How wide is it at 4
-   requests per second, and does it hold traces 1 and 2 of Table 18.4?
+   requests per second, and does it hold traces 1 and 2 of Table 19.4?
 
 ---
 
-*[← Chapter 17: Memory under load]({% post_url 2026-09-29-tinyperf-17-memory-under-load %}) · [Contents](/series/tinyperf/) · [Chapter 19: Speculative decoding →]({% post_url 2026-09-29-tinyperf-19-speculative-decoding %})*
+*[← Chapter 18: Memory under load]({% post_url 2026-09-29-tinyperf-18-memory-under-load %}) · [Contents](/series/tinyperf/) · [Chapter 20: Speculative decoding →]({% post_url 2026-09-29-tinyperf-20-speculative-decoding %})*

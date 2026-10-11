@@ -1,25 +1,26 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 3: Pricing a GEMM"
-date: 2026-09-29 12:03:00 -0700
+title: "Building tinyperf, chapter 4: Pricing a GEMM"
+date: 2026-09-29 12:04:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/03-pricing-a-gemm/
-excerpt: "Nearly every expensive operation in a transformer is a matrix multiply: the attention projections, the feed-forward layers, the experts of a mixture-of-experts model and the output head. If you can say how long C[M,N] = A[M,K] · B[K,N] takes on a given GPU, for any shape, you can price most of a network. Chapter 5 turns a model into a list of such operations and adds them up. This chapter builds the piece that prices each one."
+permalink: /tinyperf/book/04-pricing-a-gemm/
+excerpt: "Nearly every expensive operation in a transformer is a matrix multiply: the attention projections, the feed-forward layers, the experts of a mixture-of-experts model and the output head. If you can say how long C[M,N] = A[M,K] · B[K,N] takes on a given GPU, for any shape, you can price most of a network. Chapter 6 turns a model into a list of such operations and adds them up. This chapter builds the piece that prices each one."
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m2.html
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m9.html
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m10.html
   - /tinyperf/perf-modeling/2026/08/29/building-tinyperf-m23.html
   - /tinyperf/perf-modeling/2026/09/24/building-tinyperf-m69.html
+  - /tinyperf/book/03-pricing-a-gemm/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and the plot in this chapter come from `python3 book/scripts/ch03_gemm.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and the plot in this chapter come from `python3 book/scripts/ch04_gemm.py`.*
 
 Nearly every expensive operation in a transformer is a matrix multiply:
 the attention projections, the feed-forward layers, the experts of a
 mixture-of-experts model and the output head. If you can say how long
 `C[M,N] = A[M,K] · B[K,N]` takes on a given GPU, for any shape, you can
-price most of a network. Chapter 5 turns a model into a list of such
+price most of a network. Chapter 6 turns a model into a list of such
 operations and adds them up. This chapter builds the piece that prices
 each one.
 
@@ -39,7 +40,7 @@ By the end of it you will know:
 
 ## The roofline is not enough
 
-Chapter 2 described a GPU by a few rates and gave the simplest possible
+Chapter 3 described a GPU by a few rates and gave the simplest possible
 price for any operation, the roofline:
 
 ```
@@ -53,10 +54,10 @@ time it on an RTX A6000 at the row counts a server feeds it: one row per
 sequence in a decode batch, one row per token in a prefill. We give the
 roofline every advantage: this GPU's best measured math and memory rates
 instead of its datasheet peaks, plus the 3.5 µs a kernel costs to launch.
-(Chapter 4 shows how those rates are measured.)
+(Chapter 5 shows how those rates are measured.)
 
 ```
-Table 3.1  A 4096 x 4096 weight GEMM by rows, RTX A6000: the roofline at its best
+Table 4.1  A 4096 x 4096 weight GEMM by rows, RTX A6000: the roofline at its best
    rows  measured us  roofline us  roofline/measured
       1         52.0         52.1               1.00
      64         57.4         53.6               0.93
@@ -101,9 +102,9 @@ literature calls a CTA (cooperative thread array), running on one SM.
 
 ![A GEMM divided into tiles. One output tile of C needs a panel of rows
 of A and a panel of columns of B; the kernel walks the K dimension in
-slices of BK.](/assets/tinyperf-book/ch03-tiling.svg)
+slices of BK.](/assets/tinyperf-book/ch04-tiling.svg)
 
-*Figure 3.1. One CTA computes one `BM × BN` tile of C. It needs the `BM`
+*Figure 4.1. One CTA computes one `BM × BN` tile of C. It needs the `BM`
 rows of A and the `BN` columns of B that cross its tile, each `K` long.
 It walks K in steps of `BK`: at each step it loads a `BM × BK` slice of
 A and a `BK × BN` slice of B into the SM's shared memory, multiplies
@@ -124,7 +125,7 @@ time(tile) = max(math, dram, l2) + launch
 best       = min over tiles that fit in shared memory
 ```
 
-The `max` models the overlap in Figure 3.1. A pipelined kernel loads and
+The `max` models the overlap in Figure 4.1. A pipelined kernel loads and
 computes at the same time, so the slowest of the three streams sets the
 pace: tensor-core math, traffic from DRAM (the GPU's main memory,
 high-bandwidth HBM or graphics GDDR), and traffic from the L2 cache into
@@ -161,12 +162,12 @@ the model runs an 8,200-row GEMM on 256-row tiles, which pads it to
 8,448 rows: 3% extra math for 8 extra rows.
 
 **Wave quantization.** A wave is as slow as its busiest SM, whether the
-other SMs have work or not (Figure 3.2).
+other SMs have work or not (Figure 4.2).
 
 ![Eighteen tiles on eight SMs run in three waves, the last one with only
-two tiles.](/assets/tinyperf-book/ch03-waves.svg)
+two tiles.](/assets/tinyperf-book/ch04-waves.svg)
 
-*Figure 3.2. Wave quantization. The third wave runs two tiles and leaves
+*Figure 4.2. Wave quantization. The third wave runs two tiles and leaves
 six SMs idle, but it takes as long as a full wave. The `ceil` in the
 formula is the whole effect.*
 
@@ -199,7 +200,7 @@ A tile smaller than 64×64 outputs doesn't keep enough matrix
 instructions in flight to feed the tensor cores. And the load-compute
 pipeline needs `stages - 1` iterations to fill before it runs at rate,
 where `stages` is the number of slices the kernel buffers in shared
-memory: 2 here, the double buffering of Figure 3.1. With two stages, a
+memory: 2 here, the double buffering of Figure 4.1. With two stages, a
 K loop of 64 iterations (K = 4,096) runs at 64/65 of its rate. A loop of
 two iterations runs at 2/3. That second case is common: attention's
 score matrix, `Q · Kᵀ`, contracts over the head dimension, typically
@@ -210,7 +211,7 @@ score matrix, `Q · Kᵀ`, contracts over the head dimension, typically
 How many bytes does a GEMM pull from DRAM? There are two extremes. At
 best, each element of A and B is read once and C is written once. At
 worst, every CTA fetches its own panels of A and B (the strips of rows
-and columns that cross its tile, Figure 3.1) from DRAM with no sharing
+and columns that cross its tile, Figure 4.1) from DRAM with no sharing
 at all. For an 8192³ fp16 GEMM:
 
 ```
@@ -222,16 +223,16 @@ They are 32 times apart. Which end a kernel is near depends on the L2
 cache, and on which tiles run at the same time.
 
 ![One wave of twelve tiles, arranged as a 3 by 4 block, shares three
-panels of A and four panels of B.](/assets/tinyperf-book/ch03-l2-wave.svg)
+panels of A and four panels of B.](/assets/tinyperf-book/ch04-l2-wave.svg)
 
-*Figure 3.3. Tiles that run in the same wave can share their inputs
+*Figure 4.3. Tiles that run in the same wave can share their inputs
 through L2. Libraries launch CTAs in compact, roughly square blocks for
 this reason. Twelve tiles in a 3 × 4 block need 7 panels of A and B;
 twelve tiles in a single row would need 13. Because the kernel walks K
 in steps, the L2 only has to hold one `BK`-wide slice of those panels at
 a time.*
 
-The model follows Figure 3.3. It arranges one wave's tiles as a block of
+The model follows Figure 4.3. It arranges one wave's tiles as a block of
 `rows × cols` tiles, as close to square as the grid allows, and computes
 the width of A and B that block reads:
 
@@ -278,7 +279,7 @@ so the L2 has to hold a slice for every one of them.
 > rarely showed. It took a GPU with a small L2 to expose it. A kernel
 > streams K a slice at a time, so a slice is what has to stay resident.
 > The corrected model predicts 7.3 ms, 0.71 of the measurement; that gap
-> has another cause, the clocks this GPU sustains, which chapter 4 fits.
+> has another cause, the clocks this GPU sustains, which chapter 5 fits.
 > But the model no longer invents 13 GB of traffic. The general lesson:
 > test your model on hardware unlike the hardware you built it on, or its
 > errors will hide where you never looked.
@@ -298,14 +299,14 @@ prologue and epilogue. On the GPU itself that is a few microseconds; the
 model's default is 3 µs. Measured from the host, it depends on how the
 kernels are issued: about 25 µs per call when PyTorch issues them one at
 a time on the A6000, and 3.5 µs when a CUDA graph, a sequence of
-launches recorded once, replays them. Chapter 4 fits this constant for
+launches recorded once, replays them. Chapter 5 fits this constant for
 each case. For a tiny GEMM it is the whole price.
 
 ## The code
 
 Here is the core of `estimate_gemm`, lightly trimmed. The trimmed parts
 are the sustained-clock factor, the byte scaling for quantized and
-sparse weights (chapter 10), per-kernel-class scale factors (chapter 9)
+sparse weights (chapter 11), per-kernel-class scale factors (chapter 10)
 and the bookkeeping of the result.
 
 ```python
@@ -371,12 +372,12 @@ batched refinement above: how many independent problems share one wave.
 
 ## One model, six regimes
 
-Table 3.2 runs the model on an A100 across the shapes you meet in
+Table 4.2 runs the model on an A100 across the shapes you meet in
 practice. The model has no measured inputs here, only datasheet rates.
 Its bound column names the term that set each time: math, DRAM or L2.
 
 ```
-Table 3.2  One model, six regimes: A100 SXM, fp16, datasheet rates
+Table 4.2  One model, six regimes: A100 SXM, fp16, datasheet rates
   case                           batch x M x N x K       us  % of peak      tile  waves  bound
   square                    1 x 8192 x 8192 x 8192   3563.0       98.9   256x128     19  math
   8 rows past a tile edge   1 x 8200 x 8192 x 8192   3750.4       94.1   256x128     20  math
@@ -400,7 +401,7 @@ Each row shows a different mechanism.
 - **Decode, 64 rows.** 64 times the work costs 3% more time, because
   the weights are still read once. This is why serving engines batch
   decodes: until the math catches up with the weight traffic, extra
-  sequences are nearly free. Chapter 6 finds where it catches up.
+  sequences are nearly free. Chapter 7 finds where it catches up.
 - **Attention scores.** K is 128, a two-step loop, so pipeline fill
   alone caps each CTA at 2/3 of its rate.
 - **Tiny.** 3.5 µs, of which 3 µs is the launch.
@@ -422,7 +423,7 @@ is always a candidate, allowing split-K can never make a prediction
 slower.
 
 ```
-Table 3.3  Split-K on a tile-starved shape: A100, M=128, N=4096
+Table 4.3  Split-K on a tile-starved shape: A100, M=128, N=4096
        K  no split us   best us  split  speedup  bound
     2048         15.0      15.0      1     1.00  math  (math 12.0, DRAM 9.0)
     8192         49.8      49.8      1     1.00  math  (math 46.8, DRAM 34.5)
@@ -445,8 +446,8 @@ it yet. Exercise 2 asks you to supply some.
 
 To compare against measurements, the model needs a few constants fitted
 to each GPU: how close to peak its tensor cores and memory actually
-run, its L2 bandwidth, and its per-kernel overhead. Chapter 4 is about
-fitting them. As in Table 3.1, we give the roofline and the tile model
+run, its L2 bandwidth, and its per-kernel overhead. Chapter 5 is about
+fitting them. As in Table 4.1, we give the roofline and the tile model
 the same fitted constants, so the only difference between them is the
 mechanism this chapter built.
 
@@ -455,7 +456,7 @@ mean of how far each ratio is from 1, in either direction
 (`exp(mean |ln ratio|) − 1`).
 
 ```
-Table 3.4  Typical error against measured cuBLAS, both models on the same fitted constants
+Table 4.4  Typical error against measured cuBLAS, both models on the same fitted constants
   GPU        shapes  roofline + launch  tile model
   rtx_a6000      27               5.2%        4.9%
   h100_sxm       27               8.8%        8.5%
@@ -469,22 +470,22 @@ decode shapes firmly memory-bound. Deep inside a regime, the roofline's
 `max` already picks the right term, and the fitted constants absorb the
 rest.
 
-The mechanism earns its place between the regimes. Figure 3.4 and Table
-3.5 use a different measurement: the four weight GEMMs of one
+The mechanism earns its place between the regimes. Figure 4.4 and Table
+4.5 use a different measurement: the four weight GEMMs of one
 transformer layer (Qwen3-8B), timed at 39 row counts from 1 to 1,280,
 the way a serving engine calls them, inside a CUDA graph.
 
 ![Time of a 4096 by 4096 weight GEMM on the RTX A6000 from 1 to 1280
-rows: measured, tile model and roofline.](/assets/tinyperf-book/ch03-row-curve.svg)
+rows: measured, tile model and roofline.](/assets/tinyperf-book/ch04-row-curve.svg)
 
-*Figure 3.4. A 4096 × 4096 weight GEMM by rows, the same GEMM as Table
-3.1. Up to 128 rows all three agree: the time is streaming the weights.
+*Figure 4.4. A 4096 × 4096 weight GEMM by rows, the same GEMM as Table
+4.1. Up to 128 rows all three agree: the time is streaming the weights.
 Beyond that the roofline rises in a straight line, the tile model
 follows the measured trend more closely, and the measurement jumps just
 past 128, 256, 512 and 1,024 rows.*
 
 ```
-Table 3.5  Typical error by row range: four GEMMs, 39 row counts, RTX A6000 in a CUDA graph
+Table 4.5  Typical error by row range: four GEMMs, 39 row counts, RTX A6000 in a CUDA graph
   rows           roofline + launch  tile model  worst tile/measured
   1-128 rows                  7.2%        6.0%                 0.87
   129-512 rows               52.4%       33.1%                 0.55
@@ -501,7 +502,7 @@ is still worst.
 
 ## Where it breaks
 
-Even the tile model reads 0.55 at its worst. Figure 3.4 shows where:
+Even the tile model reads 0.55 at its worst. Figure 4.4 shows where:
 the measured time jumps at 129, 257, 513 and 1,025 rows, one row past a
 multiple of 128. The first jump is the largest:
 
@@ -528,8 +529,8 @@ picks the best tile from a generous menu and launches its tiles in the
 ideal order. A real library has a finite menu and a heuristic, and its
 choices leave edges like these. They can't be derived from first
 principles; they have to be measured. The calibrated tier, the model
-run on constants fitted to one GPU (chapter 4), stores a measured
-correction curve for exactly this, and chapter 15 uses it to price
+run on constants fitted to one GPU (chapter 5), stores a measured
+correction curve for exactly this, and chapter 16 uses it to price
 decode steps.
 
 Other things this model leaves out:
@@ -543,7 +544,7 @@ Other things this model leaves out:
   the GEMM's epilogue. The model prices those as separate operations.
 - **Clocks.** A long GEMM can run the GPU into its power limit and below
   its boost clock. The A6000 does at 8192³. The model has no power
-  model here; the fitted constants in chapter 4 absorb the effect.
+  model here; the fitted constants in chapter 5 absorb the effect.
 
 ## What you built
 
@@ -570,9 +571,9 @@ Other things this model leaves out:
    blocks did not share weights. Does the model now jump at 129 rows?
    By how much?
 4. Model stream-K: perfect balance across SMs (no wave quantization)
-   plus one fix-up pass for the partial tiles. How much of Table 3.2's
+   plus one fix-up pass for the partial tiles. How much of Table 4.2's
    second row does it recover?
 
 ---
 
-*[← Chapter 2: A GPU as a handful of rates]({% post_url 2026-09-29-tinyperf-02-a-gpu-as-a-handful-of-rates %}) · [Contents](/series/tinyperf/) · [Chapter 4: Meeting a real GPU: calibration and its tiers →]({% post_url 2026-09-29-tinyperf-04-meeting-a-real-gpu %})*
+*[← Chapter 3: A GPU as a handful of rates]({% post_url 2026-09-29-tinyperf-03-a-gpu-as-a-handful-of-rates %}) · [Contents](/series/tinyperf/) · [Chapter 5: Meeting a real GPU: calibration and its tiers →]({% post_url 2026-09-29-tinyperf-05-meeting-a-real-gpu %})*

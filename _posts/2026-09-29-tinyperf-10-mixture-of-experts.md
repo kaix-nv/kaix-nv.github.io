@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 9: Mixture of experts"
-date: 2026-09-29 12:09:00 -0700
+title: "Building tinyperf, chapter 10: Mixture of experts"
+date: 2026-09-29 12:10:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/09-mixture-of-experts/
+permalink: /tinyperf/book/10-mixture-of-experts/
 excerpt: "Many of today's largest language models replace each feed-forward layer with a set of smaller feed-forward networks, the experts, and a small router that sends each token to a few of them. A token pays for the math of its few experts, while the model holds the knowledge of all of them. For a performance model this raises one question with a surprisingly deep answer: what does an MoE (mixture-of-experts) layer cost to run?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/21/building-tinyperf-m11.html
@@ -12,9 +12,10 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/26/building-tinyperf-m76.html
   - /tinyperf/perf-modeling/2026/09/26/building-tinyperf-m77.html
   - /tinyperf/perf-modeling/2026/09/27/building-tinyperf-m78.html
+  - /tinyperf/book/09-mixture-of-experts/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/routing.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/routing.py) and the MoE block of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch09_moe.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/routing.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/routing.py) and the MoE block of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch10_moe.py`.*
 
 Many of today's largest language models replace each feed-forward layer
 with a set of smaller feed-forward networks, the *experts*, and a small
@@ -50,9 +51,9 @@ By the end of this chapter you will know:
 
 ![Six tokens pass through a router that picks two of eight experts for
 each; the picks land on five experts, whose weights the step
-reads.](/assets/tinyperf-book/ch09-moe-layer.svg)
+reads.](/assets/tinyperf-book/ch10-moe-layer.svg)
 
-*Figure 9.1. An MoE layer. The router is a small GEMM followed by a
+*Figure 10.1. An MoE layer. The router is a small GEMM followed by a
 top-k: it scores every expert for every token and keeps the k best. Each
 token's hidden state then goes through its k experts, each an ordinary
 feed-forward network (a gate-and-up GEMM, an activation, a down GEMM),
@@ -64,7 +65,7 @@ Three models appear in this chapter (an expert's width is the inner
 size of its feed-forward network):
 
 ```
-Table 9.1  Three MoE models: parameters in billions
+Table 10.1  Three MoE models: parameters in billions
   model            layers hidden experts top-k expert width  total active
   mixtral-8x7b         32   4096       8     2        14336   46.7   12.9
   gpt-oss-20b          24   2880      32     4         2880   20.9    4.2
@@ -87,7 +88,7 @@ touches.
 A step that carries T tokens makes `T · k` (token, expert) pairs. The
 pairs land on some number of distinct experts, and each touched expert
 runs its rows through its own weights. tinyperf builds this as a single
-*grouped GEMM*: chapter 3's GEMM with a batch dimension, where the batch
+*grouped GEMM*: chapter 4's GEMM with a batch dimension, where the batch
 is the experts touched and each batch entry has that expert's rows.
 
 ```
@@ -98,15 +99,15 @@ bytes  = experts touched · (expert parameters) · bytes per weight
 ```
 
 The FLOPs follow the tokens; the weight bytes follow the experts
-touched. Table 9.2 prices one layer of gpt-oss-20b's experts this way,
-with chapter 3's model at the RTX A6000's fitted rates (constants
-fitted to its measurements; chapter 4). It assumes uniform routing
+touched. Table 10.2 prices one layer of gpt-oss-20b's experts this way,
+with chapter 4's model at the RTX A6000's fitted rates (constants
+fitted to its measurements; chapter 5). It assumes uniform routing
 (every expert equally likely to be picked), which the rest of this
 chapter will correct. The bound column names what sets the time of the
-gate-up GEMM and of the down GEMM (chapter 5).
+gate-up GEMM and of the down GEMM (chapter 6).
 
 ```
-Table 9.2  One gpt-oss-20b layer's experts as a grouped GEMM, bf16, uniform routing, RTX A6000
+Table 10.2  One gpt-oss-20b layer's experts as a grouped GEMM, bf16, uniform routing, RTX A6000
   tokens  experts  rows/expert  weights MB   GFLOP       us  us/token  bound
        1        4            1         199     0.2    296.2    296.17  dram/dram
        8       21            2        1045     1.6   1525.7    190.71  dram/dram
@@ -122,7 +123,7 @@ Read it from the top. One token touches its 4 experts and reads their
 tokens touch 21 experts, five times the bytes, and the time grows with
 the experts, not the tokens. From 32 tokens every expert is touched, and
 the time stays flat: 512 tokens cost 3% more than 32. Between about
-1,300 and 1,900 tokens the math catches up with the weights (chapter 3's
+1,300 and 1,900 tokens the math catches up with the weights (chapter 4's
 tile steps make the crossover ragged), and from 2,048 tokens the cost
 per token settles at 1.8 µs, the price of the active parameters' math.
 Between one token and 2,048, the cost per token falls by a factor of
@@ -133,14 +134,14 @@ decode, which is where a server spends most of its steps, the question
 that decides the step's cost is how many experts it touches.
 
 Before counting them, check the claim that an expert's cost at decode
-is just its weights. Table 9.3 times the expert kernel of a serving
+is just its weights. Table 10.3 times the expert kernel of a serving
 engine, vLLM, which every measurement in this chapter uses. The kernel
 was timed inside real decode steps, launch by launch, and each launch
 was paired with the routing that layer chose in that step. The table's
 last line, for 4-bit weights and their kernel, is explained below.
 
 ```
-Table 9.3  The engine's expert kernel, timed inside real decode steps: gpt-oss-20b bf16, RTX A6000
+Table 10.3  The engine's expert kernel, timed inside real decode steps: gpt-oss-20b bf16, RTX A6000
   batch  experts touched  gate-up us  us per expert   GB/s  of fitted rate
       1             4.00       191.9           48.0    692            1.00
       8            12.71       600.5           47.2    702            1.02
@@ -164,7 +165,7 @@ stays there. That is the kernel, not the routing. This GPU has no tuned
 configuration for the kernel, so vLLM uses its default: row blocks of 16
 while a launch carries no more tokens than there are experts, and row
 blocks of 64 above that, which pads each touched expert's rows to 64.
-Why the larger blocks stream more slowly is not something chapter 3's
+Why the larger blocks stream more slowly is not something chapter 4's
 tile model reproduces, so the model carries the measured result: 0.70 of
 the rate for launches past the switch.
 
@@ -189,7 +190,7 @@ For one token this gives exactly k, as it must. For many tokens it
 approaches e.
 
 ```
-Table 9.4  Experts touched per layer by a decode step of B sequences
+Table 10.4  Experts touched per layer by a decode step of B sequences
      B    gpt-oss-20b (32, top-4)    Qwen3-30B-A3B (128, top-8)
              uniform    balanced        uniform      balanced
      1           4.0           4            8.0             8
@@ -260,10 +261,10 @@ last entry.
 
 Counting a real router's choices takes an instrument: hooks on the
 router modules inside the serving engine, recording each token's k
-experts in every layer of every step. Table 9.5 shows what they read.
+experts in every layer of every step. Table 10.5 shows what they read.
 
 ```
-Table 9.5  Measured against uniform: experts touched per layer by a decode step of B sequences
+Table 10.5  Measured against uniform: experts touched per layer by a decode step of B sequences
   Qwen3-30B-A3B (of 128), random-token prompts, sampled
   B                 2      4      8     16     32     64    128
   measured       12.3   22.7   33.0   43.0   58.5   77.0   93.6
@@ -280,9 +281,9 @@ Table 9.5  Measured against uniform: experts touched per layer by a decode step 
 ```
 
 ![Distinct experts touched by a gpt-oss-20b decode step against batch
-size, for five workloads and for uniform routing.](/assets/tinyperf-book/ch09-touched-experts.svg)
+size, for five workloads and for uniform routing.](/assets/tinyperf-book/ch10-touched-experts.svg)
 
-*Figure 9.2. gpt-oss-20b's router against uniform routing. Every
+*Figure 10.2. gpt-oss-20b's router against uniform routing. Every
 workload touches fewer experts than uniform routing at every batch above
 one, and the workload decides by how much.*
 
@@ -308,19 +309,19 @@ Three things stand out.
 A router's choices also change as a reply goes on:
 
 ```
-Table 9.6  Routing drifts over a reply: gpt-oss-20b, 512-token prompts, experts touched per decode step
+Table 10.6  Routing drifts over a reply: gpt-oss-20b, 512-token prompts, experts touched per decode step
   workload, B    steps 1-8   9-32  33-128  all 128
   chat, 16             5.0   12.7    18.4     16.5
   random, 8            8.2   10.3    11.2     10.9
   mixed, 8            16.2   17.6    18.7     18.3
-  random, 8, by prompt length: 512 tokens 10.9, 2048 tokens 14.5, 8192 tokens 13.4; Table 9.5 averages them: 13.1
+  random, 8, by prompt length: 512 tokens 10.9, 2048 tokens 14.5, 8192 tokens 13.4; Table 10.5 averages them: 13.1
 ```
 
 Sixteen chat replies touch 5 experts over their first 8 tokens and 18
 over tokens 33 to 128. Every reply opens the same way, then goes its
 own way. So a routing table has to be measured the way the step times
 it describes are measured: over the same decode steps. The prompt's
-length matters too, which is why Table 9.5's 13.1 for random tokens at
+length matters too, which is why Table 10.5's 13.1 for random tokens at
 batch 8 is the average of 10.9, 14.5 and 13.4 over three lengths.
 
 > **Field note: count over the steps you time.** One routing
@@ -332,20 +333,20 @@ batch 8 is the average of 10.9, 14.5 and 13.4 over three lengths.
 > blamed for the difference: fitted constants said it streamed weights
 > at 0.70 of the memory rate, then slower still "in company", inside
 > the engine's steps rather than replayed alone. Timed launch by launch
-> against the right routing (Table 9.3), it ran at the full rate all
-> along. Chapter 22 tells the whole story.
+> against the right routing (Table 10.3), it ran at the full rate all
+> along. Chapter 23 tells the whole story.
 
 ## What the step contains
 
 A serving engine doesn't decode fixed batches that start together.
-Three of its habits matter here; chapters 14–16 cover each in full.
+Three of its habits matter here; chapters 15–17 cover each in full.
 
 - Requests arrive and finish at any time, so the sequences in a step are
   at different points in their replies. Measurements read off a server
   handling a stream of requests are called *online* below.
 - A decode step runs as a *CUDA graph*: a recorded sequence of kernel
   launches that the GPU replays as one, which removes most of the launch
-  cost (chapter 4). vLLM records a graph for each of a set of batch
+  cost (chapter 5). vLLM records a graph for each of a set of batch
   sizes, such as 1, 2, 4, 8, 16, 24 and 32, and runs a step of B decodes
   in the smallest graph with at least B rows.
 - With *chunked prefill*, a new prompt is split into chunks that ride
@@ -358,7 +359,7 @@ Each of these changes how many experts a step touches.
 less alike tokens, and share fewer experts:
 
 ```
-Table 9.7  What an online step adds: experts touched per layer, read off the engine as it serves
+Table 10.7  What an online step adds: experts touched per layer, read off the engine as it serves
   decodes                             8     16     32     64
   gpt-oss-20b, a batch in step     13.1   17.4   21.3   24.4
   gpt-oss-20b, online              14.5   20.0   24.3   29.1
@@ -371,13 +372,13 @@ more on Qwen3. These counts come from the engine itself as it serves,
 read inside its CUDA graphs. vLLM can record each row's routed experts
 into a buffer that is part of the captured graph.
 
-**Reply position.** Table 9.6 showed routing spreading over a reply.
+**Reply position.** Table 10.6 showed routing spreading over a reply.
 In a server, a step's position in the replies varies with the
 workload: short replies keep every step early. Grouping online steps by
 their decodes' median position in their replies:
 
 ```
-Table 9.8  Early in their replies, sequences crowd: gpt-oss-20b online, experts touched
+Table 10.8  Early in their replies, sequences crowd: gpt-oss-20b online, experts touched
   decodes   median reply position under 64   256 or more
         4                              9.1          12.4
        12                             14.8          22.6
@@ -388,7 +389,7 @@ At 12 decodes, a step early in its replies touches 15 experts and a step
 late in them touches 23. The model reads a factor off the median
 position and applies it to the decodes beyond the first; one token
 always touches its k. The factor is 1 near position 128, where the online
-table (Table 9.7's online counts) was measured, 0.47 at position 10 and
+table (Table 10.7's online counts) was measured, 0.47 at position 10 and
 1.52 at about 400. So far only gpt-oss-20b has one.
 
 ```python
@@ -397,7 +398,7 @@ def effective_decodes(n, reply_pos, by_position):
 ```
 
 The graph builder (`build_llm_graph`, which turns the model into a list
-of operators; chapter 6) then scales the step's count by the table's
+of operators; chapter 7) then scales the step's count by the table's
 ratio between the effective and the real decodes.
 
 **Padding.** A decode step with 9 sequences runs the CUDA graph captured
@@ -407,12 +408,12 @@ The router routes them like any other token.
 
 ![A decode step of 9 sequences in a 16-row CUDA graph: the 7 stale rows
 route to experts of their own, so the step touches more experts than a
-full step of 16.](/assets/tinyperf-book/ch09-padded-step.svg)
+full step of 16.](/assets/tinyperf-book/ch10-padded-step.svg)
 
-*Figure 9.3. A padded step reads more expert weights than a full one.*
+*Figure 10.3. A padded step reads more expert weights than a full one.*
 
 ```
-Table 9.9  Padded rows route too: Qwen3-30B-A3B, CUDA-graph decode steps
+Table 10.9  Padded rows route too: Qwen3-30B-A3B, CUDA-graph decode steps
   padded rows                           1    2    3    4    5    6    7
   experts they touch on their own       8   14   19   22   27   30   33
   decodes in the step                     8      9     12     15     16
@@ -437,7 +438,7 @@ included.
 tokens, but they come from one text:
 
 ```
-Table 9.10  A prompt chunk routes to a concentrated set: steps carrying a prefill chunk
+Table 10.10  A prompt chunk routes to a concentrated set: steps carrying a prefill chunk
   Qwen3-30B-A3B, tokens in the step      110   199   362   643   896  1259  1887
   experts touched (of 128)                89    96   101   102   100   102   111
   gpt-oss-20b, tokens in the step        350   681   891  1327  2048
@@ -459,7 +460,7 @@ more decodes 27–28.
 So the model counts experts from tables keyed by what the step
 contains: decodes, tokens for chunk-carrying steps, a padded table by
 real decodes, and a reply-position factor. In the builder, without
-expert parallelism (whole experts spread over several GPUs; chapter 12
+expert parallelism (whole experts spread over several GPUs; chapter 13
 covers that branch), with comments and a bookkeeping line trimmed:
 
 ```python
@@ -484,7 +485,7 @@ effective decodes from the reply position. `active_local` becomes the
 grouped GEMM's batch, and `m_e` its rows per expert. `moe_imbalance`
 scales the rows for a hot expert, one busier than the mean. It matters
 when the expert math binds, in prefill and under expert parallelism
-(chapter 12), and not in weight-bound decode.
+(chapter 13), and not in weight-bound decode.
 
 ## Rows per expert, and the kernel
 
@@ -492,32 +493,32 @@ The count decides the bytes. The rows per expert, `T · k / touched`,
 decide how the kernel runs, and the model carries two facts about that,
 both measured on the engine.
 
-The first is Table 9.3's block-size switch.
+The first is Table 10.3's block-size switch.
 
 The second is about prefill. A lone prompt sends nearly all its tokens
-to one expert (Table 9.10), so its rows per expert are far from even.
+to one expert (Table 10.10), so its rows per expert are far from even.
 The MXFP4 kernel picks its row-block size from the mean rows per expert
 across all 32 experts, a spread that no expert actually has, and runs
-up to 21% slower for it. Chapter 4's calibrated tier, the model's
+up to 21% slower for it. Chapter 5's calibrated tier, the model's
 constants fitted to one GPU and software stack, stores that kernel's
 measured rate by tokens per launch, timed on the engine's own routing.
 The untuned bf16 kernel's prefill is a fitted constant, 0.44 of dense
-efficiency, which belongs to one engine version on one GPU. Chapter 22
+efficiency, which belongs to one engine version on one GPU. Chapter 23
 is about what constants like it can hide.
 
 ## How close is it?
 
 **Decode steps, fixed batches.** Qwen3-30B-A3B served across two RTX
 A6000s with tensor parallelism (tp=2: each GPU holds half of every
-weight matrix; chapter 11), each batch decoding side by side and timed
+weight matrix; chapter 12), each batch decoding side by side and timed
 step by step inside the engine (timed by CUDA events around each step;
-chapter 15).
+chapter 16).
 Nothing in the model was fitted to these timings: the routing table came
 from a separate, routing-only measurement, and the kernel constants from
 gpt-oss-20b.
 
 ```
-Table 9.11  Qwen3-30B-A3B decode steps on the engine's clock, tp=2 on two RTX A6000s
+Table 10.11  Qwen3-30B-A3B decode steps on the engine's clock, tp=2 on two RTX A6000s
   batch  measured ms  model/measured  with uniform routing
       1         9.27           1.026                 1.026
       8        19.04           1.073                 1.407
@@ -535,7 +536,7 @@ experts the router never picked.
 with its time per output token (TPOT) measured at batches of 8 to 64:
 
 ```
-Table 9.12  gpt-oss-20b on real text, one RTX A6000: decode step (TPOT) model/measured, batch 8-64
+Table 10.12  gpt-oss-20b on real text, one RTX A6000: decode step (TPOT) model/measured, batch 8-64
   run                   workload table  random-token table       uniform
   bf16, mixed text           1.00-1.04           0.77-0.86     1.08-1.16
   bf16, chat replies         0.96-1.01           0.97-1.09     1.38-1.51
@@ -563,12 +564,12 @@ Recorded  Qwen3-30B-A3B online decode steps, model/engine median, as recorded at
 
 - **Synthetic prompts.** Every table read off a server under load came
   from benchmark prompts of random tokens. Real text was measured only
-  in fixed batches (Table 9.12). A real server's mix of subjects has to
+  in fixed batches (Table 10.12). A real server's mix of subjects has to
   be measured before its tables can be trusted.
 - **New models and workloads.** Without a measurement the model falls
   back to uniform routing. That is an upper bound on weight traffic:
   safe for capacity planning, pessimistic for decode latency by as much
-  as Table 9.12's last column.
+  as Table 10.12's last column.
 - **Layers.** The tables average all layers. Some layers may route more
   concentrated than others.
 - **Composition.** The tables are keyed by tokens, decodes, padding and
@@ -580,12 +581,12 @@ Recorded  Qwen3-30B-A3B online decode steps, model/engine median, as recorded at
   one engine version on one GPU with untuned kernel configurations.
 - **Expert parallelism.** When experts are spread across GPUs, the count
   per GPU, the busiest GPU's rows and how tokens travel all matter.
-  Chapter 12 covers them.
+  Chapter 13 covers them.
 
 ## What you built
 
 - An MoE layer as one grouped GEMM: FLOPs from the tokens and top-k,
-  bytes from the experts touched, and chapter 3's model to price it.
+  bytes from the experts touched, and chapter 4's model to price it.
 - Two regimes: weight streaming, proportional to the experts touched, up
   to about a thousand tokens per step on this GPU; math, proportional to
   the active parameters, beyond.
@@ -600,13 +601,13 @@ Recorded  Qwen3-30B-A3B online decode steps, model/engine median, as recorded at
 
 1. Measure a routing table for your own workload with
    `tools/measure_moe_routing.py`, using prompts from your logs. Where
-   does it fall in Table 9.5?
+   does it fall in Table 10.5?
 2. Some models add *shared* experts that every token uses, beside the
    routed ones. Extend `law_touched` and the grouped GEMM for them. At
    what batch do they stop mattering for decode?
 3. If the engine zeroed its padded rows instead of leaving stale tokens,
    every padded row would be the same token and would touch k experts at
-   most. Using Table 9.9, how much faster would a step of 9 decodes be?
+   most. Using Table 10.9, how much faster would a step of 9 decodes be?
 4. Price a step's experts as the union of two independent sets: its
    decodes' (from the decode table) and its chunk's (from the chunk
    table). Does that explain why a prompt's tail beside few decodes
@@ -614,4 +615,4 @@ Recorded  Qwen3-30B-A3B online decode steps, model/engine median, as recorded at
 
 ---
 
-*[← Chapter 8: Attention variants]({% post_url 2026-09-29-tinyperf-08-attention-variants %}) · [Contents](/series/tinyperf/) · [Chapter 10: Precision and sparsity as passes →]({% post_url 2026-09-29-tinyperf-10-precision-and-sparsity %})*
+*[← Chapter 9: Attention variants]({% post_url 2026-09-29-tinyperf-09-attention-variants %}) · [Contents](/series/tinyperf/) · [Chapter 11: Precision and sparsity as passes →]({% post_url 2026-09-29-tinyperf-11-precision-and-sparsity %})*

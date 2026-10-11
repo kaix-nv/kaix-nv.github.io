@@ -4,7 +4,7 @@
   <desc id="description">
     A table of three tiers. Speed of light prices each operation with a roofline on
     datasheet rates, with ideal traffic and no launch cost; it is a bound. Projected
-    runs the full kernel model of chapter 3, with tiles, waves, L2 reuse, pipeline fill
+    runs the full kernel model of chapter 4, with tiles, waves, L2 reuse, pipeline fill
     and a 3 microsecond launch, on datasheet rates; it predicts a GPU nobody has
     measured. Calibrated runs the same model on constants fitted to measured kernels,
     for example on the RTX A6000 math times 0.75, DRAM times 0.90, L2 at 4000 GB/s and
@@ -55,7 +55,7 @@
   <text x="44" y="276" class="tier" fill="#7c2d12">Projected</text>
   <text x="44" y="300" class="code" fill="#9a3412">PROJ</text>
   <g class="body">
-    <text x="215" y="268">Chapter 3's kernel model: tiles, waves,</text>
+    <text x="215" y="268">Chapter 4's kernel model: tiles, waves,</text>
     <text x="215" y="290">L2 reuse, pipeline fill, launch cost</text>
     <text x="535" y="268">Datasheet rates,</text>
     <text x="535" y="290">3 µs per kernel launch</text>

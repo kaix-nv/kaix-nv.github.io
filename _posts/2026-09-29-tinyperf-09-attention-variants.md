@@ -1,10 +1,10 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 8: Attention variants"
-date: 2026-09-29 12:08:00 -0700
+title: "Building tinyperf, chapter 9: Attention variants"
+date: 2026-09-29 12:09:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/08-attention-variants/
-excerpt: "Chapter 6 found two costs that grow with every token a sequence holds: the KV cache, which takes memory, and its read in every decode step, which takes time. At long contexts they decide the step and how many sequences fit, so most recent models bound attention somehow. What does each design change in the price, and where does the cost go?"
+permalink: /tinyperf/book/09-attention-variants/
+excerpt: "Chapter 7 found two costs that grow with every token a sequence holds: the KV cache, which takes memory, and its read in every decode step, which takes time. At long contexts they decide the step and how many sequences fit, so most recent models bound attention somehow. What does each design change in the price, and where does the cost go?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/29/building-tinyperf-m24.html
   - /tinyperf/perf-modeling/2026/08/31/building-tinyperf-m38.html
@@ -12,11 +12,12 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/08/31/building-tinyperf-m41.html
   - /tinyperf/perf-modeling/2026/09/09/building-tinyperf-m58.html
   - /tinyperf/perf-modeling/2026/09/10/building-tinyperf-m59.html
+  - /tinyperf/book/08-attention-variants/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_linear_attention` · Every table and the plots in this chapter come from `python3 book/scripts/ch08_variants.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_linear_attention` · Every table and the plots in this chapter come from `python3 book/scripts/ch09_variants.py`.*
 
-Chapter 6 found two costs that grow with every token a sequence holds:
+Chapter 7 found two costs that grow with every token a sequence holds:
 the KV cache, which takes memory, and its read in every decode step,
 which takes time. At long contexts they decide the step and how many
 sequences fit, so most recent models bound attention somehow. What
@@ -42,7 +43,7 @@ By the end of this chapter you will know:
 
 - what one layer of each design stores, and the formula for it;
 - how the builder prices each design, and how capacity (the most
-  sequences that fit in memory; chapter 6) counts it;
+  sequences that fit in memory; chapter 7) counts it;
 - where each design moves the cost;
 - how close the model gets where there are measurements, and what can
   only be checked on paper.
@@ -50,9 +51,9 @@ By the end of this chapter you will know:
 ## Six ways to keep the past
 
 ![Six rows of token cells, one per design, showing what each layer
-stores and what a query reads.](/assets/tinyperf-book/ch08-designs.svg)
+stores and what a query reads.](/assets/tinyperf-book/ch09-designs.svg)
 
-*Figure 8.1. What one layer stores for one sequence under each design,
+*Figure 9.1. What one layer stores for one sequence under each design,
 and what a query reads. Only the window and linear attention store an
 amount that stops growing with the context.*
 
@@ -69,11 +70,11 @@ compressed         (latent + rope) · bytes · (min(c, W) + c / r),  plus an ind
 
 DeepSeek-V4's compressed layers use r = 4 (compressed sparse, CSA) or
 128 (heavily compressed, HCA). Sparse attention changes what is read,
-not what is stored. Table 8.1 puts four released models' configs into
+not what is stored. Table 9.1 puts four released models' configs into
 these formulas.
 
 ```
-Table 8.1  What one layer keeps for one sequence, by design: 16-bit cache, fp32 state
+Table 9.1  What one layer keeps for one sequence, by design: 16-bit cache, fp32 state
   design            model               bytes/token  MB at 8k     128k        1M
   full attention    gpt-oss-20b               2,048     16.78   268.44  2,147.48
   window of 128     gpt-oss-20b                   0      0.26     0.26      0.26
@@ -86,16 +87,16 @@ Table 8.1  What one layer keeps for one sequence, by design: 16-bit cache, fp32 
 ```
 
 ![Megabytes per layer per sequence against context, log-log: five
-rising lines, two flat.](/assets/tinyperf-book/ch08-layer-cache.svg)
+rising lines, two flat.](/assets/tinyperf-book/ch09-layer-cache.svg)
 
-*Figure 8.2. The same designs from 1k to 1M tokens. The rising lines
+*Figure 9.2. The same designs from 1k to 1M tokens. The rising lines
 are parallel wherever c/r outweighs the window: a latent is the same
 fraction of per-head K and V at every context. The flat lines cross
 them: the 3.2 MB linear-attention state outweighs a latent layer's
 cache up to about 2,800 tokens.*
 
 One function answers "how many bytes does one sequence's cache hold?"
-for every design, and chapter 6's `max_batch` calls it (docstring and
+for every design, and chapter 7's `max_batch` calls it (docstring and
 comments trimmed):
 
 ```python
@@ -121,9 +122,9 @@ position part every head shares (both explained under latent caches);
 `dsa_index_dim` is the width of a sparse layer's index key.
 `_compressed_kv_tokens` counts entries by the compressed formula;
 `mtp_layers` is a token-prediction head with its own cache (chapter
-19). The linear state is a separate property, `lin_state_bytes`, and
+20). The linear state is a separate property, `lin_state_bytes`, and
 `max_batch` charges every request both. The script checks that Table
-8.1's formulas add up to `kv_local_bytes` for each model.
+9.1's formulas add up to `kv_local_bytes` for each model.
 
 ## Sliding windows
 
@@ -145,13 +146,13 @@ own attention with the length capped:
 
 (The softmax and second matmul follow.) In prefill `kv` is the causal
 mean, `(s + 1) / 2`, so a long prompt's windowed queries read W keys
-each. Table 8.2 prices gpt-oss-20b, 12 full and 12 windowed layers,
+each. Table 9.2 prices gpt-oss-20b, 12 full and 12 windowed layers,
 against a twin whose layers are all full, on a B200 at the rates fitted
-to it (chapter 4), kernels issued from a CUDA graph (launches recorded
+to it (chapter 5), kernels issued from a CUDA graph (launches recorded
 once and replayed together).
 
 ```
-Table 8.2  gpt-oss-20b against its full-attention twin, one B200 at its fitted rates
+Table 9.2  gpt-oss-20b against its full-attention twin, one B200 at its fitted rates
              KV MB/sequence    decode step ms       prefill ms        max batch   
    context   window     twin   window     twin    window      twin  window    twin
       2048     53.5    100.7     7.09     7.33      12.2      12.5    2229    1188
@@ -221,13 +222,13 @@ LIN_MATH_EFFICIENCY = 0.55   # more elementwise/gating than a dense GEMM
 The builder emits one such op per linear layer (`tokens_per_seq=s`,
 `fresh_state=(phase == "prefill")`), between a fused QKV projection with
 a short convolution and a gated output projection. A calibration (a
-GPU's file of fitted constants; chapter 4) can supply the efficiency and
+GPU's file of fitted constants; chapter 5) can supply the efficiency and
 a per-layer floor, which applies only when the chunked kernel runs.
-Table 8.3 prices the hybrid against a twin in which each linear layer is
+Table 9.3 prices the hybrid against a twin in which each linear layer is
 replaced by the model's own full layer.
 
 ```
-Table 8.3  Qwen3.8-27B (48 linear + 16 full layers) against an all-full-attention twin, one B200
+Table 9.3  Qwen3.8-27B (48 linear + 16 full layers) against an all-full-attention twin, one B200
             KV + state MB/seq    decode step ms    max batch  
    context    hybrid      twin   hybrid     twin  hybrid  twin
       2048       297       545    13.17    13.17     364   200
@@ -247,14 +248,14 @@ and gating give the 0.51 ms back. The gain comes with length: at
 where 3 do. The full layers keep the growth, 9.1 GB of cache per
 sequence at that length.
 
-Prefill is where the constants matter. Table 8.4 prices one layer's
+Prefill is where the constants matter. Table 9.4 prices one layer's
 attention in a prefill with the linear core two ways: at the asserted
 efficiency, the 0.55 in the code, set by hand and never measured; and at
 the constants fitted to vLLM's TTFT (time to first token) on a B200
 (below).
 
 ```
-Table 8.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200, us per layer
+Table 9.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200, us per layer
    tokens  linear, asserted    linear, fitted  full attention
       512               6.6             553.5             6.5
      2048              14.5             553.5            51.2
@@ -267,9 +268,9 @@ Table 8.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200,
 ```
 
 ![Per-layer prefill time against prompt length for full attention and
-the linear core at two sets of constants.](/assets/tinyperf-book/ch08-linear-prefill.svg)
+the linear core at two sets of constants.](/assets/tinyperf-book/ch09-linear-prefill.svg)
 
-*Figure 8.3. The scaling is as designed: the linear core grows with
+*Figure 9.3. The scaling is as designed: the linear core grows with
 the prompt, full attention with its square. The level is not: with the
 fitted constants the linear core costs more than full attention below
 about 23,000 tokens, and the whole hybrid prefill costs more than its
@@ -338,17 +339,17 @@ The absorbed decode path in the builder (comments trimmed):
 ```
 
 Attention batches over sequences with every head stacked as rows,
-chapter 6's grouped-query attention (GQA) trick with one group, so the
+chapter 7's grouped-query attention (GQA) trick with one group, so the
 shared latent is read once per sequence. The prefill branch emits
 `mla_k_up` and `mla_v_up` GEMMs and per-head attention instead.
-Table 8.5's twin has 96 KV heads at a head dim of 160 for both K and V,
+Table 9.5's twin has 96 KV heads at a head dim of 160 for both K and V,
 the mean of K's 192 and V's 128, so its bytes and FLOPs match per-head
 K and V. The last columns split the layer over eight GPUs by tensor
 parallelism (tp=8: each GPU holds an eighth of every weight matrix and
-of the heads; chapter 11).
+of the heads; chapter 12).
 
 ```
-Table 8.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequences, B200
+Table 9.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequences, B200
              cache MB/seq    attention us, one GPU   absorb   tp=8, per GPU  
    context  latent per-head     latent     per-head      us   latent per-head
       8192     9.4      503         94         2520     143       93      318
@@ -367,7 +368,7 @@ Table 8.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequenc
   11 µs of batch 1 (not measured), not the table's 143.
 - **Tensor parallelism** splits per-head K and V eight ways but not the
   latent, which every head needs. Each GPU keeps and reads all of it, so
-  per GPU the attention gain falls from 28 to 3.5 times. Chapter 12's
+  per GPU the attention gain falls from 28 to 3.5 times. Chapter 13's
   data-parallel attention, which gives each GPU whole sequences
   instead, avoids that.
 
@@ -410,11 +411,11 @@ Three decisions are in them.
   key's score summed over all of them: a tensor the size of the scores
   would have to cross the GPUs. So every GPU runs the whole indexer.
 
-The twin in Table 8.6 is the same layer without its indexer, reading
+The twin in Table 9.6 is the same layer without its indexer, reading
 every token.
 
 ```
-Table 8.6  One GLM-5.3-Flash sparse-attention layer in decode: 8 sequences, one B200, us per layer
+Table 9.6  One GLM-5.3-Flash sparse-attention layer in decode: 8 sequences, one B200, us per layer
    context  full-context twin  top-2048 attention   indexer    total  indexer share
       2048                8.9                 8.9       0.0      8.9            0%
       4096               14.1                 8.9      17.1     26.1           66%
@@ -429,9 +430,9 @@ Table 8.6  One GLM-5.3-Flash sparse-attention layer in decode: 8 sequences, one 
 ```
 
 ![Per-layer decode time against context for full-context attention, a
-sparse layer, and its attention and indexer apart.](/assets/tinyperf-book/ch08-sparse-decode.svg)
+sparse layer, and its attention and indexer apart.](/assets/tinyperf-book/ch09-sparse-decode.svg)
 
-*Figure 8.4. The cap and what pays for it. Attention stops at 2,048
+*Figure 9.4. The cap and what pays for it. Attention stops at 2,048
 keys, and the indexer grows with the context in its place, more slowly
 than full attention did.*
 
@@ -452,14 +453,14 @@ window-only layers, with multi-query attention on a 512-value latent
 plus 64 of rope. The builder gives each layer class one attention op
 over the window plus its pooled entries, `min(k, c/r)` of them for CSA
 and `c/r` for HCA, after a projection and a pooling pass for the
-compressor. Table 8.7's twin attends to its whole context through the
+compressor. Table 9.7's twin attends to its whole context through the
 latent in every layer: no pooling, no indexer. The model needs eight
 GPUs (tp=8, and ep=8: its mixture-of-experts layers spread their experts
-over the eight GPUs; chapter 12); the tp=1 column prices its prefill as
+over the eight GPUs; chapter 13); the tp=1 column prices its prefill as
 if on one.
 
 ```
-Table 8.7  DeepSeek-V4-Flash against its uncompressed twin, 8 B200s (tp=8, ep=8)
+Table 9.7  DeepSeek-V4-Flash against its uncompressed twin, 8 B200s (tp=8, ep=8)
              cache GB/sequence     decode ms      prefill s    max batch   indexer share
    context     V4   twin  ratio     V4    twin     V4    twin    V4  twin    tp=1   tp=8
      32768   0.25   1.66  0.152   8.83   11.75   0.30    0.59   360    54      9%    24%
@@ -486,7 +487,7 @@ to every patch of its image, so `build_vit_graph`'s score GEMM is
 square (`m = n = patches`), with no causal halving.
 
 ```
-Table 8.8  One image through the Qwen3.8 vision tower, B200 at its fitted rates
+Table 9.8  One image through the Qwen3.8 vision tower, B200 at its fitted rates
   pixels  patches  tokens for the LLM  encode ms  attention share  LLM prefill of those tokens ms
      512     1024                 256       1.80              12%                             8.0
     1024     4096                1024       5.49              37%                            34.2
@@ -501,18 +502,18 @@ of this has been measured.
 
 ## How close is it?
 
-**Windows, timed.** Table 8.9 times gpt-oss-20b's two kinds of attention
+**Windows, timed.** Table 9.9 times gpt-oss-20b's two kinds of attention
 layer alone in vLLM's Triton kernel on an RTX A6000, inside CUDA graphs.
-The decode prices use chapter 7's decode kernel price (a fixed cost per
+The decode prices use chapter 8's decode kernel price (a fixed cost per
 call plus the cache at a fitted rate), fitted on another kernel and
-another model's heads, so the decode cells are held out; chapter 7's
-Table 7.6 prices the full layers (0.90–1.16). Ratios are predicted ÷
+another model's heads, so the decode cells are held out; chapter 8's
+Table 8.6 prices the full layers (0.90–1.16). Ratios are predicted ÷
 measured: above 1 the model reads high. A set of ratios is summarized by
 its range or its typical error, the geometric mean distance from 1
-(chapter 3).
+(chapter 4).
 
 ```
-Table 8.9  gpt-oss-20b's two kinds of attention layer, timed alone in vLLM's Triton kernel, RTX A6000
+Table 9.9  gpt-oss-20b's two kinds of attention layer, timed alone in vLLM's Triton kernel, RTX A6000
   decode, one layer, us      context     512    2048    6144
     full layer, 8 seqs    measured      22.1    60.6   163.0
     full layer, 64 seqs   measured     102.1   387.6  1150.2
@@ -530,19 +531,19 @@ The mechanism holds. A windowed layer's decode time is flat from 2,048
 tokens (a little lower below, not profiled) while a full layer's grows.
 In prefill, full layers grow 3.9 times per doubling and windowed ones
 2.1, against the model's 4.0 and 2.0 (the levels are in-sample: this
-kernel's prefill rate was fitted to these timings, chapter 7). The
+kernel's prefill rate was fitted to these timings, chapter 8). The
 model misses the windowed layer's level, 0.56–1.41: low at 8
 sequences, high at 64, consistent with the kernel's switch between
-splitting each context and not (chapter 7; not profiled). It is a small
+splitting each context and not (chapter 8; not profiled). It is a small
 term: at 6,144 tokens a windowed layer costs 12% of a full one at 8
 sequences and 3% at 64.
 
 **The hybrid, served.** Qwen3.8-27B in bf16 on one B200 under vLLM, five
 cells, each timed in forward and reverse cell order (the table uses the
-midpoint). TTFT and TPOT (time per output token) are as in chapter 6.
+midpoint). TTFT and TPOT (time per output token) are as in chapter 7.
 
 ```
-Table 8.10  Qwen3.8-27B served by vLLM on one B200: model/measured, calibrated model
+Table 9.10  Qwen3.8-27B served by vLLM on one B200: model/measured, calibrated model
   batch prompt             TTFT ms model/meas  without the three constants   TPOT ms model/meas
       1    512  fitted        56.7      0.988                        0.419     11.41      0.954
       1   2048  fitted       106.0      1.012                        0.711     11.38      0.958
@@ -597,7 +598,7 @@ as `kv_local_bytes` charges.
 - **The latent is read twice.** Fused attention charges keys and values
   as separate reads, but in a latent layer the values are the first 512
   of the 576 key values. A kernel that loads each latent once reads
-  about half what Table 8.5 charges (not measured here).
+  about half what Table 9.5 charges (not measured here).
 - **Absorption per sequence.** `mla_q_absorb` and `mla_v_absorb` batch
   over sequence × head, so each head's matrix is read once per
   sequence: 143 µs a layer at 32 sequences, where the weights alone
@@ -613,11 +614,11 @@ as `kv_local_bytes` charges.
   Qwen's constants on the B200 and 0.55 elsewhere. TPOT reads 0.878 at
   32 sequences, a gap not yet explained.
 - **Windows** that also keep the first few tokens (sinks) pay for them
-  unpriced; gpt-oss's sinks are a logit (chapter 7) and cost nothing.
+  unpriced; gpt-oss's sinks are a logit (chapter 8) and cost nothing.
 - **Compressed attention:** the pooling and V4's residual stream, four
   copies wide (hyper-connections), are priced as passes over memory,
   and context parallelism (splitting a sequence's tokens over GPUs;
-  chapter 12) is refused rather than approximated.
+  chapter 13) is refused rather than approximated.
 
 ## What you built
 
@@ -639,9 +640,9 @@ as `kv_local_bytes` charges.
    from 1:1 to 5:1 windowed layers. At what context does each setting
    halve the decode step against the twin?
 2. Batch the absorption GEMMs over heads, with every sequence's token
-   as a row. How does Table 8.5's absorb column change?
+   as a row. How does Table 9.5's absorb column change?
 3. Price latent attention reading the cache once. What does Table
-   8.5's ratio become, and is latent decode attention at 96 heads still
+   9.5's ratio become, and is latent decode attention at 96 heads still
    memory-bound?
 4. Add the index keys to `kv_local_bytes` for latent models, and
    recompute GLM-5.3-Flash's largest batch at 128k tokens.
@@ -651,4 +652,4 @@ as `kv_local_bytes` charges.
 
 ---
 
-*[← Chapter 7: Attention]({% post_url 2026-09-29-tinyperf-07-attention %}) · [Contents](/series/tinyperf/) · [Chapter 9: Mixture of experts →]({% post_url 2026-09-29-tinyperf-09-mixture-of-experts %})*
+*[← Chapter 8: Attention]({% post_url 2026-09-29-tinyperf-08-attention %}) · [Contents](/series/tinyperf/) · [Chapter 10: Mixture of experts →]({% post_url 2026-09-29-tinyperf-10-mixture-of-experts %})*

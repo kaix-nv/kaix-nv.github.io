@@ -1,20 +1,21 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 17: Memory under load"
-date: 2026-09-29 12:17:00 -0700
+title: "Building tinyperf, chapter 18: Memory under load"
+date: 2026-09-29 12:18:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/17-memory-under-load/
-excerpt: "Chapter 6 counted the requests that fit on a GPU with a rule of thumb: 90% of the memory, less the weights, divided by one request's cache. A serving engine measures instead, at start-up, and allocates one fixed pool of KV-cache blocks. How big is that pool, really? And when the requests in flight need more cache than it holds, what happens to their latency?"
+permalink: /tinyperf/book/18-memory-under-load/
+excerpt: "Chapter 7 counted the requests that fit on a GPU with a rule of thumb: 90% of the memory, less the weights, divided by one request's cache. A serving engine measures instead, at start-up, and allocates one fixed pool of KV-cache blocks. How big is that pool, really? And when the requests in flight need more cache than it holds, what happens to their latency?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m51.html
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m53.html
   - /tinyperf/perf-modeling/2026/09/25/building-tinyperf-m72.html
   - /tinyperf/perf-modeling/2026/09/25/building-tinyperf-m74.html
+  - /tinyperf/book/17-memory-under-load/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` · Every table, and Figures 17.1 and 17.3, come from `python3 book/scripts/ch17_memory.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` · Every table, and Figures 18.1 and 18.3, come from `python3 book/scripts/ch18_memory.py`.*
 
-Chapter 6 counted the requests that fit on a GPU with a rule of thumb:
+Chapter 7 counted the requests that fit on a GPU with a rule of thumb:
 90% of the memory, less the weights, divided by one request's cache. A
 serving engine measures instead, at start-up, and allocates one fixed
 pool of KV-cache blocks. How big is that pool, really? And when the
@@ -63,14 +64,14 @@ vLLM 0.15.1 sizes its cache in five steps when it starts:
 
 ![Two stacked bars of 47.40 GiB each: weights, profiling peak, memory
 outside PyTorch, the KV pool, and the part not requested; the MoE bar
-adds a workspace.](/assets/tinyperf-book/ch17-pool-stack.svg)
+adds a workspace.](/assets/tinyperf-book/ch18-pool-stack.svg)
 
-*Figure 17.1. Where the memory goes when vLLM starts, for a dense model
+*Figure 18.1. Where the memory goes when vLLM starts, for a dense model
 on one GPU and an MoE model on each of two. The dashed line is what the
 engine requests; the KV pool is what is left of it.*
 
 As a formula, with `max_num_batched_tokens` the token budget (the most
-tokens one step may carry, chapter 14) and `max_num_seqs` the most
+tokens one step may carry, chapter 15) and `max_num_seqs` the most
 sequences that may run at once:
 
 ```
@@ -81,12 +82,12 @@ tokens    = the whole 16-token blocks that fit in the pool
 ```
 
 With `VLLM_LOGGING_LEVEL=DEBUG` vLLM logs every term;
-`tools/measure_kv_pool.py` starts a server and reads them. Table 17.1
+`tools/measure_kv_pool.py` starts a server and reads them. Table 18.1
 sets the model beside the log. A ratio is the model's value over the
 measured one: above 1 the model reads high, below 1 low.
 
 ```
-Table 17.1  vLLM's KV pool term by term: Qwen3-8B on one RTX A6000, vLLM's defaults (GiB)
+Table 18.1  vLLM's KV pool term by term: Qwen3-8B on one RTX A6000, vLLM's defaults (GiB)
   gpu_memory_utilization 0.9, max_num_batched_tokens 2048, max_num_seqs 256
   term                                                          model vLLM logged
   memory CUDA reports                                           47.40       47.40
@@ -100,21 +101,21 @@ Table 17.1  vLLM's KV pool term by term: Qwen3-8B on one RTX A6000, vLLM's defau
   KV pool in tokens                                           189,072     188,944   model/logged 1.0007
   KV bytes per token 147,456; one 16-token block 2.25 MiB; the sampler's peak holds 10,182 tokens of cache
   CUDA reports 0.9875 of the nameplate 48 GiB; 48 x 10^9 bytes is 44.70 GiB
-  chapter 6's rule, 90% of 48 x 10^9 bytes less the weights: 181,879 tokens (0.963)
+  chapter 7's rule, 90% of 48 x 10^9 bytes less the weights: 181,879 tokens (0.963)
 ```
 
 Term by term:
 
 - **The memory CUDA reports.** The RTX A6000 is sold as a 48 GB card;
   CUDA reports 47.40 GiB, about 48 GiB less the driver's share. Chapter
-  6's rule read 48 × 10⁹ bytes, 44.70 GiB. tinyperf, the model this
+  7's rule read 48 × 10⁹ bytes, 44.70 GiB. tinyperf, the model this
   book builds, reads the nameplate as GiB, scaled by the fraction
   measured on this card.
 - **The weights,** per GPU. Under tensor parallelism (tp=2: each GPU
-  holds half of every weight matrix; chapter 11) the embedding and LM
+  holds half of every weight matrix; chapter 12) the embedding and LM
   head are split by vocabulary too, 1/tp per GPU; a tied head (one that
   reuses the embedding matrix) is stored once; a weight-only format such
-  as MXFP4 (4-bit weights sharing a scale per 32; chapter 10) counts at
+  as MXFP4 (4-bit weights sharing a scale per 32; chapter 11) counts at
   its packed width.
 - **The profiling peak,** the larger of two passes. The sampler computes
   fp32 logits over the whole vocabulary for every row and sorts each row
@@ -122,7 +123,7 @@ Term by term:
   512 rows. The forward is charged the MLP's live activations, 3 × (FFN
   width + hidden) values per token, the width being the GPU's share of
   the FFN (top-k experts' for an MoE): a form, not a fitted constant,
-  checked on Table 17.2's forward-bound rows (in-sample: seen when the
+  checked on Table 18.2's forward-bound rows (in-sample: seen when the
   form was chosen).
 - **Memory outside PyTorch:** 0.04 GiB on one GPU, 0.03 at tp=2, fitted.
 
@@ -169,7 +170,7 @@ scratch buffers stay one chunk long; past one chunk, its output takes a
 the two settings:
 
 ```
-Table 17.2  The profiling peak, the larger of two passes: Qwen3-8B, one RTX A6000, util 0.9 (GiB, in-sample)
+Table 18.2  The profiling peak, the larger of two passes: Qwen3-8B, one RTX A6000, util 0.9 (GiB, in-sample)
    seqs  tokens  sampler  forward  model peak  logged peak  pool model/logged
      32    4096     0.17     0.38        0.38         0.38             1.0006
      64    2048     0.35     0.19        0.35         0.48             1.0052
@@ -207,7 +208,7 @@ table's last three rows). Each configuration was started at least twice,
 and the comparison uses the last start.
 
 ```
-Table 17.3  The pool on held-out configurations: vLLM 0.15.1 on RTX A6000s, predictions committed before any start
+Table 18.3  The pool on held-out configurations: vLLM 0.15.1 on RTX A6000s, predictions committed before any start
   model           util tokens seqs tp     model    logged  ratio no workspace  peak GiB model/logged
   Qwen3-0.6B       0.9   2048  256  1   375,520   375,552 0.9999            -           1.40 / 1.39
   Qwen3-0.6B       0.5   8192   64  1   207,840   206,576 1.0061            -           0.35 / 0.48
@@ -222,7 +223,7 @@ Table 17.3  The pool on held-out configurations: vLLM 0.15.1 on RTX A6000s, pred
   Qwen3-30B-A3B    0.9  16384  128  2   272,960   271,072 1.0070       1.0876           1.70 / 1.76
   Qwen3-30B-A3B    0.9   4096  512  2   243,536   243,312 1.0009       1.0233           3.05 / 3.03
   Qwen3-30B-A3B    0.8  32768  256  2   151,408   148,368 1.0205       1.1861           2.52 / 2.64
-  dense, 8 held out: 0.9999-1.0097; chapter 6's rule 0.87-1.77
+  dense, 8 held out: 0.9999-1.0097; chapter 7's rule 0.87-1.77
   MoE, the first 2: as committed, without the workspace term, 1.0203, 1.0552; with it (in-sample) 1.0111, 1.0047
   MoE, the next 3 (committed with the term, held out): 1.0070, 1.0009, 1.0205; without it 1.0876, 1.0233, 1.1861
   weights, all 13: model/logged 0.991-1.000
@@ -232,7 +233,7 @@ Table 17.3  The pool on held-out configurations: vLLM 0.15.1 on RTX A6000s, pred
 
 All eight dense configurations land within 1%, from 0.6 to 14 billion
 parameters, utilization 0.5 to 0.95, tp 1 and 2; the worst is the
-64-sequence floor, the unpriced peak at 64 sequences. Chapter 6's rule,
+64-sequence floor, the unpriced peak at 64 sequences. Chapter 7's rule,
 which knows neither the utilization nor the profiling pass, reads
 0.87–1.77.
 
@@ -244,7 +245,7 @@ layer takes two scratch buffers, `tokens × top_k × max(n/2, hidden)` and
 gate-and-up width), from a workspace manager that keeps one buffer,
 grows it to the largest request and never frees it. Still held when the
 sampler runs, it adds to the peak: for Qwen3-30B-A3B at tp=2, 0.125 GiB
-at a 2,048-token budget and 0.5 at 8,192 (Figure 17.1).
+at a 2,048-token budget and 0.5 at 8,192 (Figure 18.1).
 
 The term has no fitted constant, but its form was found by studying
 those two misses, so they are in-sample for it (1.011 and 1.005). It was
@@ -256,27 +257,27 @@ still held when the sampler runs (not profiled).
 
 A weight-only format counts at its packed width: for gpt-oss-20b's MXFP4
 experts the model's pool is 638,432 tokens against the engine's 607,344
-(1.051, in-sample; chapter 10), both recorded in
+(1.051, in-sample; chapter 11), both recorded in
 `data/validation/predictions_gpt_oss_20b_rtx_a6000_online_b_before_measurement.txt`.
-The model's 12.80 GiB (13.74 GB) matches the checkpoint (chapter 10);
+The model's 12.80 GiB (13.74 GB) matches the checkpoint (chapter 11);
 the engine reports 13.7 GiB, 0.9 GiB more (not profiled), most of the
 gap.
 
 ## Paged KV and preemption
 
-Of chapter 14's two admission policies, *reservation* holds each
+Of chapter 15's two admission policies, *reservation* holds each
 request's prompt plus maximum output from admission (room reserved but
 not yet written is *phantom*), while *paged* admission holds only the
 16-token blocks a request's tokens fill, so the pool runs full and, when
 a running request needs a block and none is free, someone must give
-theirs up (Figure 17.2).
+theirs up (Figure 18.2).
 
 ![Top row: a pool of 24 blocks shared by requests A, B and C; the pool
 fills, the newest request C is preempted and its blocks freed, and later
 C resumes. Bottom row: a reserving scheduler holds 12 blocks each for A
-and B, 7 of them empty, while C waits.](/assets/tinyperf-book/ch17-paged-kv.svg)
+and B, 7 of them empty, while C waits.](/assets/tinyperf-book/ch18-paged-kv.svg)
 
-*Figure 17.2. Paged KV and a preemption. A request's blocks need not be
+*Figure 18.2. Paged KV and a preemption. A request's blocks need not be
 adjacent. The reserving scheduler below never preempts, but holds empty
 blocks for output not yet written.*
 
@@ -291,7 +292,7 @@ vLLM 0.15.1's scheduler decides who. Each step:
   token it had generated are prefilled again, like a new prompt.
 - A step that preempted anyone admits no one new.
 
-`simulate(kv_paging="paged", chunk_tokens=...)`, chapter 14's serving
+`simulate(kv_paging="paged", chunk_tokens=...)`, chapter 15's serving
 simulator, schedules the same way. Its step scheduler, a closure inside
 `simulate`, with the docstring, the allocation after the preemption
 loop and the admission loop's body trimmed:
@@ -345,7 +346,7 @@ Worked example  Three 1,000-token prompts, 600 output tokens each, in a 231-bloc
 
 The preempted request loses 9 seconds, waiting for a request to finish
 and then re-prefilling a cache it already had. Its time to first token
-(TTFT, chapter 14) is unchanged; the loss is in its end-to-end time.
+(TTFT, chapter 15) is unchanged; the loss is in its end-to-end time.
 
 ## How close is it? The pool under pressure
 
@@ -353,15 +354,15 @@ Three sweeps pushed vLLM past its pool under `vllm bench serve`, vLLM's
 benchmark client, with prefix caching (reuse of a stored prompt prefix;
 below) off: Poisson arrivals (random, at a fixed average rate), lengths
 from a recorded trace, every output run to full length. The simulator
-replays the same trace (`bench_requests`, chapter 14) through the
+replays the same trace (`bench_requests`, chapter 15) through the
 engine preset (the simulator set up as vLLM runs) with each sweep's
 memory share, `VLLM.with_(gpu_memory_utilization=util)`, and vLLM's
 defaults otherwise: 256 sequences, the 2,048-token budget, paged KV,
 CUDA-graph sizes (the batch sizes whose launches the engine records
-once and replays) up to 256 (chapters 14 and 15):
+once and replays) up to 256 (chapters 15 and 16):
 
 ```
-Table 17.4  Three sweeps past the pool: vLLM 0.15.1 serving Qwen3-8B on one RTX A6000, prefix caching off
+Table 18.4  Three sweeps past the pool: vLLM 0.15.1 serving Qwen3-8B on one RTX A6000, prefix caching off
   max_num_seqs 256, 2048-token budget; fit = the pool over the mean prompt + output
   sweep  util     pool requests    prompts   outputs prompt + output   fit
   A       0.5   50,896      240  1024-1024   512-512           1,536  33.1
@@ -376,7 +377,7 @@ step log records each preemption, so the schedule itself is compared,
 beside TTFT, time per output token (TPOT) and throughput.
 
 ```
-Table 17.5  Qwen3-8B at KV-cache saturation on one RTX A6000: vLLM's scheduler, model/measured
+Table 18.5  Qwen3-8B at KV-cache saturation on one RTX A6000: vLLM's scheduler, model/measured
   sweep A is in-sample; H1 and H2 were predicted before they ran (held out); the pool is the engine's logged one
   sweep  rate TTFT p50    p95   TPOT  tok/s   preemptions   peak decodes  recomputed
         req/s                                model/engine   model/engine     (model)
@@ -413,27 +414,27 @@ waits 2.0 seconds for its first token, the 95th percentile two minutes.
 In the model's schedule (the measurement keeps only percentiles) the
 first 80 arrivals, admitted beyond what the pool could hold at full
 length, wait at most 2.1 seconds; then preempted requests hold the front
-of the queue, and the last 40 wait 63–126 seconds. Figure 17.3 follows
+of the queue, and the last 40 wait 63–126 seconds. Figure 18.3 follows
 the trace across rates.
 
 ![TTFT p50 and p95 against arrival rate on the H1 trace: the preempting
 model through the measured points, the reserving model off them from
-0.75 requests per second.](/assets/tinyperf-book/ch17-tails.svg)
+0.75 requests per second.](/assets/tinyperf-book/ch18-tails.svg)
 
-*Figure 17.3. Time to first token as load passes the pool, H1 trace.
+*Figure 18.3. Time to first token as load passes the pool, H1 trace.
 Solid: the model with vLLM's preempting scheduler; dashed: a scheduler
 that reserves prompt + output; dots: measured. Below 0.75 requests per
 second the pool never binds and the two agree.*
 
 ## What reservation costs
 
-Table 17.6 prices the same cells with a scheduler that reserves prompt
+Table 18.6 prices the same cells with a scheduler that reserves prompt
 plus output at admission. Each request's cap here is its actual output,
 the most a reserving scheduler could know, so its only phantom room is
 output still to come.
 
 ```
-Table 17.6  The same cells under a reserving scheduler (prompt + output held from admission), model/measured
+Table 18.6  The same cells under a reserving scheduler (prompt + output held from admission), model/measured
   sweep  rate TTFT p50    p95   TPOT  tok/s  peak decodes
         req/s                                 resv/engine
   A       1.5     1.15   1.00   0.85   1.01      33 / 43
@@ -449,7 +450,7 @@ Table 17.6  The same cells under a reserving scheduler (prompt + output held fro
 ```
 
 Reservation caps the batch at what the pool holds at full length, as
-Table 17.4's fit column predicted: 33 on sweep A where the engine ran
+Table 18.4's fit column predicted: 33 on sweep A where the engine ran
 43–46, 59–63 on H1 against 68–86, 37–38 on H2 against 61–74. Its steps
 are too short, and TPOT reads 0.68–0.85 wherever the pool binds. The
 queue is wrong in both directions: on H1 at 1.25 requests per second the
@@ -471,12 +472,12 @@ that finds its prefix there prefills only the rest.
 
 **The prefill becomes a chunk step.** A hit of P cached tokens leaves S
 new ones, which attend to all P + S: the step chunked prefill already
-prices (chapter 14), new tokens against an existing cache. In
+prices (chapter 15), new tokens against an existing cache. In
 `StepLatencyModel`, the class that prices each serving step,
 `prefill_us` prices a hit as exactly that. `per_seq` is one prompt's
 length, `shared` says every sequence has the same prefix, and
 `prefill_overhead_us` is a per-prefill constant only the B200's
-calibration (its record of fitted constants; chapter 4) carries:
+calibration (its record of fitted constants; chapter 5) carries:
 
 ```python
         if cached_tokens > 0:
@@ -488,12 +489,12 @@ calibration (its record of fitted constants; chapter 4) carries:
 ```
 
 **A batch can read the prefix once.** A decode step reads every
-sequence's whole cache (chapter 6), so eight sequences sharing a prefix
+sequence's whole cache (chapter 7), so eight sequences sharing a prefix
 read the same blocks eight times. *Cascade attention* reads the shared
 blocks once for all the batch's queries and merges the result with each
 sequence's own suffix. In a decode or chunk step of more than one
 sequence, `build_llm_graph(shared_prefix=)`, tinyperf's transformer
-graph builder (chapter 5), gives each sequence attention over its own
+graph builder (chapter 6), gives each sequence attention over its own
 suffix and adds one over the shared part, folded over the batch:
 
 ```python
@@ -509,11 +510,11 @@ so the shared keys are read once per KV head.
 The evidence: Qwen3-8B on vLLM with prefix caching on, 4,096-token
 prompts whose first P tokens are one shared system prompt, at batch 1
 and 8; a warm-up request filled the cache, and the uncached control ran
-with caching off. TTFT and TPOT are measured as in chapter 6, each cell
+with caching off. TTFT and TPOT are measured as in chapter 7, each cell
 the median of three runs.
 
 ```
-Table 17.7  Prefix caching on silicon: Qwen3-8B, vLLM on one RTX A6000, 4,096-token prompts, P tokens shared
+Table 18.7  Prefix caching on silicon: Qwen3-8B, vLLM on one RTX A6000, 4,096-token prompts, P tokens shared
   batch     P suffix  TTFT ms model/meas  vs P=0  TPOT ms no sharing  cascade
       1     0   4096    579.0      1.052    1.00    24.64      1.011    1.011
       1  2048   2048    319.6      1.081    0.55    24.71      1.008    1.008
@@ -541,18 +542,18 @@ faster, from 32.1 to 28.9 ms with 3,968 of 4,096 tokens shared. Cascade
 attention was added after this measurement, so its column is
 in-sample: without sharing the model reads 5–10% high, with full
 cascade 5–11% low: consistent with the engine reading the shared
-prefix once for part of its work (not profiled). Table 17.7 reports
+prefix once for part of its work (not profiled). Table 18.7 reports
 both bounds, and a test holds the measurement between them.
 
 ## Offloading: fitting is not running
 
 Host memory is the next level down: keep part of the weights or the
 cache in CPU memory and bring it over PCIe. Each device file (a GPU's
-rates and sizes in `data/devices/`; chapter 2) carries its host link's
+rates and sizes in `data/devices/`; chapter 3) carries its host link's
 public rate per direction, `host_bw_gbps`: 32 GB/s for the A100 and RTX
 A6000, 64 GB/s for the H100 and B200. Since each step reads every
 weight and the cache of every sequence it decodes, offloading moves
-bytes out of the capacity model (what fits in memory; chapter 6) and
+bytes out of the capacity model (what fits in memory; chapter 7) and
 into every step. `StepLatencyModel` prices it as
 
 ```
@@ -561,7 +562,7 @@ step      = max(compute, link time)     or compute + link time, without overlap
 ```
 
 ```
-Table 17.8  Offloading over the host link: Llama-3-70B bf16 on H100 SXMs, PCIe at 64 GB/s per direction (not measured)
+Table 18.8  Offloading over the host link: Llama-3-70B bf16 on H100 SXMs, PCIe at 64 GB/s per direction (not measured)
   weights on the host, one H100, batch 1, context 4096
    fraction  GPU GB  host GB  fits  TPOT ms  host link ms
         0.0     141        0    no        -             -
@@ -592,11 +593,11 @@ which exercise 3 builds.
 - **Unpriced terms:** the 64-sequence floor, hidden states at very large
   budgets, and a cold compile cache.
 - **Scope.** `simulate` derives the pool for one pipeline stage without
-  attention data parallelism, context parallelism (both chapter 12),
-  offloading or 2:4 sparsity (chapter 10), and uses chapter 6's rule
+  attention data parallelism, context parallelism (both chapter 13),
+  offloading or 2:4 sparsity (chapter 11), and uses chapter 7's rule
   elsewhere.
 - **Sliding windows.** The cache per token counts gpt-oss-20b's windowed
-  layers (attention to only the latest tokens; chapter 8) as growing
+  layers (attention to only the latest tokens; chapter 9) as growing
   with every token, as the engine's pool figure does; whether blocks
   leaving the window are freed is not modeled.
 - **Preemption:** newest first with recompute only; no swap to the host,
@@ -633,8 +634,8 @@ which exercise 3 builds.
    recomputed. On H1 at 1.25 requests per second, which costs less?
 4. Compose prefix caching with paged KV, so a preempted request's full
    blocks stay cached and part of its recompute becomes a hit. How much
-   of Table 17.5's recompute share would that save on H2?
+   of Table 18.5's recompute share would that save on H2?
 
 ---
 
-*[← Chapter 16: The mixed step]({% post_url 2026-09-29-tinyperf-16-the-mixed-step %}) · [Contents](/series/tinyperf/) · [Chapter 18: The knee →]({% post_url 2026-09-29-tinyperf-18-the-knee %})*
+*[← Chapter 17: The mixed step]({% post_url 2026-09-29-tinyperf-17-the-mixed-step %}) · [Contents](/series/tinyperf/) · [Chapter 19: The knee →]({% post_url 2026-09-29-tinyperf-19-the-knee %})*

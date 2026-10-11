@@ -78,9 +78,9 @@
     <rect x="700" y="318" width="46" height="16" rx="3"/>
   </g>
 
-  <!-- what it costs, from Table 15.4 -->
+  <!-- what it costs, from Table 16.4 -->
   <text x="810" y="104" class="label">at context 1,024</text>
-  <text x="810" y="120" class="label">(Table 15.4)</text>
+  <text x="810" y="120" class="label">(Table 16.4)</text>
   <text x="810" y="156" class="small">as the engine runs it</text>
   <text x="810" y="178" class="num">26.58 ms</text>
   <text x="810" y="216" class="small">attention for all 16 rows</text>

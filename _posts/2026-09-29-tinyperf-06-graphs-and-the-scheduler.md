@@ -1,18 +1,19 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 5: Graphs and the scheduler"
-date: 2026-09-29 12:05:00 -0700
+title: "Building tinyperf, chapter 6: Graphs and the scheduler"
+date: 2026-09-29 12:06:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/05-graphs-and-the-scheduler/
-excerpt: "Chapter 3 priced one GEMM. A language model runs hundreds of kernels to produce one token: written out operator by operator, a decode step of Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations, softmax, RoPE (rotary position embeddings), activations, residual adds and an embedding lookup. How do you go from pricing one kernel to pricing a whole model, without running it?"
+permalink: /tinyperf/book/06-graphs-and-the-scheduler/
+excerpt: "Chapter 4 priced one GEMM. A language model runs hundreds of kernels to produce one token: written out operator by operator, a decode step of Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations, softmax, RoPE (rotary position embeddings), activations, residual adds and an embedding lookup. How do you go from pricing one kernel to pricing a whole model, without running it?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m3.html
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m4.html
+  - /tinyperf/book/05-graphs-and-the-scheduler/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/graph.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/graph.py), [`tinyperf/operators.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/operators.py) and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `execute` · Every table and the plot in this chapter come from `python3 book/scripts/ch05_graph.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/graph.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/graph.py), [`tinyperf/operators.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/operators.py) and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `execute` · Every table and the plot in this chapter come from `python3 book/scripts/ch06_graph.py`.*
 
-Chapter 3 priced one GEMM. A language model runs hundreds of kernels to
+Chapter 4 priced one GEMM. A language model runs hundreds of kernels to
 produce one token: written out operator by operator, a decode step of
 Llama-2-7B is 419 of them, 193 GEMMs and the rest normalizations,
 softmax, RoPE (rotary position embeddings), activations, residual adds
@@ -74,7 +75,7 @@ Worked example  A two-layer MLP, described: shapes inferred, nothing run
   norm  RMSNorm      rw    (4096, 1024) -> (4096, 1024) fp16
 ```
 
-Nothing ran: the shapes are all chapter 3's model needs. Weights are not
+Nothing ran: the shapes are all chapter 4's model needs. Weights are not
 tensors in the graph; a `Linear` knows its weight is `K × N` from its
 input's width and its `out_features`.
 
@@ -92,41 +93,41 @@ produced.
 Why an IR at all, rather than a function from a model to a time?
 
 - **One description, many pricings.** The same graph is priced on any
-  GPU, at any of chapter 4's tiers (from datasheet peaks alone to
-  constants fitted to a real GPU), without being rebuilt (Table 5.5).
+  GPU, at any of chapter 5's tiers (from datasheet peaks alone to
+  constants fitted to a real GPU), without being rebuilt (Table 6.5).
 - **Passes can rewrite it.** A *pass* is a function that changes a graph.
-  Attention runs as one fused kernel, not three (chapter 7); a precision
-  recipe runs some GEMMs in FP8 or FP4 (chapter 10); training appends a
-  backward pass (chapter 13). Each is a pass, not a second model.
+  Attention runs as one fused kernel, not three (chapter 8); a precision
+  recipe runs some GEMMs in FP8 or FP4 (chapter 11); training appends a
+  backward pass (chapter 14). Each is a pass, not a second model.
 - **Every cost has an address.** Each price belongs to a named operator,
   so a surprising total can be traced to its cause.
 
 ## One transformer layer as a graph
 
 tinyperf's transformer builder, `build_llm_graph`, emits a decoder-only
-transformer as such a list. Figure 5.1 shows what it holds.
+transformer as such a list. Figure 6.1 shows what it holds.
 
 ![The sixteen operator records of a Llama-2-7B decode step in graph.ops
 order, each with its family and attributes, and the tensor each one
 consumes: solid if the operator above produced it, dashed if the builder
-made it new.](/assets/tinyperf-book/ch05-layer-graph.svg)
+made it new.](/assets/tinyperf-book/ch06-layer-graph.svg)
 
-*Figure 5.1. What the graph holds for a Llama-2-7B decode step at batch
+*Figure 6.1. What the graph holds for a Llama-2-7B decode step at batch
 1 with 2,048 tokens of context: operator records in `graph.ops` order,
 each with its family, class and attributes, and the tensor each
 consumes. A solid tensor was produced by the operator above it, a link a
 pass can follow. A dashed one is a new tensor the builder made with only
 a shape. The thirteen operators of a decoder layer carry `count=32`:
-one record for all 32 layers. Chapter 6's Figure 6.1 draws the same
+one record for all 32 layers. Chapter 7's Figure 7.1 draws the same
 layer as a transformer.*
 
 Every layer has the same shapes, so the builder emits one layer and gives
-each of its operators a `count` attribute of 32. Table 5.1 is the whole
+each of its operators a `count` attribute of 32. Table 6.1 is the whole
 graph. Its last row is the LM head, the GEMM that turns the final hidden
 state into a score for every token in the vocabulary.
 
 ```
-Table 5.1  The graph of a decode step: Llama-2-7B, batch 1, context 2048, fp16
+Table 6.1  The graph of a decode step: Llama-2-7B, batch 1, context 2048, fp16
   op             operator       family count  shape (gemm: batch x M x N x K)        out
   embed          Embedding      rw         1  (1, 1) -> (1, 1, 4096)                 fp16
   ln_attn        RMSNorm        rw        32  (1, 4096) -> (1, 4096)                 fp16
@@ -145,10 +146,10 @@ Table 5.1  The graph of a decode step: Llama-2-7B, batch 1, context 2048, fp16
   ln_final       RMSNorm        rw         1  (1, 4096) -> (1, 4096)                 fp16
   lm_head        Linear         gemm       1  1 x 1 x 32000 x 4096                   fp16
   16 operators stand for 419 operator calls: 193 GEMMs and 226 memory-bound ops
-  on the A100, 420 kernels: chapter 3's model splits the head's K and adds a reduction kernel
+  on the A100, 420 kernels: chapter 4's model splits the head's K and adds a reduction kernel
 ```
 
-The GEMM rows read `batch × M × N × K` as in chapter 3; chapter 6
+The GEMM rows read `batch × M × N × K` as in chapter 4; chapter 7
 derives every shape from the batch, the context and the configuration.
 The count is not an approximation: as long as each call is priced alone,
 the second assumption below, 32 identical calls cost exactly 32 times
@@ -161,19 +162,19 @@ decides which cost model prices it. Adding an operator means choosing its
 family, and its price comes with it.
 
 ```
-Table 5.2  Operator families: which operators, and what prices them
+Table 6.2  Operator families: which operators, and what prices them
   family   operators                                        priced by
-  gemm     Linear, BatchedMatMul                            chapter 3's GEMM model: max(math, DRAM, L2) + launch
+  gemm     Linear, BatchedMatMul                            chapter 4's GEMM model: max(math, DRAM, L2) + launch
   rw       Elementwise, Softmax, RMSNorm, RoPE, Embedding   (bytes read + bytes written) / DRAM bandwidth + launch
-  comm     AllReduce, AllGather, ReduceScatter, AllToAll    chapter 11's model: hop latency + bytes / link bandwidth + launch
-  fmha     FusedAttention                                   chapter 7's fused-attention model
-  linattn  LinearAttention                                  chapter 8's linear-attention model
+  comm     AllReduce, AllGather, ReduceScatter, AllToAll    chapter 12's model: hop latency + bytes / link bandwidth + launch
+  fmha     FusedAttention                                   chapter 8's fused-attention model
+  linattn  LinearAttention                                  chapter 9's linear-attention model
 ```
 
 **GEMMs.** A `BatchedMatMul` is many GEMMs of one shape; in attention
 the batch is the sequences times the KV heads (key-value heads, which
-several query heads share; chapter 6). It and `Linear` both go to
-chapter 3's `estimate_gemm`.
+several query heads share; chapter 7). It and `Linear` both go to
+chapter 4's `estimate_gemm`.
 
 **Memory-bound operations**, the `rw` (read-write) family: activations,
 residual adds, normalizations, softmax, RoPE and the embedding lookup.
@@ -183,7 +184,7 @@ its root mean square) does a handful of FLOPs per element and moves 4 bytes
 for it in fp16: about one FLOP per byte. Such operations run on the
 ordinary FP32 cores of each SM (streaming multiprocessor), and even
 there the ridge point (the FLOPs per byte above which math, not memory,
-sets the time; chapter 2) is far above one:
+sets the time; chapter 3) is far above one:
 
 ```
 Worked example  Pricing memory-bound ops and a collective: A100, datasheet rates
@@ -195,23 +196,23 @@ Worked example  Pricing memory-bound ops and a collective: A100, datasheet rates
 ```
 
 (The 64 FP32 lanes per SM are from NVIDIA's A100 whitepaper.) In decode
-an RMSNorm's price is its launch, the fixed per-kernel cost of chapter 3;
+an RMSNorm's price is its launch, the fixed per-kernel cost of chapter 4;
 in a 2,048-token prefill it moves 33.6 MB. An `extra_bytes` attribute
 covers traffic the tensors don't show, such as the rows an embedding
 lookup gathers.
 
 **Collectives** move data between GPUs and appear only when a model is
-split across them; chapter 11 prices them. The last line above is
+split across them; chapter 12 prices them. The last line above is
 Llama-2-7B's decode step on two A100s under tensor parallelism (tp=2:
-each GPU holds half of every weight matrix; chapter 11): two small
+each GPU holds half of every weight matrix; chapter 12): two small
 all-reduces per layer (each leaves the sum of the GPUs' partial results
 on both), priced almost entirely as launch and hop latency, the fixed
 cost of each hand-off between GPUs.
 
-**Fused kernels.** `FusedAttention` (chapter 7) is what the
-attention-fusion pass makes of Figure 5.1's three attention operators, as
+**Fused kernels.** `FusedAttention` (chapter 8) is what the
+attention-fusion pass makes of Figure 6.1's three attention operators, as
 FlashAttention (the fused attention kernel engines run) does on the GPU.
-`LinearAttention` (chapter 8) prices the recurrent layers of hybrid
+`LinearAttention` (chapter 9) prices the recurrent layers of hybrid
 models, which keep a fixed-size state instead of a KV cache in some of
 their layers.
 
@@ -230,17 +231,17 @@ That is the whole algorithm, and it rests on three assumptions.
 1. **Kernels run one after another,** with no overlap. For one stream of
    kernels on one GPU this is close to what happens. It fails where work
    runs concurrently, such as a collective beside computation, which
-   chapter 11 brackets between this sum and perfect hiding.
+   chapter 12 brackets between this sum and perfect hiding.
 2. **Each kernel is priced alone.** Nothing the previous kernel left in L2
    helps the next one, and a long run of GEMMs doesn't heat the GPU into a
    lower clock. This is what makes `count` exact.
-3. **Every kernel pays its launch, in series:** chapter 3's per-kernel
-   cost, 3 µs by default on every GPU in this chapter. Chapter 4 measures
+3. **Every kernel pays its launch, in series:** chapter 4's per-kernel
+   cost, 3 µs by default on every GPU in this chapter. Chapter 5 measures
    it for kernels issued one at a time and for kernels replayed from a
    CUDA graph (a recording of many launches replayed as one, unrelated
    to this chapter's graph).
 
-The scheduler also takes one of chapter 4's three tiers: speed of light,
+The scheduler also takes one of chapter 5's three tiers: speed of light,
 the projected model built so far, or constants fitted to a real GPU.
 
 ## The report
@@ -250,14 +251,14 @@ that fill it in. Here it is one row per operator with its time, FLOPs,
 bytes, achieved TFLOPS, the *bound* (what limits it) and a detail string
 (the shape and kernel choice), then totals and a roll-up by family. Every
 cost model has one job, to fill in a row, and reports the FLOPs and bytes
-it charged; Table 5.6's FLOP rows come straight from the report.
+it charged; Table 6.6's FLOP rows come straight from the report.
 
-Table 5.3 is the report for Table 5.1's graph on an A100 at its datasheet
+Table 6.3 is the report for Table 6.1's graph on an A100 at its datasheet
 rates. Time, GFLOP and MB are totals over the count; TFLOPS is per call.
 The detail column is left out.
 
 ```
-Table 5.3  The report: Llama-2-7B decode step, batch 1, context 2048, A100 at datasheet rates
+Table 6.3  The report: Llama-2-7B decode step, batch 1, context 2048, A100 at datasheet rates
   op             family count   time us   share     GFLOP        MB  TFLOPS  bound
   ffn_gate_up    gemm      32    2929.2   35.2%      5.77    5777.0     2.0  dram
   qkv_proj       gemm      32    1678.2   20.1%      3.22    3226.2     1.9  dram
@@ -274,16 +275,16 @@ Table 5.3  The report: Llama-2-7B decode step, batch 1, context 2048, A100 at da
 ```
 
 The layer's four weight GEMMs take 81% of the step, all bound by DRAM,
-as chapter 6 explains for decode. The eight memory-bound operators at the
+as chapter 7 explains for decode. The eight memory-bound operators at the
 bottom move 6.0 MB between them, and their 584.9 µs is nearly all launch.
 The table's last line counts every launch: 420 kernels paying the
 default 3 µs each, in series. What a launch really costs depends on how
-kernels are issued (chapter 4).
+kernels are issued (chapter 5).
 
 A prefill looks different:
 
 ```
-Table 5.4  The report: Llama-2-7B prefill, one prompt of 2048 tokens, A100 at datasheet rates
+Table 6.4  The report: Llama-2-7B prefill, one prompt of 2048 tokens, A100 at datasheet rates
   op             family count   time us   share     GFLOP        MB  TFLOPS  bound
   ffn_gate_up    gemm      32   39371.1   35.1%  11819.75   15971.9   300.2  math
   qkv_proj       gemm      32   23360.4   20.8%   6597.07   11475.6   282.4  l2
@@ -299,25 +300,25 @@ Table 5.4  The report: Llama-2-7B prefill, one prompt of 2048 tokens, A100 at da
   attention as built (QK^T, softmax, PV): 14.0 ms, 12.5% of the step
 ```
 
-The same GEMMs lead, now near the tensor cores' peak (chapter 6 has
+The same GEMMs lead, now near the tensor cores' peak (chapter 7 has
 prefill's arithmetic). Attention takes 12.5% of the step, most of it
 traffic, because the builder writes attention the way the math reads:
 `QKᵀ` writes a score matrix of 32 heads × 2,048 queries × 1,025 keys (the
-causal average; chapter 6) in fp32, softmax reads it and writes it back
+causal average; chapter 7) in fp32, softmax reads it and writes it back
 in fp16, and the second GEMM reads it again. No modern engine runs
-attention that way; chapter 7's fusion pass replaces the three operators
+attention that way; chapter 8's fusion pass replaces the three operators
 with one kernel.
 
-Figure 5.2 splits both reports four ways, with each row's launch counted
+Figure 6.2 splits both reports four ways, with each row's launch counted
 apart. That is why the weight GEMMs, the head included, show 78% of the
-decode step where Table 5.3's four layer GEMMs alone add to 81%: their
+decode step where Table 6.3's four layer GEMMs alone add to 81%: their
 launches are in the grey segment.
 
 ![Stacked bars of the share of step time in weight GEMMs, attention,
 other memory-bound operations and launch overhead, for a decode step and
-a prefill.](/assets/tinyperf-book/ch05-time-breakdown.svg)
+a prefill.](/assets/tinyperf-book/ch06-time-breakdown.svg)
 
-*Figure 5.2. Where the time goes, Llama-2-7B on the A100, with each
+*Figure 6.2. Where the time goes, Llama-2-7B on the A100, with each
 report row's launch overhead counted apart. A decode step at batch 1 is
 weight streaming plus launches; its memory-bound operators cost almost
 nothing beyond their launches. A prefill is the weight GEMMs' math, with
@@ -326,16 +327,16 @@ nothing beyond their launches. A prefill is the weight GEMMs' math, with
 ### Reading the bound column
 
 The bound column names the term that set an operator's price: `math`,
-`dram` or `l2`, chapter 3's three terms, or `nvlink` (the link between
+`dram` or `l2`, chapter 4's three terms, or `nvlink` (the link between
 GPUs) for a collective. It is the report's most useful column, because
 it turns a time into a direction. A DRAM-bound decode step gets faster
-with fewer bytes, such as smaller weights (chapter 10), not with more
+with fewer bytes, such as smaller weights (chapter 11), not with more
 FLOPS.
 
 Read it with two cautions. It is the model's verdict, not a measurement:
 a memory-bound operator says `dram` by construction. And when two terms
 are close, the verdict is fragile. Here are the prefill GEMMs, each with
-its tile, the output block one CTA (thread block) computes (chapter 3):
+its tile, the output block one CTA (thread block) computes (chapter 4):
 
 ```
 Worked example  The bound column up close: prefill GEMMs, one call each, A100
@@ -357,13 +358,13 @@ to a decision, look at the runner-up.
 
 ## One description, many pricings
 
-Table 5.5 prices the same two graphs on three GPUs, at the projected
+Table 6.5 prices the same two graphs on three GPUs, at the projected
 tier and at speed of light (every operator at its pure roofline, the
 larger of its math time and its memory time, with no launch cost;
-chapter 4), and after the attention-fusion pass.
+chapter 5), and after the attention-fusion pass.
 
 ```
-Table 5.5  One graph, many pricings: Llama-2-7B, ms, datasheet rates
+Table 6.5  One graph, many pricings: Llama-2-7B, ms, datasheet rates
                                           A100      H100      B200
   decode, batch 1, context 2048           8.33      5.56      3.06
     at speed of light                     7.02      4.27      1.79
@@ -473,7 +474,7 @@ class GenericRW(Operator):
 
 Each memory-bound operator subclasses `GenericRW` and differs only in its
 output's shape and type; `rw_multiplier` is 1.0 for all of them. Nothing
-in the scheduler reads `weight_bytes`, since chapter 3's model works out
+in the scheduler reads `weight_bytes`, since chapter 4's model works out
 a GEMM's traffic itself; it is what lets the last section check a graph
 against the model's parameters.
 
@@ -481,7 +482,7 @@ against the model's parameters.
 
 The feed-forward block of `build_llm_graph` in
 `tinyperf/nets/transformer.py`, its dense branch (the experts' branch is
-chapter 9's), shows the pattern of the whole builder:
+chapter 10's), shows the pattern of the whole builder:
 
 ```python
     y = g.RMSNorm("ln_ffn", x, count=L)
@@ -503,8 +504,8 @@ shape, so the SwiGLU's output is `2·ffn_l` wide, where the real
 activation halves it: it multiplies the gate half of its input,
 activated, by the up half. `ffn_down` needs an input `ffn_l` wide, so
 the builder replaces the SwiGLU's output with a new tensor of that
-shape: one of Figure 5.1's dashed tensors. The shortcut has a price,
-which "Where it breaks" counts. Chapter 6 walks through the rest of the
+shape: one of Figure 6.1's dashed tensors. The shortcut has a price,
+which "Where it breaks" counts. Chapter 7 walks through the rest of the
 builder.
 
 ### The scheduler
@@ -532,7 +533,7 @@ class OpResult:
 
 `execute`, trimmed of its docstring, its type annotations and the
 constants a calibration, one GPU's record of fitted constants, carries
-for particular kernels (chapter 4 and later; comments ours):
+for particular kernels (chapter 5 and later; comments ours):
 
 ```python
 EXEC_MODELS = {"gemm": _exec_gemm, "rw": _exec_rw, "comm": _exec_comm,
@@ -573,16 +574,16 @@ def _exec_rw(op: Operator, ctx: ExecContext) -> OpResult:
 `_exec_gemm` is, at its core, one call,
 `estimate_gemm(device, op.m, op.n, op.k, dtype, batch=op.batch, out_dtype=op.out.dtype)`,
 whose result fills the row. It also carries branches for particular
-kernels: scale factors for mixture-of-experts kernels (chapter 9) and
-weight-only kernels (4-bit weights, 16-bit math; chapter 10), and
+kernels: scale factors for mixture-of-experts kernels (chapter 10) and
+weight-only kernels (4-bit weights, 16-bit math; chapter 11), and
 measured corrections, among them the row curve, cuBLAS's measured
 correction by row count for a serving engine's decode-step GEMMs
-(chapter 15). They sit in
+(chapter 16). They sit in
 lines 210–252 of `scheduler.py`, and those chapters explain them.
 
 ## How do we know the graph is complete?
 
-Whether these totals match a real engine is for chapters 6 and 15. Two
+Whether these totals match a real engine is for chapters 7 and 16. Two
 earlier questions need only arithmetic, and every later comparison
 depends on them: does the graph hold all of the model's work and no
 more, and does the scheduler add what it says?
@@ -603,10 +604,10 @@ widths of the query and KV projections. In a causal prompt of s tokens a
 query sees (s+1)/2 keys on average, which the builder rounds up, and the
 head runs once, for the last token. We check Llama-2-7B, with keys and
 values for every head, and Qwen3-8B, whose 32 query heads share 8 KV
-heads (grouped-query attention; chapter 6).
+heads (grouped-query attention; chapter 7).
 
 ```
-Table 5.6  Is the graph complete? The graph against arithmetic on the model's configuration
+Table 6.6  Is the graph complete? The graph against arithmetic on the model's configuration
                                                      llama2-7b            qwen3-8b
                                                 graph  by hand      graph  by hand
   GFLOP per token, decode at 2048              14.288   14.288     16.344   16.344
@@ -642,9 +643,9 @@ times the time to stream the weights.
 ## Where it breaks
 
 - **The serial sum.** Real GPUs overlap more than the sum admits:
-  collectives run on their own stream beside computation (chapter 11).
+  collectives run on their own stream beside computation (chapter 12).
   The sum also misses time no operator owns, such as a serving engine's
-  CPU work between steps (chapter 16).
+  CPU work between steps (chapter 17).
 - **Operators priced alone.** A decode step's activations fit easily in
   the A100's 40 MB L2, so the next operator likely finds its input there
   (not profiled), but the model charges DRAM. In decode that is noise;
@@ -653,14 +654,14 @@ times the time to stream the weights.
   3 µs is a default, not a measurement. On the RTX A6000
   (`data/calibration/rtx_a6000.json`) the measured per-kernel cost is
   25 µs when PyTorch issues kernels one at a time and 3.5 µs when a CUDA
-  graph replays them (chapter 4).
+  graph replays them (chapter 5).
 - **The graph is the math, not the engine's launch list.** An engine
   fuses some operators, splits others, and runs kernels the math doesn't
-  have, such as sampling. Chapter 15 builds a decode step from what an
+  have, such as sampling. Chapter 16 builds a decode step from what an
   engine launches.
-- **The checks don't see activations.** Table 5.6 checks FLOPs, weights
+- **The checks don't see activations.** Table 6.6 checks FLOPs, weights
   and the KV cache, not activation traffic, and the builder's shortcuts
-  err in both directions. SwiGLU keeps its input's shape (Table 5.1), so
+  err in both directions. SwiGLU keeps its input's shape (Table 6.1), so
   it is charged for writing 22,016 columns where the real activation
   writes 11,008: a third more traffic than the real kernel moves. RoPE
   is priced on the queries alone (`g.RoPE("rope", q)`), though the keys
@@ -684,22 +685,22 @@ times the time to stream the weights.
 1. Fuse memory-bound operators. Write a pass that merges each residual
    add with the RMSNorm after it into one operator, a kernel that reads
    the stream and the residual and writes the sum and the normalized
-   output. How many kernels does it remove from Table 5.1, and how much of
-   Table 5.3's total? Then fix SwiGLU's output width and RoPE's inputs,
-   and see what each is worth in Table 5.4.
-2. Diff two reports. Price Table 5.1's graph on the A100 and the H100 and
+   output. How many kernels does it remove from Table 6.1, and how much of
+   Table 6.3's total? Then fix SwiGLU's output width and RoPE's inputs,
+   and see what each is worth in Table 6.4.
+2. Diff two reports. Price Table 6.1's graph on the A100 and the H100 and
    print each operator's speedup. Which operators speed up by the ratio of
    DRAM bandwidths, which by the ratio of tensor-core peaks, and which
    barely at all? Explain each from its bound.
 3. Relax "priced alone". Let an operator read its first input at L2
    bandwidth when the previous operator's output fits in the usable L2
-   (chapter 3's 80%). How much does a batch-1 decode step change? A
+   (chapter 4's 80%). How much does a batch-1 decode step change? A
    prefill of 256 tokens? What happens to `count`?
-4. Check an MoE (mixture-of-experts) graph. Repeat Table 5.6 for
-   Mixtral-8x7B (chapter 9). Does the FLOPs row match its total or its
+4. Check an MoE (mixture-of-experts) graph. Repeat Table 6.6 for
+   Mixtral-8x7B (chapter 10). Does the FLOPs row match its total or its
    active parameters? Which do the weight bytes match at batch 1, and at
    batch 64?
 
 ---
 
-*[← Chapter 4: Meeting a real GPU: calibration and its tiers]({% post_url 2026-09-29-tinyperf-04-meeting-a-real-gpu %}) · [Contents](/series/tinyperf/) · [Chapter 6: A transformer: prefill, decode and memory →]({% post_url 2026-09-29-tinyperf-06-a-transformer-prefill-decode-and-memory %})*
+*[← Chapter 5: Meeting a real GPU: calibration and its tiers]({% post_url 2026-09-29-tinyperf-05-meeting-a-real-gpu %}) · [Contents](/series/tinyperf/) · [Chapter 7: A transformer: prefill, decode and memory →]({% post_url 2026-09-29-tinyperf-07-a-transformer-prefill-decode-and-memory %})*

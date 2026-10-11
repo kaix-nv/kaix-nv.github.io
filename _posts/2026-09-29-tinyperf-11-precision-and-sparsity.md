@@ -1,16 +1,17 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 10: Precision and sparsity as passes"
-date: 2026-09-29 12:10:00 -0700
+title: "Building tinyperf, chapter 11: Precision and sparsity as passes"
+date: 2026-09-29 12:11:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/10-precision-and-sparsity/
+permalink: /tinyperf/book/11-precision-and-sparsity/
 excerpt: "Running a model in FP8 or FP4 (8- and 4-bit floating point), with 4-bit weights, or with half its weights pruned is advertised as 2×, 4×, 4× and 2× faster. What does each buy, operation by operation? And how does a performance model express \"this deployment\" without a second model of the network?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/31/building-tinyperf-m35.html
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m49.html
+  - /tinyperf/book/10-precision-and-sparsity/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `apply_recipe`, `apply_weight_only`, `apply_sparsity`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and plot in this chapter comes from `python3 book/scripts/ch10_precision.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `apply_recipe`, `apply_weight_only`, `apply_sparsity`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and plot in this chapter comes from `python3 book/scripts/ch11_precision.py`.*
 
 Running a model in FP8 or FP4 (8- and 4-bit floating point), with 4-bit
 weights, or with half its weights pruned is advertised as 2×, 4×, 4× and
@@ -28,7 +29,7 @@ some operations shrink less or not at all: the output head, the norms,
 the launches (each kernel's fixed cost to start), and the KV cache,
 which the shipped FP4 recipe (a choice of format for each operation)
 keeps at fp8 and so shrinks only 2×. Passes (functions that rewrite a
-graph; chapter 5) express a deployment as tags on the graph the builder
+graph; chapter 6) express a deployment as tags on the graph the builder
 already emitted.
 
 By the end of this chapter you will know:
@@ -40,7 +41,7 @@ By the end of this chapter you will know:
 - what FP8 and FP4 buy class by class, and why "everything in FP4"
   claims 3.7× where the deployable recipe gets 2.0×;
 - what 4-bit experts (the small feed-forward networks of a
-  mixture-of-experts, or MoE, layer; chapter 9) bought gpt-oss-20b, and
+  mixture-of-experts, or MoE, layer; chapter 10) bought gpt-oss-20b, and
   how close the model gets;
 - what 2:4 sparsity (two of every four weights zero) would buy,
   unmeasured like FP8 and FP4;
@@ -48,7 +49,7 @@ By the end of this chapter you will know:
 
 ## What a format changes in one GEMM
 
-Chapter 2 gave a data type two properties: its bytes per element and the
+Chapter 3 gave a data type two properties: its bytes per element and the
 tensor-core rate it maps to. A weight GEMM, `C[M,N] = A[M,K] · B[K,N]`
 with the activations in A and the weights in B, has three numbers a
 format can change: A's bytes, B's bytes and the math rate.
@@ -58,21 +59,21 @@ format can change: A's bytes, B's bytes and the math rate.
   fp4, which of this chapter's GPUs only the B200 has. All three change.
 - **Weight-only quantization.** B is stored in 4 bits and unpacked to 16
   inside the kernel, so the math keeps the 16-bit rate. Here the format
-  is MXFP4 (chapter 9): 32 four-bit values share an 8-bit scale, 4.25
+  is MXFP4 (chapter 10): 32 four-bit values share an 8-bit scale, 4.25
   bits or 0.53125 bytes per weight. Only B shrinks, 3.76 times.
 - **2:4 sparsity.** Two of every four weights along K are zero. The
   tensor cores skip them, at twice the dense rate, and B keeps the
   survivors plus a 2-bit index each: `0.5 + 0.125 / bytes` of dense,
   0.5625 at 16 bits. B shrinks and the rate doubles.
 
-Table 10.1 prices one 4096 × 4096 weight GEMM in five formats on an
+Table 11.1 prices one 4096 × 4096 weight GEMM in five formats on an
 H100, at a decode-like 8 rows and a prefill-like 8,192, by the roofline
-(the larger of the math time and the memory time; chapter 2) and by
-chapter 3's tile model ("model"), which splits the output into tiles,
+(the larger of the math time and the memory time; chapter 3) and by
+chapter 4's tile model ("model"), which splits the output into tiles,
 each computed by one thread block, or CTA (cooperative thread array).
 
 ```
-Table 10.1  One 4096 x 4096 weight GEMM on an H100 in five formats: datasheet rates
+Table 11.1  One 4096 x 4096 weight GEMM on an H100 in five formats: datasheet rates
                             bytes per value  tensor  weights crossover    8 rows: speed-up   8192 rows: speed-up
   format                          A       B  TFLOPS       MB      rows   roofline    model     roofline    model
   bf16                            2    2.00     989     33.6       345       1.00     1.00         1.00     1.00
@@ -88,15 +89,15 @@ Table 10.1  One 4096 x 4096 weight GEMM on an H100 in five formats: datasheet ra
 
 The crossover is the fewest rows at which the roofline calls the GEMM
 math-bound. fp8 halves the bytes and doubles the rate, which cancel: 345
-rows, as for bf16 (chapter 2). 4-bit weights shrink only the bytes, so
+rows, as for bf16 (chapter 3). 4-bit weights shrink only the bytes, so
 the crossover moves down by nearly the byte ratio: 92 rows, and 60
 instead of 224 on the RTX A6000. 2:4 doubles the rate but less than
 halves the bytes, so it moves up.
 
 ![Log-log roofline time of a 4096 by 4096 weight GEMM on an H100 in four
-formats, from 1 to 4096 rows.](/assets/tinyperf-book/ch10-formats.svg)
+formats, from 1 to 4096 rows.](/assets/tinyperf-book/ch11-formats.svg)
 
-*Figure 10.1. The GEMM by the roofline. Each curve is flat while the
+*Figure 11.1. The GEMM by the roofline. Each curve is flat while the
 weights' bytes set the time and rises once the math does. fp8 halves
 both parts; 4-bit weights lower only the flat part, turn up at 92 rows
 and join bf16 at 345; 2:4 lowers the flat part to 0.56 and joins fp8
@@ -112,10 +113,10 @@ fp4 rate; asking for one is an error.
 
 ## Passes: tags on a built graph
 
-A model builder (chapter 6) writes the network's math in the model's
+A model builder (chapter 7) writes the network's math in the model's
 dtype. A deployment decides, op by op, what to store and multiply
 narrower. tinyperf keeps the jobs apart: the builder emits the graph
-once, then a *pass* (chapter 5) walks it and tags each op it applies
+once, then a *pass* (chapter 6) walks it and tags each op it applies
 to:
 
 - `apply_recipe(graph, {prefix: dtype})` sets an op's compute dtype;
@@ -140,9 +141,9 @@ def apply_recipe(graph: Graph, recipe: dict) -> int:
 ```
 
 The first prefix that matches an op's name wins. Only the math families
-(an op's family is its kind; chapter 5) take a dtype: GEMMs, fused
-attention (`fmha`, all of attention in one kernel; chapter 7) and linear
-attention (chapter 8); chapter 5's memory-bound `rw` operators keep the
+(an op's family is its kind; chapter 6) take a dtype: GEMMs, fused
+attention (`fmha`, all of attention in one kernel; chapter 8) and linear
+attention (chapter 9); chapter 6's memory-bound `rw` operators keep the
 model's. The weight-only pass runs the same loop over GEMMs, with a
 refusal:
 
@@ -178,14 +179,14 @@ uses:
 ```
 
 Weight GEMMs in fp4, attention (and so its cache) in fp8, the head and
-the router (the GEMM that picks each token's experts; chapter 9) in 16
+the router (the GEMM that picks each token's experts; chapter 10) in 16
 bits. This chapter's FP8 recipe is the same dictionary with fp8 for fp4;
-tinyperf ships it as `RECIPE_FP8_SERVING`. Table 10.2 shows what four
+tinyperf ships it as `RECIPE_FP8_SERVING`. Table 11.2 shows what four
 deployments write on Qwen3-8B; each row but the head's stands for 36
 layers.
 
 ```
-Table 10.2  The tags each pass puts on a Qwen3-8B decode graph (one layer and the head)
+Table 11.2  The tags each pass puts on a Qwen3-8B decode graph (one layer and the head)
   op             family             FP8 recipe            FP4 recipe         4-bit weights               2:4 all
   qkv_proj       gemm                dtype=fp8             dtype=fp4   weight_nbytes=0.531                sparse
   attn_fmha      fmha                dtype=fp8             dtype=fp8                     -                     -
@@ -199,9 +200,9 @@ Table 10.2  The tags each pass puts on a Qwen3-8B decode graph (one layer and th
 
 ### How the model reads the tags
 
-The scheduler (chapter 5) prices each op in its `dtype` tag, if it has
-one, and hands `sparse` and `weight_nbytes` to chapter 3's
-`estimate_gemm`. These are the lines chapter 3 trimmed from it:
+The scheduler (chapter 6) prices each op in its `dtype` tag, if it has
+one, and hands `sparse` and `weight_nbytes` to chapter 4's
+`estimate_gemm`. These are the lines chapter 4 trimmed from it:
 
 ```python
     in_b, out_b = dtype.nbytes, out_dtype.nbytes
@@ -225,12 +226,12 @@ one, and hands `sparse` and `weight_nbytes` to chapter 3's
 ```
 
 The dtype picks the tensor-core rate and both operands' bytes. `b_scale`
-rescales B wherever chapter 3 counts its bytes: from the L2 cache to
+rescales B wherever chapter 4 counts its bytes: from the L2 cache to
 the SMs (streaming multiprocessors), the L2 reuse window, the minimum
 DRAM traffic. `sparse_math_multiplier` is a device field, 2.0 by default
-(chapter 2). C keeps the graph's dtype. `math_scale` and `dram_scale`
+(chapter 3). C keeps the graph's dtype. `math_scale` and `dram_scale`
 are constants of the calibrated tier (below), the tier that prices with
-constants fitted to one GPU and software stack (chapter 4).
+constants fitted to one GPU and software stack (chapter 5).
 
 Fused attention takes one dtype for everything (`estimate_fmha`):
 
@@ -246,19 +247,19 @@ An fp8 tag on attention means fp8 math and an fp8 KV cache: the
 build the model with `dtype=FP4` and every tensor is fp4, the norms, the
 head and the cache included. A tag answers per op, and it composes: the
 same passes work on dense, MoE, hybrid and latent-attention graphs
-(chapters 8–9) at any parallel layout (chapters 11–12), the serving
-simulator (chapter 14) applies them to every step, and the capacity
-model (chapter 6's count of the batch that fits in memory) reads the
+(chapters 9–10) at any parallel layout (chapters 12–13), the serving
+simulator (chapter 15) applies them to every step, and the capacity
+model (chapter 7's count of the batch that fits in memory) reads the
 same dictionaries. No builder knows they exist.
 
 ## Precision recipes: FP8 on an H100, FP4 on a B200
 
-Table 10.3 prices a Qwen3-8B decode step and prefill, class by class,
+Table 11.3 prices a Qwen3-8B decode step and prefill, class by class,
 under the FP8 recipe on an H100 and the FP4 recipe on a B200, at
-datasheet rates (chapter 4's projected tier).
+datasheet rates (chapter 5's projected tier).
 
 ```
-Table 10.3  What a precision recipe buys, class by class: Qwen3-8B, datasheet rates
+Table 11.3  What a precision recipe buys, class by class: Qwen3-8B, datasheet rates
   each cell: the class's share of the bf16 step, and its speed-up under the recipe
                              H100, FP8             H100, FP8             B200, FP4             B200, FP4
                        decode 8 x 4096      prefill 8 x 2048       decode 8 x 4096      prefill 8 x 2048
@@ -271,9 +272,9 @@ Table 10.3  What a precision recipe buys, class by class: Qwen3-8B, datasheet ra
 ```
 
 ![Horizontal bars of each class's speed-up under the FP8 recipe on an
-H100 and the FP4 recipe on a B200, in decode and prefill.](/assets/tinyperf-book/ch10-op-classes.svg)
+H100 and the FP4 recipe on a B200, in decode and prefill.](/assets/tinyperf-book/ch11-op-classes.svg)
 
-*Figure 10.2. Table 10.3's speed-ups. The head and the memory-bound
+*Figure 11.2. Table 11.3's speed-ups. The head and the memory-bound
 operators gain nothing, which holds whole steps to 1.64–2.94×.*
 
 **Weight GEMMs** gain most in prefill, where their math or L2 traffic
@@ -290,7 +291,7 @@ Worked example  Why the B200's weight GEMMs gain 2.5x, not 4x, in an FP4 decode 
 
 Launches are half the fp4 GEMM time, and not as an artifact of the
 tier: a kernel replayed from a CUDA graph (launches recorded once and
-replayed as one) on a B200 costs 3.5 µs (chapter 4, Table 4.6).
+replayed as one) on a B200 costs 3.5 µs (chapter 5, Table 5.6).
 
 **Attention**, tagged fp8, gains up to 2×, held to 1.74–1.87× in decode
 by its launch. **The head**, kept at 16 bits, and **the `rw` operators**,
@@ -302,12 +303,12 @@ FP4" is a prefill number for GEMMs alone.
 ### The KV cache decides the long-context answer
 
 Decode attention's share of the step grows with the context (chapter
-6). Table 10.4 holds the batch at 64 and prices three versions of each
+7). Table 11.4 holds the batch at 64 and prices three versions of each
 recipe: with attention and its cache left in bf16, as shipped (fp8
 cache), and naive (every tensor in the format).
 
 ```
-Table 10.4  As the KV cache grows: Qwen3-8B decode, 64 sequences, speed-up over bf16, datasheet rates
+Table 11.4  As the KV cache grows: Qwen3-8B decode, 64 sequences, speed-up over bf16, datasheet rates
                                                     B200, FP4                       H100, FP8
    context B200 bf16 ms attention 16-bit cache  recipe   naive    16-bit cache  recipe   naive
       1024         4.41       30%        1.42x   1.77x   2.20x           1.31x   1.67x   1.76x
@@ -317,15 +318,15 @@ Table 10.4  As the KV cache grows: Qwen3-8B decode, 64 sequences, speed-up over 
      16384        22.53       86%        1.06x   1.95x   3.45x           1.04x   1.93x   1.96x
      32768        41.85       93%        1.03x   1.97x   3.68x           1.02x   1.96x   1.98x
   16-bit cache: the recipe with attention and its cache left in bf16; naive: every tensor in the format
-  64 sequences fit on the B200 (chapter 6's rule) up to 8192 tokens in bf16, 32768 with the FP4 recipe
-  64 sequences fit on the H100 (chapter 6's rule) up to 4096 tokens in bf16, 8192 with the FP8 recipe; rows past 8192 tokens price a batch that fits in neither format
+  64 sequences fit on the B200 (chapter 7's rule) up to 8192 tokens in bf16, 32768 with the FP4 recipe
+  64 sequences fit on the H100 (chapter 7's rule) up to 4096 tokens in bf16, 8192 with the FP8 recipe; rows past 8192 tokens price a batch that fits in neither format
 ```
 
 ![Speed-up over bf16 against context for Qwen3-8B decode of 64
 sequences: FP4 naive, FP4 recipe, FP4 GEMMs with a 16-bit cache, and the
-H100's FP8 recipe.](/assets/tinyperf-book/ch10-context.svg)
+H100's FP8 recipe.](/assets/tinyperf-book/ch11-context.svg)
 
-*Figure 10.3. Table 10.4's B200 speed-ups, and the H100's FP8 recipe:
+*Figure 11.3. Table 11.4's B200 speed-ups, and the H100's FP8 recipe:
 each tends to the speed-up of its cache's format.*
 
 At 32,768 tokens the B200's step is 93% attention, and its speed-up is
@@ -343,16 +344,16 @@ recipe's value is capacity.
 ## Weight-only quantization: 4-bit weights, 16-bit math
 
 A GPU without a 4-bit rate, such as the RTX A6000, can still store
-4-bit weights. A weight-only kernel such as Marlin (chapter 9) unpacks
+4-bit weights. A weight-only kernel such as Marlin (chapter 10) unpacks
 and scales them to 16 bits for the tensor cores. The model prices that:
 B at `weight_nbytes`, the math at the activation dtype, scaled in the
-calibrated tier (chapter 4) by a fitted `weight_only_math_efficiency`,
+calibrated tier (chapter 5) by a fitted `weight_only_math_efficiency`,
 0.66 on the RTX A6000. At a few rows the tile model may also split K
-(split-K, chapter 3): several thread blocks share each tile's K loop,
+(split-K, chapter 4): several thread blocks share each tile's K loop,
 and a second kernel adds their partial sums.
 
 ```
-Table 10.5  A 4096 x 4096 weight GEMM with 4-bit weights and bf16 math, RTX A6000 at its fitted rates
+Table 11.5  A 4096 x 4096 weight GEMM with 4-bit weights and bf16 math, RTX A6000 at its fitted rates
    rows  bf16 us  bound  4-bit, x0.66 math  bound  speed-up  4-bit, x1.0 math  speed-up
       1     52.2   dram               20.3   dram     2.58x              20.2     2.59x
       8     52.3   dram               21.7   dram     2.41x              20.9     2.50x
@@ -377,8 +378,8 @@ math gain nothing at best.
 The 0.66 was fitted end to end (to whole prefill times, not to a kernel
 timed alone) on one model and one GPU: gpt-oss-20b with 4-bit experts,
 at batch 8 and 32, checked on batch 1. It absorbed more than unpacking;
-chapter 22 tells what it hid. No 4-bit dense GEMM has been timed here,
-and Table 10.5's two columns are two guesses, not a bracket: the one
+chapter 23 tells what it hid. No 4-bit dense GEMM has been timed here,
+and Table 11.5's two columns are two guesses, not a bracket: the one
 4-bit kernel measured, Marlin on gpt-oss's experts, runs at 0.34 of the
 dense rate at 128 tokens per launch (below), under both.
 
@@ -398,14 +399,14 @@ Worked example  What a gpt-oss-20b decode step reads, bf16 and MXFP4 experts, ba
 
 At batch 1 the bf16 remainder, mostly attention and the head, is two
 thirds of the bytes left, so the step reads 1.95× fewer, not 3.76×. A
-bigger batch touches more experts (chapter 9) and gains more.
+bigger batch touches more experts (chapter 10) and gains more.
 
 Both formats' expert kernels were timed inside real decode steps, each
-launch paired with its step's routing (chapter 9's Table 9.3 has bf16
+launch paired with its step's routing (chapter 10's Table 10.3 has bf16
 alone):
 
 ```
-Table 10.6  The expert kernel at decode, bf16 against MXFP4 (Marlin), timed inside real decode steps: gpt-oss-20b, RTX A6000
+Table 11.6  The expert kernel at decode, bf16 against MXFP4 (Marlin), timed inside real decode steps: gpt-oss-20b, RTX A6000
          experts touched     gate-up us per expert        down us per expert  MXFP4 rate / fitted
   batch    bf16    MXFP4     bf16   MXFP4 speed-up     bf16   MXFP4 speed-up         gate-up/down
       1     4.0      4.0     48.0    15.7    3.05x     24.4     9.1    2.68x            0.81/0.70
@@ -415,12 +416,12 @@ Table 10.6  The expert kernel at decode, bf16 against MXFP4 (Marlin), timed insi
 ```
 
 Per touched expert Marlin is 2.7–3.2× faster against 3.76× fewer
-bytes, because it streams below the full rate (chapter 9); the model's
+bytes, because it streams below the full rate (chapter 10); the model's
 3.01× falls inside the measured range.
 
 Prefill surprises. For a dense GEMM the model says 4-bit weights lose
-(Table 10.5), yet gpt-oss-20b's MXFP4 prompts ran 1.31–1.56× faster than
-its bf16 ones (Table 10.9), which is consistent with the kernels, not
+(Table 11.5), yet gpt-oss-20b's MXFP4 prompts ran 1.31–1.56× faster than
+its bf16 ones (Table 11.9), which is consistent with the kernels, not
 the format:
 
 ```
@@ -436,13 +437,13 @@ launch. A speed-up is a ratio of two kernels, not two formats, and the
 model comes close because it carries a rate for each. The branch of
 `_exec_gemm` (`scheduler.py`) that picks the rates is too tangled to
 quote; as pseudocode, leaving out a second measured table, for steps
-that mix decodes with a prompt chunk (chapter 16):
+that mix decodes with a prompt chunk (chapter 17):
 
 ```
 # pseudocode: the weight-only branch of _exec_gemm, calibrated tier
 math_scale = weight_only_math_efficiency           # 0.66, fitted
 if the op is an expert GEMM:
-    dram_scale = weight_only_dram_efficiency       # 0.80, Table 10.6
+    dram_scale = weight_only_dram_efficiency       # 0.80, Table 11.6
     if tokens per launch >= 128 and a measured Marlin rate table exists:
         math time = FLOPs / measured rate(tokens per launch)
         time = max(math time, weight stream at 0.80, L2 time) + launch
@@ -455,10 +456,10 @@ launches and unmeasured weight-only GEMMs.
 
 Two sparsity recipes ship: the feed-forward GEMMs (`SPARSITY_2_4_FFN`),
 and every weight GEMM but the router and head (`SPARSITY_2_4_ALL`).
-Table 10.7 prices both on Qwen3-8B on an H100, alone and with FP8.
+Table 11.7 prices both on Qwen3-8B on an H100, alone and with FP8.
 
 ```
-Table 10.7  2:4 sparsity on Qwen3-8B, one H100, datasheet rates: step time and speed-up over dense bf16
+Table 11.7  2:4 sparsity on Qwen3-8B, one H100, datasheet rates: step time and speed-up over dense bf16
                           decode 8 x 4096  decode 64 x 4096   prefill 8 x 2048   gate-up time vs dense
   deployment                    ms      x        ms      x        ms      x      decode     prefill
   bf16, dense                 7.19  1.00x     17.49  1.00x    298.29  1.00x   1.00 dram     1.00 l2
@@ -476,49 +477,49 @@ Table 10.7  2:4 sparsity on Qwen3-8B, one H100, datasheet rates: step time and s
   sparsity doesn't touch, is most of the step.
 - **Prefill is the rate story, cut short.** The rate doubles, but the
   gate-up GEMM falls only to 0.71. In the tile model it is bound by L2
-  traffic, the panels every CTA pulls into shared memory (chapter 3).
+  traffic, the panels every CTA pulls into shared memory (chapter 4).
   2:4 shrinks B's panels, not A's, so that traffic falls to 0.71 while
   the math halves. The L2 bandwidth behind it is an estimate on no
-  datasheet (chapter 2).
+  datasheet (chapter 3).
 - **Attention gains nothing.** It has no weights; tagging it is an
   error.
 
 Tags compose: with FP8 as well, the step gains about 2×.
 
-Sparse kernel efficiency is assumed equal to dense: chapter 3's kernel
+Sparse kernel efficiency is assumed equal to dense: chapter 4's kernel
 model with the rate doubled and B shrunk. Real sparse kernels have their
 own tiles and read index metadata; none has been timed here.
 
 ## Memory
 
 Shrinking weights frees memory; a narrower cache frees more. For
-gpt-oss-20b, Table 10.8 also gives vLLM's KV pool, the memory the engine
-sets aside for the cache (chapter 17), with `max_num_seqs`, its cap on
+gpt-oss-20b, Table 11.8 also gives vLLM's KV pool, the memory the engine
+sets aside for the cache (chapter 18), with `max_num_seqs`, its cap on
 running requests, at 64:
 
 ```
-Table 10.8  What each pass does to memory
-  Qwen3-8B: the largest decode batch that fits (chapter 6's rule: weights + KV + working memory <= 90%)
+Table 11.8  What each pass does to memory
+  Qwen3-8B: the largest decode batch that fits (chapter 7's rule: weights + KV + working memory <= 90%)
   GPU   deployment             weights GB  KV bytes/token   8192  32768
   H100  bf16                         16.4         147,456     46     11
   H100  2:4 all                      10.3         147,456     51     12
   H100  FP8 recipe                    9.4          73,728    103     25
   B200  bf16                         16.4         147,456    120     30
   B200  FP4 recipe                    6.0          73,728    258     64
-  gpt-oss-20b on one RTX A6000: the weights, and vLLM's KV pool (chapter 17's rule; max_num_seqs 64)
+  gpt-oss-20b on one RTX A6000: the weights, and vLLM's KV pool (chapter 18's rule; max_num_seqs 64)
   deployment                   weights GB  checkpoint GB  pool tokens  engine logged
   bf16 everywhere                   41.82          41.83       67,312              -
   MXFP4 experts (weight-only)       13.74          13.76      638,432        607,344
 ```
 
-For a dense model the cache is the capacity story (chapter 6): 2:4 frees
+For a dense model the cache is the capacity story (chapter 7): 2:4 frees
 6 GB on the H100 and admits 5 more sequences of 8,192 tokens; the FP8
 recipe frees 7 GB, halves the cache, and admits more than twice as many.
 
 For gpt-oss-20b the weights decide: 4-bit experts free 28 GB of a 48 GB
 card. The model's weight bytes match both checkpoints' files within
 0.2%, the one direct check of this chapter's byte accounting. vLLM's
-pool (chapter 17) grows from 67,312 to 638,432 tokens, 5% above the
+pool (chapter 18) grows from 67,312 to 638,432 tokens, 5% above the
 607,344 the engine logged
 (`data/validation/predictions_gpt_oss_20b_rtx_a6000_online_b_before_measurement.txt`).
 
@@ -534,14 +535,14 @@ pool (chapter 17) grows from 67,312 to 638,432 tokens, 5% above the
 First, what is unmeasured. Every GEMM tinyperf has timed on an H100 or
 a B200 was fp16 (`data/calibration/measurements_*.json`), and no
 engine run in `data/validation/` used an fp8 cache, an FP8 or FP4
-recipe, or a sparse checkpoint. Tables 10.1, 10.3, 10.4 and 10.7 are
+recipe, or a sparse checkpoint. Tables 11.1, 11.3, 11.4 and 11.7 are
 projections at datasheet rates. What can be checked is the byte
-accounting, and Table 10.8's weights match a real 4-bit checkpoint.
+accounting, and Table 11.8's weights match a real 4-bit checkpoint.
 
 The one measured deployment is gpt-oss-20b served by vLLM on one RTX
 A6000, as shipped and with its experts converted to bf16: batches of 1,
 8 and 32, prompts of 512–8,192 random tokens, TTFT (time to first
-token) and TPOT (time per output token) as in chapter 6. Both runs let
+token) and TPOT (time per output token) as in chapter 7. Both runs let
 vLLM choose its attention kernel, Triton's for gpt-oss on this GPU. The
 model follows the repository's tests: MXFP4 with that kernel's measured
 price and Marlin's measured rates; bf16 with FlashAttention-2's price,
@@ -549,10 +550,10 @@ the one its fused-MoE constant (the 0.44 above) was fitted with. Each
 ratio is the model's time over the measured one, so above 1 the model
 reads high; a set of ratios is summed up by its range or its typical
 error, `exp(mean |ln ratio|) − 1`, the geometric mean distance from 1
-(chapter 3).
+(chapter 4).
 
 ```
-Table 10.9  gpt-oss-20b with MXFP4 experts on one RTX A6000 (vLLM): model/measured, and the speed-up over bf16
+Table 11.9  gpt-oss-20b with MXFP4 experts on one RTX A6000 (vLLM): model/measured, and the speed-up over bf16
                        MXFP4, model/measured    speed-up over bf16, TTFT            TPOT
   batch prompt  TTFT ms  ratio  TPOT ms  ratio    measured   model        measured   model
       1    512     59.4  0.922     7.05  1.050       1.56x   1.75x           1.64x   1.62x
@@ -574,7 +575,7 @@ Table 10.9  gpt-oss-20b with MXFP4 experts on one RTX A6000 (vLLM): model/measur
 **Decode.** MXFP4 TPOT lands at 0.968–1.050, typical error 2.3%, and the
 predicted speed-up over bf16 at 0.89–1.01 of the measured. Both are held
 out, with nothing in the model fitted to them: the routing came from a
-separate measurement (chapter 9), Marlin's 0.80 from Table 10.6. The
+separate measurement (chapter 10), Marlin's 0.80 from Table 11.6. The
 speed-up grows from about 1.6× at batch 1 to 2.0–2.4× at 8 and 32, with
 the experts' share of the bytes.
 
@@ -604,13 +605,13 @@ every later model change had to keep it in bounds.
   0.53125. The weight-only pass counts the scale, a recipe doesn't: its
   fp4 weights are about 6% light against MXFP4.
 - **Names.** An unlisted name is silently left alone. gpt-oss's
-  sliding-window layers (which attend only to recent tokens; chapter 8)
+  sliding-window layers (which attend only to recent tokens; chapter 9)
   fuse to `attn_swa_fmha`, which no prefix of `RECIPE_FP4_SERVING`
   matches, so half its attention is priced at 16 bits while capacity
   stores that cache at fp8.
 - **Few rows.** The model's split-K costs a second launch, so a 4-bit
-  GEMM's math floor binds at 8 rows on an H100 (Table 10.1); a kernel
-  splitting K in one launch, like chapter 3's stream-K, wouldn't pay it.
+  GEMM's math floor binds at 8 rows on an H100 (Table 11.1); a kernel
+  splitting K in one launch, like chapter 4's stream-K, wouldn't pay it.
 - **One constant, fitted end to end.** 0.66 was fitted to one model's
   prefill times on one GPU; elsewhere it is a guess.
 - **Accuracy.** The model prices whatever a recipe asks for; whether
@@ -630,10 +631,10 @@ every later model change had to keep it in bounds.
 ## Exercises
 
 1. Price a cache-only recipe, `{"attn_fmha": DType.FP8}`, on the H100
-   across Table 10.4's contexts. From what context does it beat the
+   across Table 11.4's contexts. From what context does it beat the
    "16-bit cache" column?
 2. Give fused attention a separate cache dtype, so an fp8 cache can be
-   read by bf16 math. How much of attention's prefill gain in Table 10.3
+   read by bf16 math. How much of attention's prefill gain in Table 11.3
    survives?
 3. Add `"attn_swa_fmha"` to a copy of `RECIPE_FP4_SERVING` and price a
    gpt-oss-20b decode step on a B200 with and without it. How far off
@@ -642,9 +643,9 @@ every later model change had to keep it in bounds.
    rows on a GPU you have. Is `weight_only_math_efficiency` a constant
    or a curve?
 5. Time a 2:4 sparse GEMM against its dense twin, fit a sparse
-   efficiency as chapter 4 fits dense ones, and redo Table 10.7's prefill
+   efficiency as chapter 5 fits dense ones, and redo Table 11.7's prefill
    column.
 
 ---
 
-*[← Chapter 9: Mixture of experts]({% post_url 2026-09-29-tinyperf-09-mixture-of-experts %}) · [Contents](/series/tinyperf/) · [Chapter 11: Collectives and tensor parallelism →]({% post_url 2026-09-29-tinyperf-11-collectives-and-tensor-parallelism %})*
+*[← Chapter 10: Mixture of experts]({% post_url 2026-09-29-tinyperf-10-mixture-of-experts %}) · [Contents](/series/tinyperf/) · [Chapter 12: Collectives and tensor parallelism →]({% post_url 2026-09-29-tinyperf-12-collectives-and-tensor-parallelism %})*

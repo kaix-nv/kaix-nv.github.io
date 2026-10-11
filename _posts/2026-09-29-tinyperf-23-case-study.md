@@ -1,10 +1,10 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 22: Case study: one constant, three hidden mechanisms"
-date: 2026-09-29 12:22:00 -0700
+title: "Building tinyperf, chapter 23: Case study: one constant, three hidden mechanisms"
+date: 2026-09-29 12:23:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/22-case-study/
-excerpt: "Chapter 21 set out a method for keeping a performance model honest. This chapter follows it through one case, in order, wrong turns included, because the wrong turns are what the method is for. The question: what does it look like when a fitted constant stands in for mechanisms nobody has measured? And how do you get them out?"
+permalink: /tinyperf/book/23-case-study/
+excerpt: "Chapter 22 set out a method for keeping a performance model honest. This chapter follows it through one case, in order, wrong turns included, because the wrong turns are what the method is for. The question: what does it look like when a fitted constant stands in for mechanisms nobody has measured? And how do you get them out?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/09/12/building-tinyperf-m60.html
   - /tinyperf/perf-modeling/2026/09/14/building-tinyperf-m61.html
@@ -14,11 +14,12 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/28/building-tinyperf-m81.html
   - /tinyperf/perf-modeling/2026/09/28/building-tinyperf-m82.html
   - /tinyperf/perf-modeling/2026/09/29/building-tinyperf-m83.html
+  - /tinyperf/book/22-case-study/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), the weight-only branch of `_exec_gemm`, and [`data/calibration/rtx_a6000.json`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/data/calibration/rtx_a6000.json) · Every table and the plot in this chapter come from `python3 book/scripts/ch22_case_study.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), the weight-only branch of `_exec_gemm`, and [`data/calibration/rtx_a6000.json`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/data/calibration/rtx_a6000.json) · Every table and the plot in this chapter come from `python3 book/scripts/ch23_case_study.py`.*
 
-Chapter 21 set out a method for keeping a performance model honest.
+Chapter 22 set out a method for keeping a performance model honest.
 This chapter follows it through one case, in order, wrong turns
 included, because the wrong turns are what the method is for. The
 question: what does it look like when a fitted constant stands in for
@@ -51,24 +52,24 @@ By the end of this chapter you will know:
 
 ## The case
 
-gpt-oss-20b is a mixture-of-experts (MoE) model (chapter 9): 24 layers
+gpt-oss-20b is a mixture-of-experts (MoE) model (chapter 10): 24 layers
 of 32 experts, 4 per token. Its experts ship in MXFP4, a format in
 which 32 four-bit weights share an 8-bit scale, 4.25 bits per weight
-(chapter 10), which vLLM runs on the RTX A6000, a GPU without a 4-bit
+(chapter 11), which vLLM runs on the RTX A6000, a GPU without a 4-bit
 math rate, through the Marlin kernel: it unpacks the weights to bf16
 inside the GEMM. Its attention gives each head a learned sink (an extra
 logit in the softmax's denominator), so vLLM runs it with its own
-Triton kernel, not FlashAttention-2 (chapter 7).
-Every measurement here is vLLM on one RTX A6000. Figure 22.1 is the map.
+Triton kernel, not FlashAttention-2 (chapter 8).
+Every measurement here is vLLM on one RTX A6000. Figure 23.1 is the map.
 
 ![A timeline of nine measurement runs of gpt-oss-20b, each with what it
 showed, what was fitted or assumed, and what was measured or derived
-instead.](/assets/tinyperf-book/ch22-timeline.svg)
+instead.](/assets/tinyperf-book/ch23-timeline.svg)
 
-*Figure 22.1. How the constant came apart. In runs 1 to 4 each surprise
+*Figure 23.1. How the constant came apart. In runs 1 to 4 each surprise
 was answered with a fitted or bent constant; from run 5 each answer was
 a measurement. Two constants fitted to gpt-oss remain in the
-calibration (the GPU's record of fitted constants; chapter 4): 0.66,
+calibration (the GPU's record of fitted constants; chapter 5): 0.66,
 which now prices no prompt of more than 24 tokens, and 0.44, which
 nobody has taken apart.*
 
@@ -99,7 +100,7 @@ flipped. Three things follow.
   proportion.
 - **On a step whose mix differs**, the absorbed error is the wrong
   size, and the residual (the error the fit leaves) follows the parts'
-  shares: chapter 4's rule, seen from the other side.
+  shares: chapter 5's rule, seen from the other side.
 
 And the story told about a fitted constant is a guess: the fit knows
 the sum was short, not which part.
@@ -107,7 +108,7 @@ the sum was short, not which part.
 ## The code: where the constant enters
 
 The calibrated tier (the model on constants fitted to one GPU;
-chapter 4) prices a GEMM with chapter 3's tile model (the GEMM cut into
+chapter 5) prices a GEMM with chapter 4's tile model (the GEMM cut into
 output tiles that run in waves across the GPU), scaled by a math and a
 memory efficiency. This is the branch of the GEMM pricer, `_exec_gemm`,
 for GEMMs with 4-bit weights (comments, the bf16 expert branch and a
@@ -139,10 +140,10 @@ detail string trimmed):
 `ms` and `ds` scale the tile model's math and memory rates. For a
 4-bit GEMM, `ms` is the calibration's `weight_only_math_efficiency`,
 0.66; for an expert, `ds` is `weight_only_dram_efficiency`, 0.80,
-Marlin's weight-streaming rate timed inside decode steps (chapter 10's
-Table 10.6). 0.66 once priced every expert GEMM of every gpt-oss
+Marlin's weight-streaming rate timed inside decode steps (chapter 11's
+Table 11.6). 0.66 once priced every expert GEMM of every gpt-oss
 prefill. The two branches below replaced it: an expert launch carrying
-a chunk (a slice of a prompt; chapter 14) beside decodes reads a table
+a chunk (a slice of a prompt; chapter 15) beside decodes reads a table
 of the kernel timed on such steps, and any other launch of 128 tokens
 or more takes its math time from `weight_only_expert_tflops`, Marlin's
 rate by tokens per launch. Only smaller launches, mostly decode, still
@@ -153,14 +154,14 @@ see 0.66.
 The first run was an eight-cell grid: batches of 1, 8 and 32 prompts
 of 512 to 8,192 random tokens, timed for TTFT (time to first token: the
 prefill) and TPOT (time per output token: the mean decode step), as in
-chapter 6. The predictions were *frozen*, committed before the run was
-opened (chapter 21). Their ratios, model over measured, are *recorded*:
+chapter 7. The predictions were *frozen*, committed before the run was
+opened (chapter 22). Their ratios, model over measured, are *recorded*:
 stored when measured, not recomputed by today's model. The footer's
 last line is TPOT once the model counted experts as a *fair router*
 would, one that picks every expert equally often.
 
 ```
-Table 22.1  The first run on real hardware: gpt-oss-20b with 4-bit experts, one RTX A6000 (vLLM), TTFT model/measured
+Table 23.1  The first run on real hardware: gpt-oss-20b with 4-bit experts, one RTX A6000 (vLLM), TTFT model/measured
   batch  prompt  measured ms  frozen (recorded)  as fitted, 0.66
       1     512         59.4               0.60             0.80
       1    2048        183.7               0.73             0.98
@@ -179,8 +180,8 @@ Table 22.1  The first run on real hardware: gpt-oss-20b with 4-bit experts, one 
 Two misses, with two shapes. Decode priced 49–59% high at batch 8,
 within 9% at batch 1 and 13–17% high at batch 32. The model assumed
 every pick was distinct, min(32, 4 × batch): all 32 experts at batch 8,
-where a fair router touches 21 (chapter 9's Table 9.4); at batch 1 and
-32 the two agree. A fair router's count replaced it (chapter 9's field
+where a fair router touches 21 (chapter 10's Table 10.4); at batch 1 and
+32 the two agree. A fair router's count replaced it (chapter 10's field
 note), leaving batch 8 and 32 11–17% high.
 
 Prefill priced 22–40% low at every cell. The suspect was obvious: the
@@ -195,7 +196,7 @@ The last column is recomputed: today's code with two later
 measurements switched off reproduces the ratios recorded after the fit,
 so the rest of the model has moved these cells by no more than
 rounding. A refit returns 0.66 if it centres the five cells and 0.68 by
-chapter 4's least mean `|ln ratio|`; the record doesn't say which
+chapter 5's least mean `|ln ratio|`; the record doesn't say which
 criterion the original fit used.
 
 ## The routing count
@@ -204,17 +205,17 @@ The next run was like for like: the same grid with every weight in
 bf16, which vLLM runs through its Triton fused-MoE kernel on a default
 configuration (no tuned entry for this GPU). With no 4-bit unpacking at
 all, its prefill priced 45–48% low, further off than the 4-bit run
-(Table 22.2's footer), and got a constant of its own,
+(Table 23.2's footer), and got a constant of its own,
 `moe_math_efficiency` = 0.44. The number 0.66 stayed, but its story
 fell: most of what it measured was not unpacking.
 
 Decode at batch 8 and 32 priced 30–42% high. A router with favourites
-touches fewer experts than a fair one (chapter 9), so a Zipf skew for
+touches fewer experts than a fair one (chapter 10), so a Zipf skew for
 expert popularity (popularity falling as a power of an expert's rank)
 was fitted on those cells: 1.4.
 
 ```
-Table 22.2  Four counts of the experts a gpt-oss-20b decode step touches (of 32), random-token prompts
+Table 23.2  Four counts of the experts a gpt-oss-20b decode step touches (of 32), random-token prompts
   batch                                        1     2     4     8    16    32    64
   uniform (a fair router)                    4.0   7.5  13.2  21.0  28.2  31.6  32.0
   Zipf skew 1.4, fitted to step times        4.0   6.0   8.9  12.9  17.9  23.4  28.2
@@ -234,10 +235,10 @@ bytes, the profiled kernels streamed at 0.65–0.66 of the fitted DRAM
 rate (bf16) and 0.51–0.55 (Marlin). The calibration took 0.70 and 0.53
 (the record doesn't say why 0.70). A sweep of batches 2 to 64 turned
 them into curves read off step times less the model's other parts:
-Table 22.3's first rows, down to 0.53–0.55 at batch 64.
+Table 23.3's first rows, down to 0.53–0.55 at batch 64.
 
 ```
-Table 22.3  The bf16 expert kernel's weight-streaming rate, as a fraction of the fitted 691 GB/s, read three ways
+Table 23.3  The bf16 expert kernel's weight-streaming rate, as a fraction of the fitted 691 GB/s, read three ways
   batch                                                       1     2     4     8    16    32    64
   512-token prompts, last-position count (recorded)        1.00  0.77  0.81  0.65  0.75  0.74  0.53
     the same times, its decode-step count                  1.00  0.88  0.88  0.89  1.00  0.98  0.68
@@ -252,23 +253,23 @@ Table 22.3  The bf16 expert kernel's weight-streaming rate, as a fraction of the
 The obvious check was to time the engine's expert layers alone,
 replayed on inputs captured from a decode step. At batch 8 a gate-up
 launch took 435.0 µs alone and 608.6 µs in the step. A kernel
-1.4 times slower in company was investigated hard (chapter 21's field
+1.4 times slower in company was investigated hard (chapter 22's field
 note lists what was ruled out). It ran at the memory roof in both
 places, so the conclusion was that the step read bytes it didn't need.
 
 It didn't. Hooks on the routers inside the engine found that routing
-spreads as a reply goes on (chapter 9's Table 9.6). A count at the
+spreads as a reply goes on (chapter 10's Table 10.6). A count at the
 prompt's last position describes the first decode step at best; a TPOT
 averages 128. Counted over the steps timed, batch 8 touches 13.1
 experts: the fitted skew had been closer than the "direct" count.
 Paired launch by launch with its own step's routing, the bf16 kernel
-streams at the full rate up to 32 tokens per launch (chapter 9's Table
-9.3). The extra time was uncounted experts: at 47.2 µs per expert, the
+streams at the full rate up to 32 tokens per launch (chapter 10's Table
+10.3). The extra time was uncounted experts: at 47.2 µs per expert, the
 replay's launch is 9.2 experts' weights and the in-step one 12.9,
 matching the replay's step (9.9) and the engine's (12.7: that run's 32
 steps after 64-token prompts).
 
-Table 22.3's second rows recount the curve's own step times over each
+Table 23.3's second rows recount the curve's own step times over each
 cell's decode steps: it flattens to 0.88–1.00 up to batch 32. One real
 effect survives at batch 64, 0.68–0.71: vLLM's default configuration
 switches to 64-row blocks once a launch carries more tokens than there
@@ -279,17 +280,17 @@ calibration streams bf16 experts at the full rate below that switch and
 ## Serving it online
 
 A server's requests arrive at random, prompts ride in chunks beside
-other requests' decodes, and every step's mix differs (chapters 14–16).
+other requests' decodes, and every step's mix differs (chapters 15–17).
 The first online sweep sent prompts of about 1,024 random tokens with
 replies of about 256, each prediction frozen as an interval (the range
 the model gives once its validated step error runs through the queue;
-chapter 18): median and p95 TTFT and mean TPOT at six rates, 18 values.
-In Table 22.4, *in-sample* marks the sweep re-priced with changes made
+chapter 19): median and p95 TTFT and mean TPOT at six rates, 18 values.
+In Table 23.4, *in-sample* marks the sweep re-priced with changes made
 after seeing it, and the KV pool is the memory vLLM sets aside for the
-cache (chapter 17).
+cache (chapter 18).
 
 ```
-Table 22.4  The first online sweep (prompts about 1,024 tokens, replies about 256): what fixed batches never showed
+Table 23.4  The first online sweep (prompts about 1,024 tokens, replies about 256): what fixed batches never showed
   values inside their frozen intervals, the model as it stood (recorded): 9 of 18
   decode steps of 17-64 decodes, model/engine (recorded): as it stood 0.88-0.90; with the three changes below 1.01-1.02
   1. the KV pool, tokens: the experts at bf16 67,312; at their 4.25 bits 638,432; the engine logged 607,344
@@ -301,14 +302,14 @@ Table 22.4  The first online sweep (prompts about 1,024 tokens, replies about 25
 ```
 
 Three things read off that run account for the misses. The capacity
-model (the accounting of what fits in memory; chapter 6) held the
+model (the accounting of what fits in memory; chapter 7) held the
 experts at bf16, so the simulated KV pool was a ninth of the engine's
-(chapter 10's field note). Sequences out of step share fewer experts,
+(chapter 11's field note). Sequences out of step share fewer experts,
 so the model now reads a count measured on the engine as it serves
-(chapter 9's Table 9.7, the *online table*). And Triton's attention
+(chapter 10's Table 10.7, the *online table*). And Triton's attention
 pays no re-read in a mixed step (a chunk beside decodes), where
 FlashAttention-2 reads each decode's cache again per query head
-(chapter 7).
+(chapter 8).
 
 With the three, the sweep came in, in-sample. What it left was written
 into the next prediction file with its suspect: steps carrying a fresh
@@ -321,11 +322,11 @@ missed had the shorter prompts.
 
 To see the residual without a queue in the way, one fresh prompt at a
 time went to an idle server, and the engine's clock (its own GPU timing
-of each step; chapter 15) timed its forward.
-Table 22.5's first row, the model with 0.66, is the frozen record.
+of each step; chapter 16) timed its forward.
+Table 23.5's first row, the model with 0.66, is the frozen record.
 
 ```
-Table 22.5  One fresh prompt on an idle server: the engine's forward, model/measured, gpt-oss-20b with 4-bit experts
+Table 23.5  One fresh prompt on an idle server: the engine's forward, model/measured, gpt-oss-20b with 4-bit experts
   prompt tokens                                128   256   384   512   640   768  1024  1280  1536  2048
   engine ms                                   23.8  33.1  44.6  55.3  66.5  74.6  92.5 117.8 136.1 179.7
   0.66, FlashAttention-2's price              1.01  0.95  0.91  0.93  0.90  0.96  1.05  0.96  1.05  1.02
@@ -342,9 +343,9 @@ Table 22.5  One fresh prompt on an idle server: the engine's forward, model/meas
 **The kernel's own rate.** A tool timed one layer's Marlin call on the
 engine's repacked weights in a CUDA graph (kernel launches recorded
 once and replayed as one, as a served step runs them, rather than
-issued *eagerly* from Python one by one; chapter 4). Against it, the
+issued *eagerly* from Python one by one; chapter 5). Against it, the
 tile model times 0.66 read 0.83–0.97 at 256–1,024 tokens and 1.03–1.05
-at 1,536–2,048 (Table 22.5's last line). The model's tile choice jumps
+at 1,536–2,048 (Table 23.5's last line). The model's tile choice jumps
 between sizes as the rows grow; the kernel's rate rises smoothly. A
 constant times a staircase can only average a ramp.
 
@@ -352,7 +353,7 @@ constant times a staircase can only average a ramp.
 uniformly over the experts. The engine's router doesn't spread them:
 
 ```
-Table 22.6  Marlin under the engine's own routing: one prompt, every layer's experts, timed alone in a CUDA graph
+Table 23.6  Marlin under the engine's own routing: one prompt, every layer's experts, timed alone in a CUDA graph
   prompt tokens                                128   256   384   512  1024  2048  8192
   busiest expert's share, mean over layers    0.94  0.94  0.95  0.94  0.95  0.95  0.95
   time, engine routing / uniform              0.89  1.16  1.21  1.05  1.06  1.04  1.06
@@ -361,7 +362,7 @@ Table 22.6  Marlin under the engine's own routing: one prompt, every layer's exp
 ```
 
 On average over layers one expert takes 94–95% of a prompt's tokens
-(chapter 9's 99% is the median on the benchmark's prompts, which time
+(chapter 10's 99% is the median on the benchmark's prompts, which time
 within 2% of these). vLLM sizes Marlin's row blocks from the mean rows
 over all 32 experts, which fits none when one expert holds nearly every
 token, and from 256 tokens the kernel takes 4–21% longer than under
@@ -371,19 +372,19 @@ router choices, and its rate stored by tokens per launch:
 
 **The attention.** With Marlin measured, the first run's own grid fell:
 its 8,192-token prompts dropped from 0.91 and 0.89 to 0.81 and 0.79
-(Table 22.6's last line). The constant had been covering something
+(Table 23.6's last line). The constant had been covering something
 else. The model had priced Triton's prefill attention as if it were
 FlashAttention-2's. Timed alone, it runs at about a third of that rate,
 consistent with each of its programs (Triton's thread blocks) taking
-only two query tokens (chapter 7's Table 7.3; not profiled). The
+only two query tokens (chapter 8's Table 8.3; not profiled). The
 attention backend, the model's entry for the engine's attention
-kernels (chapter 7), now carries 0.215.
+kernels (chapter 8), now carries 0.215.
 
 ![Lone-prompt steps model over measured against prompt length, for the
 model with 0.66, with Marlin measured alone, with Triton's attention
-measured alone, and with both.](/assets/tinyperf-book/ch22-prefill-steps.svg)
+measured alone, and with both.](/assets/tinyperf-book/ch23-prefill-steps.svg)
 
-*Figure 22.2. Table 22.5 as a plot. At 1,536 and 2,048 tokens either
+*Figure 23.2. Table 23.5 as a plot. At 1,536 and 2,048 tokens either
 measurement alone makes the step worse, in opposite directions;
 elsewhere one alone can help. Only both bring every length within 3%
 (in-sample).*
@@ -407,10 +408,10 @@ a shift that grows with the prompt because attention's share does. At
 signs across its five cells; that is why they agreed.
 
 So redo the fit, on a grid that is now a pinned test (one asserting
-its ratios stay inside a band; chapter 21):
+its ratios stay inside a band; chapter 22):
 
 ```
-Table 22.7  The fit redone on the same five cells, as each hidden part is measured: weight_only_math_efficiency and TTFT model/measured
+Table 23.7  The fit redone on the same five cells, as each hidden part is measured: weight_only_math_efficiency and TTFT model/measured
   expert GEMMs                attention                  fitted  all 8 cells at the fit  8,192-token prompts
   tile model x the constant   FlashAttention-2 (0.65)      0.66               0.80-1.06           0.91, 0.89
   Marlin measured alone       FlashAttention-2 (0.65)      none               0.79-0.92           0.81, 0.79
@@ -422,7 +423,7 @@ Table 22.7  The fit redone on the same five cells, as each hidden part is measur
 ```
 
 Price the attention right and the same fit returns 0.74 (0.75 by
-chapter 4's criterion): the experts' math rate had been set 9–11% lower
+chapter 5's criterion): the experts' math rate had been set 9–11% lower
 to pay for attention priced at a third of its cost. Even 0.74 describes
 no kernel: Marlin's measured rate runs from 39 TFLOP/s at 128 tokens per
 launch to 90 at 16,384, which no single factor on a staircase follows.
@@ -436,7 +437,7 @@ A new sweep of long prompts, about 3,072 tokens with replies of about
 It could not tell the new model from the old: most of its prompt steps
 carry more than 1,536 tokens, near where the two errors cancel (the
 worked example), and both models price its steps within a few percent
-(Table 22.8's *step bias*, the model's steps over the engine's clock).
+(Table 23.8's *step bias*, the model's steps over the engine's clock).
 Re-priced with nothing fitted to them, the three earlier sweeps read 45
 of 54, no better than before: steps with a chunk beside many decodes
 still priced 6–11% low. The prediction file guessed routing: decodes
@@ -445,7 +446,7 @@ so the kernel should run 10–25% above the model. The engine was stepped
 by hand to record that routing, and the kernel timed on it.
 
 ```
-Table 22.8  A correction that cost a sweep: Marlin's table re-derived, and the long-prompt sweep (prompts about 3,072 tokens, replies about 64)
+Table 23.8  A correction that cost a sweep: Marlin's table re-derived, and the long-prompt sweep (prompts about 3,072 tokens, replies about 64)
   frozen first (recorded): steps with a chunk beside many decodes 6-11% low; expected, the kernel 10-25% above the model at 16+ decodes
   Marlin on a mixed step's routing, 128-1024-token chunks (recorded): the frozen price over the kernel, 16-64 decodes 0.96-1.11, a lone chunk 1.05-1.24; each decode adds 4.0-9.2 us per layer, the model at most 3.7
   Marlin, TFLOP/s by tokens per launch                          128    512   2048   8192
@@ -469,13 +470,13 @@ two errors pulling against each other instead: a lone chunk priced high
 (1.05–1.24), and each decode beside it priced low, 4–9 µs per layer
 against at most 3.7 in the model. So the kernel's time went into a
 table by decodes and chunk size, `weight_only_expert_mixed_us` (chapter
-4's Table 4.9).
+5's Table 5.9).
 
 Building it turned up an error. Marlin's call also runs the activation
 and the top-k sum, which the model prices as separate operations, so
 its table was derived as the kernel's time less the model's price for
 those two. That price used the eager launch cost, 25 µs each, where a
-served step replays a CUDA graph at 3.5 µs (chapter 4). The table was
+served step replays a CUDA graph at 3.5 µs (chapter 5). The table was
 43 µs per layer too cheap. The correction is arithmetic, and it
 reproduces the calibration's table exactly.
 
@@ -489,14 +490,14 @@ the next thing to measure.
 The next prediction file blamed the long contexts, which were
 innocent: decode steps started together barely move from 512 to 4,096
 tokens. The replies were to blame. This sweep's were short, and early
-in their replies sequences crowd onto the same experts (chapter 9's
-Table 9.8), so its steps touched fewer experts than the online table,
-which came from replies of 128 to 384 tokens (Table 22.8's last lines).
+in their replies sequences crowd onto the same experts (chapter 10's
+Table 10.8), so its steps touched fewer experts than the online table,
+which came from replies of 128 to 384 tokens (Table 23.8's last lines).
 The model now scales a step's decodes beyond the first by a factor read
 off their median position in their replies.
 
 ```
-Table 22.9  Six online sweeps, 18 values each: how many land inside their intervals, by model (recorded)
+Table 23.9  Six online sweeps, 18 values each: how many land inside their intervals, by model (recorded)
   sweep  prompts/replies     frozen  Marlin, attention  + mixed-step table  + reply position (now)
   1             1024/256          9                 17                  18                      18
   2              512/384         10                 11                  18                      17
@@ -506,7 +507,7 @@ Table 22.9  Six online sweeps, 18 values each: how many land inside their interv
   6              1024/48         15                  -                  14                      16
   total                   84 of 108           76 of 90           92 of 108              103 of 108
   prompts/replies: mean tokens, +-50%; frozen: the intervals of the model of the day, committed first
-  sweep 1's frozen 9 predates the online changes of Table 22.4; with them, in-sample, 18. '-': that model never priced sweep 6
+  sweep 1's frozen 9 predates the online changes of Table 23.4; with them, in-sample, 18. '-': that model never priced sweep 6
   sweeps 1-3, before Marlin and attention were measured: 18 + 10 + 17 = 45; after: 17 + 11 + 17 = 45
   sweep 6, the model now (in-sample for its form), decode steps of up to 4, 8 and 16 decodes: 0.92, 0.96, 0.94; padded steps 0.93
 ```
@@ -522,22 +523,22 @@ of 18, in-sample for that fix.
 - **Short replies.** Under the model now, sweep 6's decode steps of up
   to 4, 8 and 16 decodes read 0.92–0.96, its padded steps 0.93 (a
   padded step runs at the next batch size the engine captured a CUDA
-  graph for; chapter 15). The position factor is one curve for every
+  graph for; chapter 16). The position factor is one curve for every
   batch size.
 - **Real text, online.** Every online sweep used random-token prompts;
-  real text was measured only in fixed batches (chapter 9's Table 9.12).
+  real text was measured only in fixed batches (chapter 10's Table 10.12).
 - **0.44 is untouched.** The bf16 kernel's constant was fitted with
   FlashAttention-2's attention price on runs where the engine used
   Triton's. Priced with Triton's, bf16 TTFT reads 0.99–1.08 (chapter
-  10's Table 10.9): consistent with attention living inside 0.44 too
+  11's Table 11.9): consistent with attention living inside 0.44 too
   (not measured).
 - **0.66 still prices** gpt-oss's decode launches, prompts of up to 24
   tokens (by at most 0.13 ms) and every other weight-only GEMM. No other
   4-bit kernel has been timed.
 - **One engine version, one GPU, untuned configurations** own every
   table here.
-- **Re-pricing is not holding out.** Only Table 22.9's frozen column is
-  held out (chapter 21).
+- **Re-pricing is not holding out.** Only Table 23.9's frozen column is
+  held out (chapter 22).
 
 ## What you built
 
@@ -557,13 +558,13 @@ of 18, in-sample for that fix.
   measurement of the wrong thing is more dangerous than a fit: it is
   trusted, and whatever is fitted around it absorbs its error.
 
-Chapter 21 draws the general rules from this case.
+Chapter 22 draws the general rules from this case.
 
 ## Exercises
 
 1. **Take 0.44 apart.** Refit `moe_math_efficiency` on the bf16 grid's
    batch-8 and batch-32 prefill cells with `attn_backend="triton_attn"`,
-   as Table 22.7 did for 0.66. How much of 0.44 was attention? What
+   as Table 23.7 did for 0.66. How much of 0.44 was attention? What
    would you time to retire it?
 2. **Where they cancel.** Using the worked example's method, find the
    prompt length at which the fitted model's expert and attention
@@ -574,4 +575,4 @@ Chapter 21 draws the general rules from this case.
 
 ---
 
-*[← Chapter 21: Validating a performance model]({% post_url 2026-09-29-tinyperf-21-validating-a-performance-model %}) · [Contents](/series/tinyperf/) · [Appendix a: Using the estimator →]({% post_url 2026-09-29-tinyperf-appendix-a-using-the-estimator %})*
+*[← Chapter 22: Validating a performance model]({% post_url 2026-09-29-tinyperf-22-validating-a-performance-model %}) · [Contents](/series/tinyperf/) · [Appendix a: Using the estimator →]({% post_url 2026-09-29-tinyperf-appendix-a-using-the-estimator %})*

@@ -165,7 +165,7 @@
   <rect x="85" y="398" width="930" height="42" rx="10" fill="#fdba74"/>
   <text x="550" y="424" class="label" text-anchor="middle">every MoE layer: each token goes to its experts' GPUs and comes back (ep = 8)</text>
 
-  <text x="85" y="478" class="small">↔ inside a pair: tensor parallelism (tp = 2), two all-reduces per layer, as in chapter 11.</text>
+  <text x="85" y="478" class="small">↔ inside a pair: tensor parallelism (tp = 2), two all-reduces per layer, as in chapter 12.</text>
   <text x="85" y="502" class="small">world = tp × cp × dp × pp = <tspan class="num">2 × 1 × 4 × 1 = 8</tspan>. The global batch of 64 is split 16 per replica; the experts see all 64.</text>
   <text x="85" y="526" class="small">A pipeline (pp = 2) would repeat this picture for the second half of the layers and hand activations across.</text>
   <text x="85" y="550" class="small">Context parallelism (cp = 2) would repeat it for the second half of every sequence.</text>

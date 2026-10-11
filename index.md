@@ -10,7 +10,7 @@ correctness and measured on real hardware, mistakes included.
 
 ### [Building tinyperf: an analytical GPU performance model](/series/tinyperf/)
 
-A book in 22 chapters and two appendices. Price a GEMM from a GPU's
+A book in 23 chapters and two appendices. Price a GEMM from a GPU's
 datasheet, then a transformer, a parallel layout and a serving engine under
 load; check each mechanism against a real GPU, and label every number by
 what the model had seen before it was measured.
@@ -44,7 +44,7 @@ correctness and performance limits.
     {%- unless book_listed %}
   <li>
     <span class="post-meta">{{ post.date | date: date_format }}</span>
-    <h3><a class="post-link" href="{{ '/series/tinyperf/' | relative_url }}">Building tinyperf, the book: 22 chapters and two appendices</a></h3>
+    <h3><a class="post-link" href="{{ '/series/tinyperf/' | relative_url }}">Building tinyperf, the book: 23 chapters and two appendices</a></h3>
     <p>The milestone posts, rewritten as a book: each chapter asks one question, builds the mechanism that answers it, shows the code and the evidence, and says where it breaks. Links to the old posts lead to the chapters that replace them.</p>
   </li>
       {%- assign book_listed = true -%}

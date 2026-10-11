@@ -52,7 +52,7 @@
     <text x="280" y="351">query head 3</text><text x="280" y="373">query head 4</text>
   </g>
   <text x="60" y="424" class="small">Each byte of the cache crosses the bus once for the</text>
-  <text x="60" y="446" class="small">whole group: the price of chapter 6 and Table 7.4.</text>
+  <text x="60" y="446" class="small">whole group: the price of chapter 7 and Table 8.4.</text>
 
   <!-- ===================== right: unpacked ===================== -->
   <text x="590" y="116" class="label">Beside a prompt chunk: unpacked</text>
@@ -91,6 +91,6 @@
     <text x="885" y="339">head 3</text><text x="1005" y="339">head 4</text>
   </g>
   <text x="590" y="384" class="small">read 4 times</text>
-  <text x="590" y="424" class="small">Up to 3 extra reads of every decode row's cache (Table 7.5).</text>
+  <text x="590" y="424" class="small">Up to 3 extra reads of every decode row's cache (Table 8.5).</text>
   <text x="590" y="446" class="small">FlashInfer and vLLM's Triton kernel still pack here.</text>
 </svg>

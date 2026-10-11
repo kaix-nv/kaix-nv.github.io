@@ -1,22 +1,23 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 12: Parallel layouts"
-date: 2026-09-29 12:12:00 -0700
+title: "Building tinyperf, chapter 13: Parallel layouts"
+date: 2026-09-29 12:13:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/12-parallel-layouts/
-excerpt: "Chapter 11 spread a model over the GPUs of a node by slicing every weight matrix. That has two limits. It all-reduces (sums a buffer across all the GPUs; chapter 11) twice per layer. And it stops paying as the group grows: in decode when the ring's latency (a fixed cost per hand-off as the all-reduce passes round the GPUs) outgrows each GPU's shrinking work; in prefill at the node boundary, where NVLink, the fast link between a server's GPUs, gives way to a much slower network. There are four other ways to spread a model, and large deployments combine them: cut the stack of layers into stages, run copies of the attention for different requests, cut each sequence into pieces, and spread the experts of a mixture-of-experts (MoE) model over GPUs. For each, this chapter asks: what does it split, what does it copy, and what does it cost?"
+permalink: /tinyperf/book/13-parallel-layouts/
+excerpt: "Chapter 12 spread a model over the GPUs of a node by slicing every weight matrix. That has two limits. It all-reduces (sums a buffer across all the GPUs; chapter 12) twice per layer. And it stops paying as the group grows: in decode when the ring's latency (a fixed cost per hand-off as the all-reduce passes round the GPUs) outgrows each GPU's shrinking work; in prefill at the node boundary, where NVLink, the fast link between a server's GPUs, gives way to a much slower network. There are four other ways to spread a model, and large deployments combine them: cut the stack of layers into stages, run copies of the attention for different requests, cut each sequence into pieces, and spread the experts of a mixture-of-experts (MoE) model over GPUs. For each, this chapter asks: what does it split, what does it copy, and what does it cost?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/09/02/building-tinyperf-m44.html
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m46.html
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m47.html
   - /tinyperf/perf-modeling/2026/09/19/building-tinyperf-m62.html
+  - /tinyperf/book/12-parallel-layouts/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py) and [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py) · Every table in this chapter comes from `python3 book/scripts/ch12_layouts.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py) and [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py) · Every table in this chapter comes from `python3 book/scripts/ch13_layouts.py`.*
 
-Chapter 11 spread a model over the GPUs of a node by slicing every
+Chapter 12 spread a model over the GPUs of a node by slicing every
 weight matrix. That has two limits. It all-reduces (sums a buffer
-across all the GPUs; chapter 11) twice per layer. And it stops paying
+across all the GPUs; chapter 12) twice per layer. And it stops paying
 as the group grows: in decode when the ring's latency (a fixed cost per
 hand-off as the all-reduce passes round the GPUs) outgrows each GPU's
 shrinking work; in prefill at the node boundary, where NVLink, the fast
@@ -35,7 +36,7 @@ The short answer: each is a lever on one resource, in one phase.
   a weight-bound decode step or one prompt, though a prompt's chunks
   (the pieces an engine feeds it in) can overlap.
 - **Attention replicas** split the requests and copy the attention. They
-  cut collective traffic (the GPUs' group communication; chapter 11),
+  cut collective traffic (the GPUs' group communication; chapter 12),
   but a lone prompt pays for every replica.
 - **Context parallelism** splits each sequence and copies all the
   weights. It divides a long prefill by its width (the number of
@@ -66,7 +67,7 @@ or *ranks*, in it is the *world*, their product:
 world = tp × cp × dp × pp
 ```
 
-- `tp`: chapter 11's tensor-parallel group, each GPU holding `1/tp` of
+- `tp`: chapter 12's tensor-parallel group, each GPU holding `1/tp` of
   every weight matrix;
 - `dp`: attention replicas, tensor-parallel groups each serving its own
   share of the requests;
@@ -85,9 +86,9 @@ can only mean two replicas, so the builder infers `dp = ep / tp` when
 
 ![Eight GPUs as four pairs. Each pair is a tensor-parallel group running
 the attention for its own sixteen requests; each GPU also holds sixteen
-whole experts, and a dispatch band spans all eight.](/assets/tinyperf-book/ch12-rank-layout.svg)
+whole experts, and a dispatch band spans all eight.](/assets/tinyperf-book/ch13-rank-layout.svg)
 
-*Figure 12.1. Eight GPUs as `tp=2 × dp=4`, with `ep=8`, for a model with
+*Figure 13.1. Eight GPUs as `tp=2 × dp=4`, with `ep=8`, for a model with
 128 experts. Each pair is an attention replica serving a quarter of the
 requests; each GPU holds 16 whole experts, and in every MoE layer tokens
 cross the whole band to their experts and back.*
@@ -96,7 +97,7 @@ In every layout `batch` is the **global** batch: every sequence in
 flight, across all replicas and micro-batches (the slices of the batch
 a pipeline keeps in flight). An attention replica runs
 `ceil(batch / dp)` of them. The expert layer sees them all. The
-capacity model (chapter 6's count of the sequences that fit in memory)
+capacity model (chapter 7's count of the sequences that fit in memory)
 counts the same way: `max_batch` returns `dp` times what one replica
 holds.
 
@@ -121,7 +122,7 @@ times, as many bytes as without the pipeline. Its cache reads and its
 math cover only its own layers, `1/pp` of them.
 
 ```
-Table 12.1  Pipeline stages: Llama-3-70B on H100s, tp=8 in each stage, datasheet rates
+Table 13.1  Pipeline stages: Llama-3-70B on H100s, tp=8 in each stage, datasheet rates
   layout    GPUs  hand-off    decode step vs pp=1, context 4096  one 8k prompt  weights  max batch
                                   b=1      b=8     b=64    b=256             ms   GB/GPU    at 4096
   tp8 pp1      8  -              1.00     1.00     1.00     1.00          299.4     17.6        323
@@ -145,21 +146,21 @@ the pipeline's *bubble*, and every boundary adds a hand-off of the whole
 prompt's activations: 6% more on eight stages.
 
 The *chunks* of a prompt are different. With chunked prefill (chapter
-14), an engine feeds a prompt in pieces no larger than its token budget
+15), an engine feeds a prompt in pieces no larger than its token budget
 (the most tokens it runs in one step; 8192 here). Chunk 2 can enter
 stage 1 while chunk 1 is on stage 2: its attention needs chunk 1's keys
 and values only for its own stage's layers, which are on the same GPU.
 
 ![Two timelines on two stages. One unchunked prompt occupies stage 1 and
 then stage 2, four time units in all. The same prompt in four chunks
-finishes in two and a half.](/assets/tinyperf-book/ch12-pipeline-chunks.svg)
+finishes in two and a half.](/assets/tinyperf-book/ch13-pipeline-chunks.svg)
 
-*Figure 12.2. A prompt through two stages. Unchunked, it takes one
+*Figure 13.2. A prompt through two stages. Unchunked, it takes one
 traverse, as on one GPU, and each stage idles half the time. In four
 chunks, stage 1 starts chunk 2 while stage 2 runs chunk 1, and the
 prompt finishes in five chunk stage-times instead of eight.*
 
-A wave of `c` chunks, fed in back to back (not chapter 3's wave of
+A wave of `c` chunks, fed in back to back (not chapter 4's wave of
 thread blocks), drains through `pp` stages in `c + pp − 1` stage-times,
 where one stage-time is a chunk's traverse over `pp`. The time to first
 token (TTFT) is then
@@ -200,13 +201,13 @@ GPUs are replicas of the attention: each serves its own requests with
 its own copy of the attention weights, and the replicas meet only
 inside the expert layers. vLLM runs this layout with
 `--data-parallel-size` and `--enable-expert-parallel`. For a dense model
-the replicas never meet, and `dp` is simply several servers. Table 12.2
+the replicas never meet, and `dp` is simply several servers. Table 13.2
 prices five layouts, sending tokens to their experts with an all-to-all
-(each GPU sends a different piece to every other; chapter 11); TPOT,
+(each GPU sends a different piece to every other; chapter 12); TPOT,
 the time per output token, is the decode step.
 
 ```
-Table 12.2  Attention replicas: gpt-oss-120b bf16 on eight B200s, all-to-all dispatch, datasheet rates
+Table 13.2  Attention replicas: gpt-oss-120b bf16 on eight B200s, all-to-all dispatch, datasheet rates
   decode: global batch 64 at context 4096; prefill: 8 prompts of 8192 tokens, or one
   layout       experts/GPU seqs/replica  TPOT ms  comm TTFT 8 x 8k  1 x 8k  GB/GPU max batch
   tp8             all, 1/8           64     6.43   20%       145.1    20.9    30.5      6680
@@ -244,7 +245,7 @@ ring while each computes its own queries against them. Implementations
 split the sequence in a zigzag so each group gets an equal share of the
 causal work; the model keeps the average causal key length, divides the
 query rows by `cp`, and prices the circulation as one all-gather (every
-GPU ends with every group's piece; chapter 11) of the layer's KV, not
+GPU ends with every group's piece; chapter 12) of the layer's KV, not
 overlapped with compute.
 
 **Decode: shard the cache.** A decode step has one query per sequence
@@ -255,7 +256,7 @@ group: the weights are copied, so weight traffic doesn't shrink. Only
 cache traffic does.
 
 ```
-Table 12.3  Context parallelism: Llama-3-70B on H100s, tp=8 in each group, datasheet rates
+Table 13.3  Context parallelism: Llama-3-70B on H100s, tp=8 in each group, datasheet rates
                       TTFT, s  TPOT, batch 8, ms          GB/GPU  max batch
   layout    GPUs   32k   128k       4k      128k  weights KV/seq    at 128k
   tp8 cp1      8  1.38   8.77    11.33     23.74     17.6   5.37         10
@@ -301,7 +302,7 @@ all-gather + reduce-scatter: (dp − 1) · (2 · hidden + experts)
 values, so the all-to-all moves about `top_k/dp` times as much.
 
 ```
-Table 12.4  Two ways to move tokens: gpt-oss-120b (hidden 2880, top-4) on B200s, tp=1, ep=dp
+Table 13.4  Two ways to move tokens: gpt-oss-120b (hidden 2880, top-4) on B200s, tp=1, ep=dp
   per MoE layer, a prefill of 1024 tokens on each replica; KB each GPU sends per token of its own
   dp = ep  all-to-all KB      us  all-gather + reduce-scatter KB      us  ratio
         2          23.04    34.2                           11.78    21.4   1.96
@@ -316,18 +317,18 @@ moves half the bytes; on eight, twice.
 
 **Lockstep.** The replicas must step together, because every MoE layer's
 collective needs all of them. With CUDA graphs on (each step replayed
-from launches recorded for a fixed batch size; chapter 4), vLLM pads
+from launches recorded for a fixed batch size; chapter 5), vLLM pads
 every replica to the largest replica's token count, and a replica with
 no requests runs a dummy batch of that size. The router routes dummy
-tokens like real ones. Unlike chapter 9's padded rows, which hold stale
-real tokens, a dummy batch is one token repeated (chapter 9's
+tokens like real ones. Unlike chapter 10's padded rows, which hold stale
+real tokens, a dummy batch is one token repeated (chapter 10's
 exercise 3). So the expert layer sees `dp × ceil(batch/dp)` sequences.
 At global batch 1 on two replicas, each GPU's expert rows are those of
-one GPU running the whole request. That is Table 12.2's lone prompt: at
+one GPU running the whole request. That is Table 13.2's lone prompt: at
 `dp=8`, one prompt costs what eight do.
 
 > **Field note: the dummy token.** Priced as a random token, the dummy
-> left the batch-1 decode cells of the two-A6000 run of Table 12.8 at
+> left the batch-1 decode cells of the two-A6000 run of Table 13.8 at
 > 0.82–0.85, the model's time over the measured one. Hooks on both
 > replicas' routers showed the real token and the dummy touching 7.25
 > distinct experts, where two random tokens touch 6.1: the repeated
@@ -336,20 +337,20 @@ one GPU running the whole request. That is Table 12.2's lone prompt: at
 > (0.97–1.00 today).
 
 **Experts per rank.** How many experts a step touches is a property of
-the router (chapter 9), not of the layout. The builder reads the global
-count from chapter 9's table by tokens (its padded and reply-position
+the router (chapter 10), not of the layout. The builder reads the global
+count from chapter 10's table by tokens (its padded and reply-position
 refinements apply only without expert parallelism) and spreads it evenly
 over the ranks; on gpt-oss-20b the two halves of a two-way split were
 measured touching nearly equal counts.
 
 ```
-Table 12.5  Experts each rank reads per layer in a decode step: gpt-oss-20b, dp=2 ep=2, two RTX A6000s
+Table 13.5  Experts each rank reads per layer in a decode step: gpt-oss-20b, dp=2 ep=2, two RTX A6000s
   global  one GPU  two ranks: tokens  experts in all  per rank  measured TPOT,
    batch  experts         per launch  (real + dummy)                2 GPUs / 1
        1        4                  2         4.0 + 4         4       1.09-1.13
        8       13                  8            13.1         7       0.66-0.77
       32       21                 32            21.3        11       0.85-0.87
-  each rank holds 16 experts; above 16 tokens per launch the engine's kernel runs 64-row blocks at 0.70 of the rate (chapter 9)
+  each rank holds 16 experts; above 16 tokens per launch the engine's kernel runs 64-row blocks at 0.70 of the rate (chapter 10)
 ```
 
 At batch 1 each rank reads as many experts as one GPU does, and pays the
@@ -357,18 +358,18 @@ collectives on top: two GPUs are 9–13% slower than one. At batch 8 each
 reads about half, and two GPUs step in 0.66–0.77 of the time. At batch
 32 each still reads about half, 11 of 21, but its kernel launch now
 carries 32 gathered tokens for 16 local experts. That crosses chapter
-9's block-size switch, which one GPU reaches only past 32 sequences, and
+10's block-size switch, which one GPU reaches only past 32 sequences, and
 the gain shrinks to 13–15%.
 
 **The hot rank.** A step waits for its most loaded rank. tinyperf takes
 that load as a declared input, `moe_imbalance`: the busiest rank's
 routed rows over the mean (with `ep = 1`, the hottest expert's), 1.0 for
 perfect balance. It scales the rows per expert of the grouped GEMM (one
-batched GEMM over the experts touched; chapter 9) that the step is
+batched GEMM over the experts touched; chapter 10) that the step is
 priced on.
 
 ```
-Table 12.6  The hot rank: gpt-oss-120b on eight B200s, tp=4 dp=2 ep=8, datasheet rates
+Table 13.6  The hot rank: gpt-oss-120b on eight B200s, tp=4 dp=2 ep=8, datasheet rates
   imbalance        prefill 8 x 2048        decode, batch 64      decode, batch 4096
                      ms rows/expert          ms rows/expert          ms rows/expert
         1.0       25.56         512        6.00           3       20.75         128
@@ -415,7 +416,7 @@ cache. A helper, `_cp_comm`, adds the collective after attention: in
 prefill an all-gather of the layer's keys and values, in decode an
 all-reduce of each head's partial output and softmax statistics.
 
-Chapter 9 quoted the MoE block's branch for `ep = 1`. Here is the branch
+Chapter 10 quoted the MoE block's branch for `ep = 1`. Here is the branch
 for `ep > 1`, comment lines trimmed:
 
 ```python
@@ -449,7 +450,7 @@ elided):
                             group_size=dp, count=L_moe)
         elif ep > 1:
             routed = g.AllToAll("moe_dispatch", routed, group_size=ep, count=L_moe)
-        ...                                          # the grouped GEMMs of chapter 9
+        ...                                          # the grouped GEMMs of chapter 10
         if ep > 1 and ep_dispatch == "allgather":
             if dp > 1:
                 g.ReduceScatter("moe_combine", Tensor("moe_dp_out", (tokens_padded, h), dt),
@@ -462,7 +463,7 @@ elided):
 ```
 
 The all-gather carries `h + n_experts` values per token: the hidden
-state and the router's scores. Chapter 11 prices all four collectives.
+state and the router's scores. Chapter 12 prices all four collectives.
 
 Memory follows the same rules. `_weights_local_bytes` divides a GPU's
 weights by `tp` and its experts as the layout places them, then scales
@@ -471,7 +472,7 @@ whole, since the weights are copied. It divides the cache instead, in
 `max_batch`, which also multiplies the result by `dp`.
 
 A pipeline is not a graph at all. `StepLatencyModel`, the step pricer
-behind the serving simulator (chapter 14), builds one graph per stage,
+behind the serving simulator (chapter 15), builds one graph per stage,
 each with its share of the layers, and adds them up with the hand-offs
 and the engine's step cost:
 
@@ -509,11 +510,11 @@ applies the chunk formula to that traverse:
 
 ## How close is it?
 
-Two layouts have met silicon, both on chapter 11's two RTX A6000s,
+Two layouts have met silicon, both on chapter 12's two RTX A6000s,
 joined by a PCIe host bridge, under vLLM. Their all-gathers and
 reduce-scatters are priced from the pair's measured curves for NCCL
 (NVIDIA's collective communications library). Each run repeats chapter
-6's grid: TTFT is the time for a batch of prompts to produce one token
+7's grid: TTFT is the time for a batch of prompts to produce one token
 each, TPOT the mean decode step over the next 128.
 
 **Pipeline, pp=2, Qwen3-8B.** The engine forms micro-batches by its own
@@ -524,7 +525,7 @@ per cell. In the last column, *held out* marks a cell the step cost was
 not fitted to.
 
 ```
-Table 12.7  Pipeline parallelism on silicon: Qwen3-8B, pp=2 on two RTX A6000s under vLLM
+Table 13.7  Pipeline parallelism on silicon: Qwen3-8B, pp=2 on two RTX A6000s under vLLM
   batch prompt groups   TTFT ms model/meas vs 1 GPU  TPOT ms model/meas vs 1 GPU  pipeline step cost
       1    512      1      75.5      1.062     0.95    25.87      1.018     1.08  fitted
       1   2048      1     289.7      1.030     0.99    26.20      1.018     1.08  fitted
@@ -548,10 +549,10 @@ on these cells.
 **Expert parallelism, dp=2 ep=2, gpt-oss-20b.** Two attention replicas,
 16 experts on each GPU, vLLM's all-gather dispatch. A cell's time is the
 slower replica's; the two agreed within 1% in every cell. Routing uses
-chapter 9's table for random-token prompts.
+chapter 10's table for random-token prompts.
 
 ```
-Table 12.8  Expert parallelism on silicon: gpt-oss-20b bf16, dp=2 ep=2 on two RTX A6000s under vLLM
+Table 13.8  Expert parallelism on silicon: gpt-oss-20b bf16, dp=2 ep=2 on two RTX A6000s under vLLM
                 TTFT                                  TPOT                      
   batch prompt       ms model/meas all-to-all vs 1 GPU      ms model/meas vs 1 GPU
       1    512    121.7      0.921      1.114     1.31   13.06      0.972     1.13
@@ -595,17 +596,17 @@ every direction: slower than one GPU at batch 1, faster above.
   across nodes.
 - **Unmeasured layouts.** Context parallelism, attention replicas
   without experts and the all-to-all dispatch have never been measured.
-  Tables 12.1–12.4 and 12.6 are projections from chapter 11's
+  Tables 13.1–13.4 and 13.6 are projections from chapter 12's
   collectives and the single-GPU model.
 - **Lockstep at scale.** The dummy batch was measured on two replicas.
-  Table 12.2's lone prompt at eight replicas assumes the engine pads the
+  Table 13.2's lone prompt at eight replicas assumes the engine pads the
   same way.
 - **Pipeline schedules.** Decode is priced in the steady state: no
   ramp-up or drain, no uneven stages, no interleaved schedules (several
-  blocks of layers per GPU; chapter 13). The 2.2 ms step cost belongs to
+  blocks of layers per GPU; chapter 14). The 2.2 ms step cost belongs to
   one engine version on one GPU pair.
 - **Chunks of one prompt.** Each measured chunk is a whole prompt. No
-  measured cell splits a single prompt, as Figure 12.2 does.
+  measured cell splits a single prompt, as Figure 13.2 does.
 - **Placement.** A collective is priced by its group size, and a
   hand-off by whether the whole layout fits in one node, not by where
   the ranks actually sit.
@@ -635,17 +636,17 @@ every direction: slower than one GPU at batch 1, faster above.
 
 1. Add the pipeline's ramp-up to a request's first decode step: `pp − 1`
    extra stage-times. How much does it matter at batch 8 against batch
-   256 in Table 12.1?
+   256 in Table 13.1?
 2. Add a `dp_imbalance` knob, like `moe_imbalance`, for replicas that
    receive uneven requests. At what skew does `tp1 dp8` lose Table
-   12.2's decode lead over `tp8`?
-3. Using Table 12.4's formulas, find where the two dispatch patterns
+   13.2's decode lead over `tp8`?
+3. Using Table 13.4's formulas, find where the two dispatch patterns
    cross for a model with top-8 routing, hidden 7,168 and 256 experts.
    Check your answer with `build_llm_graph`.
-4. Rerun Table 12.7's cells with a token budget of 2,048
+4. Rerun Table 13.7's cells with a token budget of 2,048
    (`chunk_tokens`), so that every multi-prompt cell runs two groups.
    Which cells should decode faster than one GPU, and by how much?
 
 ---
 
-*[← Chapter 11: Collectives and tensor parallelism]({% post_url 2026-09-29-tinyperf-11-collectives-and-tensor-parallelism %}) · [Contents](/series/tinyperf/) · [Chapter 13: Training →]({% post_url 2026-09-29-tinyperf-13-training %})*
+*[← Chapter 12: Collectives and tensor parallelism]({% post_url 2026-09-29-tinyperf-12-collectives-and-tensor-parallelism %}) · [Contents](/series/tinyperf/) · [Chapter 14: Training →]({% post_url 2026-09-29-tinyperf-14-training %})*

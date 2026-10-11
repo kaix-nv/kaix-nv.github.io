@@ -11,7 +11,7 @@ measurements.
 
 There are two series so far:
 
-- [**Building tinyperf**](/series/tinyperf/), a book in 22 chapters and two
+- [**Building tinyperf**](/series/tinyperf/), a book in 23 chapters and two
   appendices: an analytical GPU performance model for LLMs, built from
   scratch. It prices kernels from a GPU's datasheet, then models, parallel
   layouts and a serving engine under load, and checks each mechanism

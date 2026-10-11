@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 11: Collectives and tensor parallelism"
-date: 2026-09-29 12:11:00 -0700
+title: "Building tinyperf, chapter 12: Collectives and tensor parallelism"
+date: 2026-09-29 12:12:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/11-collectives-and-tensor-parallelism/
+permalink: /tinyperf/book/12-collectives-and-tensor-parallelism/
 excerpt: "A model that doesn't fit on one GPU, or runs too slowly on one, can be split across several. The most common split for inference is tensor parallelism: every weight matrix is cut into pieces, one per GPU, and the GPUs work through every layer together. What do they exchange, what does it cost, and when does adding GPUs stop paying?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m6.html
@@ -11,9 +11,10 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/05/building-tinyperf-m45.html
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m48.html
   - /tinyperf/perf-modeling/2026/09/25/building-tinyperf-m73.html
+  - /tinyperf/book/11-collectives-and-tensor-parallelism/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py), the tensor-parallel lines of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), and `_exec_comm` in [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch11_collectives.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py), the tensor-parallel lines of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), and `_exec_comm` in [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch12_collectives.py`.*
 
 A model that doesn't fit on one GPU, or runs too slowly on one, can be
 split across several. The most common split for inference is *tensor
@@ -43,7 +44,7 @@ By the end of this chapter you will know:
   combine or exchange data) and the ring algorithm's cost;
 - why tensor parallelism stops paying, and what the node edge adds;
 - why small messages must be measured, inside a CUDA graph (kernel
-  launches recorded once and replayed as one; chapter 4);
+  launches recorded once and replayed as one; chapter 5);
 - how tinyperf brackets communication that overlaps computation;
 - how close the model gets to vLLM at tp=2.
 
@@ -66,9 +67,9 @@ layout comes from the Megatron-LM paper; serving engines such as vLLM
 use it.
 
 ![One Qwen3-8B layer split over two GPUs, with an all-reduce after
-each block.](/assets/tinyperf-book/ch11-tp-layer.svg)
+each block.](/assets/tinyperf-book/ch12-tp-layer.svg)
 
-*Figure 11.1. One layer at tp=2. The norms and residual adds need the
+*Figure 12.1. One layer at tp=2. The norms and residual adds need the
 whole hidden state, so every GPU runs them whole.*
 
 In attention the column split is by head: each GPU projects queries,
@@ -80,7 +81,7 @@ all-reduces, each of `tokens × hidden` values.
 
 The LM head is split by vocabulary: each GPU computes the logits of
 1/tp of it, and an *all-gather* concatenates them for the sampler
-(which picks each next token; chapter 15). It runs once per step, but
+(which picks each next token; chapter 16). It runs once per step, but
 its message is large: Qwen3-8B's vocabulary is 37 times its hidden size.
 
 In the graph builder, tensor parallelism is per-GPU shapes plus
@@ -122,7 +123,7 @@ Every GPU runs the same shapes, so one GPU's graph is the step's time.
 whole KV head, and its cache stops shrinking.
 
 ```
-Table 11.1  A Qwen3-8B decode step split over two GPUs: batch 8, what each GPU runs
+Table 12.1  A Qwen3-8B decode step split over two GPUs: batch 8, what each GPU runs
   op                tp=1: weight N x K    tp=2, each GPU            split
   qkv_proj          6144 x 4096           3072 x 4096               column-parallel
   attention         32/8 heads            16/4 heads                by head
@@ -139,7 +140,7 @@ Table 11.1  A Qwen3-8B decode step split over two GPUs: batch 8, what each GPU r
 
 (Message sizes are binary, 1 KB being 1,024 bytes; memory is decimal.)
 Each GPU streams half the weights and reads half the cache, a decode
-step's two costs (chapter 6), and in exchange sends 72 messages of 64 KB
+step's two costs (chapter 7), and in exchange sends 72 messages of 64 KB
 and one of 1.2 MB.
 
 ## Collectives and the ring
@@ -154,7 +155,7 @@ together. Four cover this book:
 - **reduce-scatter**: every GPU contributes a whole buffer; each ends
   with the sum of one piece of it;
 - **all-to-all**: every GPU sends a different piece to every other, as
-  in chapter 12's expert dispatch.
+  in chapter 13's expert dispatch.
 
 On NVIDIA GPUs they are usually run by NCCL, NVIDIA's collective
 communications library. The classic algorithm is the *ring*. Arrange n
@@ -182,7 +183,7 @@ buffer cheaper, and the latency term grows with n.
 Which bandwidth is "link"? NVIDIA quotes an H100's NVLink as 900 GB/s,
 450 GB/s each way added. A ring sends on one side while it receives on
 the other, so the formula takes one direction's 450 GB/s, as the H100
-device file (the GPU's list of rates; chapter 2) does. NCCL's benchmarks
+device file (the GPU's list of rates; chapter 3) does. NCCL's benchmarks
 report an *algorithm bandwidth*, B ÷ t, and a *bus bandwidth*, which for
 an all-reduce multiplies it by 2(n−1)/n to undo the ring's factor:
 compare the bus bandwidth with a link's per-direction rate.
@@ -214,12 +215,12 @@ def ring_all_reduce_us(
     return (bw_term_s + lat_s) * 1e6 + device.kernel_launch_us
 ```
 
-`bandwidth_only` serves the speed-of-light tier (chapter 4), which
+`bandwidth_only` serves the speed-of-light tier (chapter 5), which
 prices each operation at datasheet peaks with no fixed costs. The other
 collectives follow the same pattern.
 
 ```
-Table 11.2  One all-reduce by size and group: the ring model on H100s at datasheet rates
+Table 12.2  One all-reduce by size and group: the ring model on H100s at datasheet rates
   NVLink 450 GB/s per direction, 1 us per hop; InfiniBand 50 GB/s per GPU, 5 us; 3 us launch; 8 GPUs per node
       size     2 GPUs  latency     8 GPUs  latency    16 GPUs  latency
       8 KB        5.0     100%       17.0     100%       27.1     100%
@@ -242,12 +243,12 @@ Inside a node, GPUs share NVLink. Between nodes they have InfiniBand:
 50 GB/s per GPU in the H100 file, a ninth of NVLink. One ring through
 both nodes would run at InfiniBand's rate, so the model prices a group
 that spans nodes with the standard hierarchical decomposition (Figure
-11.2).
+12.2).
 
 ![An all-reduce across two nodes of four GPUs, in three
-phases.](/assets/tinyperf-book/ch11-hierarchical.svg)
+phases.](/assets/tinyperf-book/ch12-hierarchical.svg)
 
-*Figure 11.2. A hierarchical all-reduce over n = g·N GPUs, g per node
+*Figure 12.2. A hierarchical all-reduce over n = g·N GPUs, g per node
 and N nodes. Only one chunk per GPU, 1/g of the buffer, crosses
 InfiniBand, and the g exchanges run side by side, one per network card.
 Each phase is a ring, so the cost is the sum of their closed forms: the
@@ -282,11 +283,11 @@ inter-node fabric refuses to price a spanning group (`_nodes` raises).
 
 ## When adding GPUs stops paying
 
-Table 11.3 runs Llama-3-70B decode on 1 to 32 H100s at datasheet
+Table 12.3 runs Llama-3-70B decode on 1 to 32 H100s at datasheet
 rates: a projection, with nothing measured.
 
 ```
-Table 11.3  Tensor-parallel scaling, a projection: Llama-3-70B decode, batch 32, context 4096,
+Table 12.3  Tensor-parallel scaling, a projection: Llama-3-70B decode, batch 32, context 4096,
   H100 SXM at datasheet rates, nothing hidden
    tp nodes  GB/GPU fits   GEMMs attention  other   comm  step ms  speedup comm share
     1     1   184.1   no   43.44     13.08   1.77   0.00    58.29     1.00       0.0%
@@ -301,7 +302,7 @@ Table 11.3  Tensor-parallel scaling, a projection: Llama-3-70B decode, batch 32,
 ```
 
 At this batch and context the model needs four H100s to fit (chapter
-6); the first two rows couldn't run.
+7); the first two rows couldn't run.
 
 The columns show why the speedup falls away. The weight GEMMs shrink
 from 43.4 to 6.4 ms at tp=8, 6.8 times rather than 8, mostly because
@@ -310,7 +311,7 @@ adds, SwiGLU, RoPE, the embedding) is mostly launches and barely
 shrinks, 1.77 to 1.58 ms. Attention stops shrinking at tp=8. And
 communication grows: every all-reduce carries the same 512 KB, while its
 price grows with the group, from 6.2 µs at two GPUs to 19.0 at eight,
-nearly all latency (Table 11.2). This is Amdahl's law, with a
+nearly all latency (Table 12.2). This is Amdahl's law, with a
 serial part, launches and all-reduces, that grows.
 
 At tp=16 the group crosses the node edge, each all-reduce costs 30.3 µs,
@@ -322,11 +323,11 @@ term, 2(n−1) hops, ends the scaling by itself (exercise 3). Crossing
 the node adds InfiniBand's rate, which is what hurts prefill:
 from 8 GPUs to 16 it gains 1.30 times in one domain and 1.10 across two
 nodes. Hence the usual advice, "fill a node with tensor parallelism and
-split across nodes some other way" (chapter 12).
+split across nodes some other way" (chapter 13).
 
 ## Hiding communication
 
-Every number so far adds communication to computation, as chapter 5's
+Every number so far adds communication to computation, as chapter 6's
 scheduler adds every operator. But a collective can run while an
 independent kernel computes, and in a tensor-parallel step little is
 independent: each all-reduce needs the GEMM before it, and the residual
@@ -338,7 +339,7 @@ on its kernels, not on the graph.
 
 So tinyperf reports a bracket. The upper end is the serial sum,
 `total_us`. The lower end assumes perfect hiding (`RunReport`, the
-scheduler's report on a priced graph, chapter 5; docstring trimmed):
+scheduler's report on a priced graph, chapter 6; docstring trimmed):
 
 ```python
     @property
@@ -350,7 +351,7 @@ scheduler's report on a priced graph, chapter 5; docstring trimmed):
 A step can't be shorter than its computation, or than its communication.
 Between the two ends, the user declares the fraction of the hideable
 time (the smaller of computation and communication) that their engine
-hides. `StepLatencyModel` (chapter 14's step pricer) takes it as
+hides. `StepLatencyModel` (chapter 15's step pricer) takes it as
 `comm_overlap`, as does a sweep configuration; the default is 0:
 
 ```python
@@ -361,7 +362,7 @@ hides. `StepLatencyModel` (chapter 14's step pricer) takes it as
 ```
 
 ```
-Table 11.4  Hidden or not: Llama-3-70B on H100s, projection, step ms with none, half or all
+Table 12.4  Hidden or not: Llama-3-70B on H100s, projection, step ms with none, half or all
   of the hideable communication hidden; gain = step time at half the GPUs / this step time,
   with none / all hidden
            decode, batch 32, context 4096        prefill, one 2048-token prompt
@@ -382,7 +383,7 @@ make 32 GPUs beat 16.
 What fraction is right? On the one pair measured for this book (two RTX
 A6000s, below), near zero: the serial model lands within 7% of vLLM's
 prefill, where the "all hidden" end reads 0.67–0.72, the model's time
-over the measured one (Table 11.7). NVLink with an engine that overlaps
+over the measured one (Table 12.7). NVLink with an engine that overlaps
 is unmeasured, so report both ends.
 
 ## Small messages on a real link
@@ -395,7 +396,7 @@ NVLink bridge. The model loads the pair as
 the link as measured: `nvlink_bw_gbps` 4.0, `nvlink_hop_latency_us` 8.0
 and `gpus_per_node` 2. The NVLink fields hold the PCIe link, which is
 why a collective's bound column (the report's verdict on what set an
-operator's time; chapter 5) reads `nvlink`. The 4.0 GB/s is a 64 MB
+operator's time; chapter 6) reads `nvlink`. The 4.0 GB/s is a 64 MB
 all-reduce's rate in a first benchmark
 (`data/validation/nccl_rtx_a6000_pcie_2gpu.json`).
 
@@ -406,15 +407,15 @@ all-reduce's rate in a first benchmark
 > runs carried it. Prefill landed within 5%; decode read up to 42% high
 > (the Recorded block below). A flat time over a 32-fold range of sizes
 > is the host's rate of issuing calls, not the wire's. Inside a CUDA
-> graph, as an engine replays a decode step (chapter 4), small messages
-> run about five times faster and large ones are unchanged (Table 11.5's
+> graph, as an engine replays a decode step (chapter 5), small messages
+> run about five times faster and large ones are unchanged (Table 12.5's
 > last rows); the hop latency refits to 8 µs. Measure a link the way the
 > engine drives it.
 
 Even inside a CUDA graph, NCCL on this pair doesn't follow one line:
 
 ```
-Table 11.5  The ring model against NCCL timed inside a CUDA graph: two RTX A6000s, PCIe host bridge
+Table 12.5  The ring model against NCCL timed inside a CUDA graph: two RTX A6000s, PCIe host bridge
    per GPU  all-reduce us  ring/meas  all-gather us  ring/meas   Qwen3-8B at tp=2
       8 KB           17.2       1.25           15.9       0.85   all-reduce, 1 sequence
      16 KB           21.0       1.12           20.5       0.76
@@ -436,9 +437,9 @@ Table 11.5  The ring model against NCCL timed inside a CUDA graph: two RTX A6000
 ```
 
 ![NCCL's achieved bandwidth by message size on two RTX A6000s,
-measured and ring model.](/assets/tinyperf-book/ch11-link-curve.svg)
+measured and ring model.](/assets/tinyperf-book/ch12-link-curve.svg)
 
-*Figure 11.3. Bytes per GPU divided by time, from Table 11.5. The ring
+*Figure 12.3. Bytes per GPU divided by time, from Table 12.5. The ring
 model's lines rise smoothly toward 4.0 GB/s; the all-gather's sits above
 the all-reduce's because it pays half the hops. The measured all-gather
 levels off at 3.3 GB/s.*
@@ -450,7 +451,7 @@ protocol and channel count as messages grow (it has protocols tuned for
 small, medium and large messages); we have not profiled which it picks
 where.
 
-So for this pair the calibration (chapter 4's record of a GPU's fitted
+So for this pair the calibration (chapter 5's record of a GPU's fitted
 constants and measurements, which the calibrated tier prices with)
 carries the measured curve, and the scheduler reads it. `_curve_us` and
 the start of `_exec_comm`, with a docstring, a comment and two lines
@@ -484,7 +485,7 @@ table and extends its last slope above it. An all-gather is keyed by
 each GPU's input, as the benchmark sized it. The curve applies only to a
 group of two, in the calibrated tier, on a device whose calibration has
 one: the RTX A6000's. The benchmark also measured reduce-scatter, whose
-curve chapter 12's expert layouts use.
+curve chapter 13's expert layouts use.
 
 ## How close is it?
 
@@ -497,10 +498,10 @@ run disables it.)
 decode step timed inside vLLM, with a batch of requests decoding
 together and nothing else in the step. The footer sums up the ratios by
 their typical error, `exp(mean |ln ratio|) − 1`, the geometric mean
-distance from 1 (chapter 3):
+distance from 1 (chapter 4):
 
 ```
-Table 11.6  The tp=2 decode forward on the engine's clock: Qwen3-8B, two RTX A6000s, vLLM
+Table 12.6  The tp=2 decode forward on the engine's clock: Qwen3-8B, two RTX A6000s, vLLM
   batch  measured ms  all-reduce  model comm ms  comm share  model/meas  ring model
       1        13.93        8 KB           1.31          9%       1.012       1.033
       4        15.11       32 KB           2.28         15%       1.026       1.018
@@ -515,18 +516,18 @@ Table 11.6  The tp=2 decode forward on the engine's clock: Qwen3-8B, two RTX A60
 
 In the model, communication is 9% of the step at batch 1 and 40% at
 batch 64. With the measured curve every step lands within 0.96–1.03;
-the ring model reads 6–8% low from batch 8 to 32, in Table 11.5's gap.
+the ring model reads 6–8% low from batch 8 to 32, in Table 12.5's gap.
 Nothing was fitted to these steps: the curve is a stand-alone
 benchmark, and the GEMM and attention constants come from single-GPU
-kernels (chapters 3, 4 and 7). But the curve was adopted to close this
+kernels (chapters 4, 5 and 8). But the curve was adopted to close this
 gap, so these rows are in-sample for the mechanism, which was built
 with them in view, rather than held out, unseen by the model.
 
-**Fixed batches.** Chapter 6's grid of batches and prompts, at tp=2,
+**Fixed batches.** Chapter 7's grid of batches and prompts, at tp=2,
 timed as TTFT (time to first token) and TPOT (time per output token):
 
 ```
-Table 11.7  Qwen3-8B at tp=2 on two RTX A6000s under vLLM: fixed batches, model/measured,
+Table 12.7  Qwen3-8B at tp=2 on two RTX A6000s under vLLM: fixed batches, model/measured,
   with nothing hidden and with all communication hidden
   batch prompt   TTFT ms vs 1 GPU  model all hidden   TPOT ms vs 1 GPU  model all hidden
       1    512     122.1     1.53   1.00       0.67     13.90     0.58   1.01       0.91
@@ -562,7 +563,7 @@ all-reduces running a little faster than the benchmark's (not
 profiled).
 
 **Online.** Last, a server fed requests at random (Poisson arrivals,
-chapter 14), 1 to 4 per second. Of the two traces (the requests sent,
+chapter 15), 1 to 4 per second. Of the two traces (the requests sent,
 with their sizes), H1 has 1,024-token prompts and 128-token replies; H2
 has 129–384-token prompts and 257–758-token replies, keeping decode
 all-reduces mid-size. The predictions were committed before either trace
@@ -571,7 +572,7 @@ applied below saturation, while requests arrive no faster than the
 server finishes them. The current model reproduces the predictions:
 
 ```
-Table 11.8  tp=2 online, predictions committed before the runs: Qwen3-8B, two RTX A6000s, vLLM, model/measured
+Table 12.8  tp=2 online, predictions committed before the runs: Qwen3-8B, two RTX A6000s, vLLM, model/measured
   trace  req/s  TTFT p50  TTFT p95   TPOT  tokens/s  TPOT, ring model
   H1         1      1.04      1.07   1.02      1.00              0.98
   H1         2      1.01      1.03   1.01      1.00              0.91
@@ -588,7 +589,7 @@ Table 11.8  tp=2 online, predictions committed before the runs: Qwen3-8B, two RT
 These are held out: TTFT 0.91–1.10, TPOT 0.99–1.05, throughput within
 1%. One cell, H1 at 3 requests per second, sits just past the TPOT bar
 committed beforehand (1.054 against 0.95–1.05). The ring model's TPOT
-reads up to 11% low. Chapter 9's MoE model at tp=2 (Table 9.11) uses
+reads up to 11% low. Chapter 10's MoE model at tp=2 (Table 10.11) uses
 the same curve.
 
 ## Where it breaks
@@ -596,7 +597,7 @@ the same curve.
 - **Two GPUs, one link.** Every measurement is one PCIe pair running
   NCCL; the curve belongs to that pair and its NCCL version. Nothing
   above tp=2, over NVLink or over InfiniBand has been measured, and
-  Tables 11.2–11.4 rest on a round-number hop latency.
+  Tables 12.2–12.4 rest on a round-number hop latency.
 - **Custom all-reduce kernels.** vLLM's own all-reduce kernel, its
   default for small messages, is unusable on this pair and unmeasured
   over NVLink.
@@ -631,11 +632,11 @@ the same curve.
 
 1. vLLM splits the input embedding by vocabulary too, which adds one
    all-reduce per step that the builder leaves out. Add it. How much
-   does it move Table 11.6 and a 2,048-token prefill?
+   does it move Table 12.6 and a 2,048-token prefill?
 2. Give the ring model three protocols, each a latency and a bandwidth,
    and take the fastest at each size. How close do six constants get to
-   the 21 points behind Table 11.5?
-3. Load the H100 with `nvl_domain=72` and redo Table 11.3 to tp=64,
+   the 21 points behind Table 12.5?
+3. Load the H100 with `nvl_domain=72` and redo Table 12.3 to tp=64,
    then with a tree's `2·log2(n)` hops instead of `2(n−1)`. Where does
    decode stop paying?
 4. On an NVLink pair, measure a tp=2 model under your engine and find
@@ -643,4 +644,4 @@ the same curve.
 
 ---
 
-*[← Chapter 10: Precision and sparsity as passes]({% post_url 2026-09-29-tinyperf-10-precision-and-sparsity %}) · [Contents](/series/tinyperf/) · [Chapter 12: Parallel layouts →]({% post_url 2026-09-29-tinyperf-12-parallel-layouts %})*
+*[← Chapter 11: Precision and sparsity as passes]({% post_url 2026-09-29-tinyperf-11-precision-and-sparsity %}) · [Contents](/series/tinyperf/) · [Chapter 13: Parallel layouts →]({% post_url 2026-09-29-tinyperf-13-parallel-layouts %})*

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1000" role="img"
+     aria-labelledby="title description">
+  <title id="title">How tinyperf makes a price: two streams, the GPU and the work, meet in execute</title>
+  <desc id="description">
+    A data-flow diagram. On the left, the GPU: a device file becomes a frozen Device record
+    (Device.load, with optional what-if overrides), and the GPU's calibration, its fitted constants
+    and measured kernel fields, is loaded from its own file (Calibration.for_device). On the right, the work: a model preset and a step shape become a graph of operator
+    records (build_llm_graph), which passes rewrite the way a runtime would run it (fuse_attention,
+    apply_recipe, apply_sparsity, apply_weight_only). The two streams meet in execute, which applies
+    the calibration to the device (for_stack, apply), puts the measured kernel fields in an execution
+    context, prices every record with the cost function of its family and returns a report, one row
+    per record, whose total is the sum. Above it, StepLatencyModel asks for graphs (decode contexts at
+    256-token buckets, prefills at their exact length), caches each step shape's price, interpolates,
+    and prices the engine's sampler. At the top, simulate runs an event loop over the requests: the
+    engine's scheduler forms each step, pads a decode step to a CUDA-graph size, the step model prices
+    it, the engine's own costs are added, and the clock advances, giving TTFT and TPOT per request.
+    The engine preset, serving.VLLM, sets both the step model and the scheduler. Each arrow is labeled
+    with what crosses it.
+  </desc>
+  <defs>
+    <style>
+      .title { font: 700 26px system-ui, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 16px system-ui, sans-serif; fill: #475569; }
+      .head { font: 700 17px system-ui, sans-serif; fill: #0f172a; }
+      .name { font: 600 15px ui-monospace, monospace; fill: #0f172a; }
+      .what { font: 400 14px system-ui, sans-serif; fill: #334155; }
+      .file { font: 500 13px ui-monospace, monospace; fill: #334155; }
+      .label { font: 500 13px ui-monospace, monospace; fill: #2563eb; }
+      .olabel { font: 500 13px ui-monospace, monospace; fill: #ea580c; }
+      .pill { font: 500 12px ui-monospace, monospace; fill: #0f172a; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="1280" height="1000" rx="18" fill="#f8fafc"/>
+  <text x="40" y="46" class="title">How a price is made</text>
+  <text x="40" y="74" class="subtitle">Grey: data and presets.  Blue: the code that prices one step.  Orange: the simulator.  Each arrow is labeled with what crosses it.</text>
+
+  <!-- column heads -->
+  <text x="40" y="116" class="head">The GPU</text>
+  <text x="680" y="116" class="head">The work</text>
+
+  <!-- row 1: data -->
+  <rect x="40" y="130" width="560" height="62" rx="8" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="60" y="155" class="file">data/devices/rtx_a6000.json</text>
+  <text x="60" y="179" class="what">about a dozen rates and sizes, mostly from the datasheet</text>
+  <rect x="680" y="130" width="560" height="62" rx="8" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="700" y="155" class="file">qwen3_8b()  and a step shape</text>
+  <text x="700" y="179" class="what">the checkpoint's layers, widths, heads; phase, batch, context, tp</text>
+
+  <line x1="320" y1="192" x2="320" y2="240" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="960" y1="192" x2="960" y2="240" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- row 2 -->
+  <rect x="40" y="242" width="560" height="78" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="40" y="242" width="8" height="78" rx="4" fill="#2563eb"/>
+  <text x="64" y="270" class="name">Device.load(name, **overrides)</text>
+  <text x="64" y="297" class="what">a frozen record; a what-if is a new record, peaks are derived</text>
+  <rect x="680" y="242" width="560" height="78" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="680" y="242" width="8" height="78" rx="4" fill="#2563eb"/>
+  <text x="704" y="270" class="name">build_llm_graph(p, phase, batch, seq_len, ...)</text>
+  <text x="704" y="297" class="what">the step as operator records; a repeated layer stored once, with a count</text>
+
+  <line x1="320" y1="320" x2="320" y2="370" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="334" y="351" class="label">Device</text>
+  <line x1="960" y1="320" x2="960" y2="370" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="974" y="342" class="label">Graph: records with shapes,</text>
+  <text x="974" y="359" class="label">FLOPs, bytes, family, count</text>
+
+  <!-- row 3 -->
+  <rect x="40" y="372" width="560" height="96" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="40" y="372" width="8" height="96" rx="4" fill="#2563eb"/>
+  <text x="64" y="400" class="name">Calibration.for_device(device)</text>
+  <text x="64" y="426" class="what">four fitted constants and fields for particular kernels,</text>
+  <text x="64" y="447" class="what">with a note of their source. Reads:</text>
+  <rect x="348" y="433" width="242" height="22" rx="11" fill="#e2e8f0"/>
+  <text x="469" y="449" class="pill" text-anchor="middle">data/calibration/rtx_a6000.json</text>
+  <rect x="680" y="372" width="560" height="96" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="680" y="372" width="8" height="96" rx="4" fill="#2563eb"/>
+  <text x="704" y="400" class="name">passes</text>
+  <text x="704" y="426" class="what">rewrite the graph the way a runtime would run it:</text>
+  <text x="704" y="449" class="file">fuse_attention, apply_recipe, apply_sparsity, ...</text>
+
+  <line x1="320" y1="468" x2="320" y2="538" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="334" y="494" class="label">Device, Calibration</text>
+  <line x1="960" y1="468" x2="960" y2="538" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="974" y="503" class="label">Graph, rewritten</text>
+
+  <!-- row 4: execute -->
+  <rect x="40" y="540" width="1200" height="82" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="40" y="540" width="8" height="82" rx="4" fill="#2563eb"/>
+  <text x="64" y="568" class="name">execute(graph, device, methodology, calibration)</text>
+  <text x="64" y="593" class="what">applies the calibration (for_stack, apply) and puts its kernel fields in an ExecContext; then, for each record,</text>
+  <text x="64" y="613" class="what">EXEC_MODELS[op.op_type](op, ctx) returns an OpResult. Five families: gemm, rw (memory-bound), comm, fmha, linattn.</text>
+
+  <line x1="640" y1="622" x2="640" y2="672" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="654" y="652" class="label">RunReport: a row per record (time x count, bound); total = the sum</text>
+
+  <!-- row 5: step model -->
+  <rect x="40" y="674" width="1200" height="96" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="40" y="674" width="8" height="96" rx="4" fill="#2563eb"/>
+  <text x="64" y="702" class="name">StepLatencyModel</text>
+  <text x="64" y="729" class="what">asks the layers below for graphs (decode contexts at 256-token buckets, prefills at their exact length),</text>
+  <text x="64" y="752" class="what">caches each step shape's price, interpolates; prices the sampler. Settings from:</text>
+  <rect x="628" y="737" width="196" height="22" rx="11" fill="#e2e8f0"/>
+  <text x="726" y="753" class="pill" text-anchor="middle">EngineConfig: serving.VLLM</text>
+
+  <line x1="640" y1="770" x2="640" y2="820" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="654" y="800" class="label">µs for a step shape: prefill_us, decode_us, mixed_step_us, sampler_us</text>
+
+  <!-- row 6: simulator -->
+  <rect x="40" y="822" width="1200" height="96" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="40" y="822" width="8" height="96" rx="4" fill="#ea580c"/>
+  <text x="64" y="850" class="name">simulate(p, device, requests, latency_model=...)</text>
+  <text x="64" y="877" class="what">an event loop: the scheduler forms each step, pads a decode step to a CUDA-graph size, the step model prices it,</text>
+  <text x="64" y="899" class="what">the engine's own costs are added, the clock advances.</text>
+  <text x="470" y="899" class="what">Inputs:</text>
+  <rect x="528" y="884" width="270" height="22" rx="11" fill="#e2e8f0"/>
+  <text x="663" y="900" class="pill" text-anchor="middle">requests: arrival, prompt, reply</text>
+  <rect x="808" y="884" width="292" height="22" rx="11" fill="#e2e8f0"/>
+  <text x="954" y="900" class="pill" text-anchor="middle">EngineConfig: batch cap, token budget</text>
+
+  <line x1="640" y1="918" x2="640" y2="958" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="654" y="946" class="olabel">ServingReport: TTFT and TPOT for every request</text>
+</svg>

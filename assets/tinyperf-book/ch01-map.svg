@@ -3,19 +3,19 @@
   <title id="title">tinyperf, layer by layer: what each takes in and gives out, and the chapters that build it</title>
   <desc id="description">
     Seven layers stacked from bottom to top, each using the ones below it, with what each
-    takes in and gives out. Device (device.py and the JSON device files, chapter 2): a GPU as about
+    takes in and gives out. Device (device.py and the JSON device files, chapter 3): a GPU as about
     a dozen rates and sizes from its datasheet. Kernel cost models (gemm_model.py and comm_model.py,
-    chapters 3, 7 and 11): one operation's shapes become a time. Graph of operators (graph.py,
-    operators.py and passes.py, chapters 5, 7, 10 and 13): one step as a list of operations, which
-    passes rewrite. Scheduler and report (scheduler.py, chapter 5): prices every operation, adds
+    chapters 4, 8 and 12): one operation's shapes become a time. Graph of operators (graph.py,
+    operators.py and passes.py, chapters 6, 8, 11 and 14): one step as a list of operations, which
+    passes rewrite. Scheduler and report (scheduler.py, chapter 6): prices every operation, adds
     them up, and says what limited each. Model builders (nets/transformer.py, nets/routing.py,
-    capacity.py and training.py, chapters 6 to 9 and 11 to 13): a model's configuration and a step's
+    capacity.py and training.py, chapters 7 to 10 and 12 to 14): a model's configuration and a step's
     shape become the step's graph, and what fits in memory. These five price one step. Above them,
-    the serving simulator (serving.py, spec_decode.py, mtp.py and disagg.py, chapters 14 to 20)
+    the serving simulator (serving.py, spec_decode.py, mtp.py and disagg.py, chapters 15 to 21)
     turns arriving requests into TTFT and TPOT, and sweeps and planning (sweep.py and energy.py,
     appendix A) keep the Pareto front and turn it into GPUs, dollars and joules. Beside the stack,
-    calibration (methodology.py and data/calibration, chapter 4) attaches fitted constants to the
-    lower four layers, and validation (data/validation, tools and tests, chapter 21) checks every
+    calibration (methodology.py and data/calibration, chapter 5) attaches fitted constants to the
+    lower four layers, and validation (data/validation, tools and tests, chapter 22) checks every
     layer against measurements.
   </desc>
   <defs>
@@ -50,7 +50,7 @@
     <text x="64" y="229" class="name">Serving simulator</text>
     <text x="292" y="229" class="mod">serving.py · spec_decode.py · mtp.py · disagg.py</text>
     <rect x="794" y="212" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="230" class="pill" text-anchor="middle">ch. 14–20</text>
+    <text x="861" y="230" class="pill" text-anchor="middle">ch. 15–21</text>
     <text x="64" y="255" class="what">Requests arrive, the engine batches them, the layers below price each step, the clock advances</text>
     <text x="64" y="276" class="what">→ TTFT and TPOT; also speculative decoding and separate prefill and decode servers</text>
   </g>
@@ -60,7 +60,7 @@
     <text x="64" y="327" class="name">Model builders</text>
     <text x="292" y="327" class="mod">nets/transformer.py · nets/routing.py · capacity.py · training.py</text>
     <rect x="794" y="310" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="328" class="pill" text-anchor="middle">ch. 6–9, 11–13</text>
+    <text x="861" y="328" class="pill" text-anchor="middle">ch. 7–10, 12–14</text>
     <text x="64" y="353" class="what">A model's config (layers, heads, experts) + a step's shape (batch, context, GPU split)</text>
     <text x="64" y="374" class="what">→ that step's graph, and what fits in memory: weights, KV cache, optimizer state</text>
   </g>
@@ -70,7 +70,7 @@
     <text x="64" y="425" class="name">Scheduler and report</text>
     <text x="292" y="425" class="mod">scheduler.py</text>
     <rect x="794" y="408" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="426" class="pill" text-anchor="middle">ch. 5</text>
+    <text x="861" y="426" class="pill" text-anchor="middle">ch. 6</text>
     <text x="64" y="451" class="what">Prices every operation with its kernel model (execute) and adds them up</text>
     <text x="64" y="472" class="what">→ a report of each operation's time and what limited it: math, DRAM, the L2 or a link</text>
   </g>
@@ -80,7 +80,7 @@
     <text x="64" y="523" class="name">Graph of operators</text>
     <text x="292" y="523" class="mod">graph.py · operators.py · passes.py</text>
     <rect x="794" y="506" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="524" class="pill" text-anchor="middle">ch. 5, 7, 10, 13</text>
+    <text x="861" y="524" class="pill" text-anchor="middle">ch. 6, 8, 11, 14</text>
     <text x="64" y="549" class="what">One step as an ordered list of operations, each with its shapes, FLOPs and bytes</text>
     <text x="64" y="570" class="what">Passes rewrite it as a runtime would: fuse attention, change precision, add the gradient</text>
   </g>
@@ -90,7 +90,7 @@
     <text x="64" y="621" class="name">Kernel cost models</text>
     <text x="292" y="621" class="mod">gemm_model.py · comm_model.py</text>
     <rect x="794" y="604" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="622" class="pill" text-anchor="middle">ch. 3, 7, 11</text>
+    <text x="861" y="622" class="pill" text-anchor="middle">ch. 4, 8, 12</text>
     <text x="64" y="647" class="what">One operation's shapes → its time on the device</text>
     <text x="64" y="668" class="what">a GEMM by tiles and waves · fused attention by its math and cache reads · a collective by its link</text>
   </g>
@@ -100,7 +100,7 @@
     <text x="64" y="719" class="name">Device</text>
     <text x="292" y="719" class="mod">device.py · data/devices/*.json</text>
     <rect x="794" y="702" width="134" height="26" rx="13" fill="#e2e8f0"/>
-    <text x="861" y="720" class="pill" text-anchor="middle">ch. 2</text>
+    <text x="861" y="720" class="pill" text-anchor="middle">ch. 3</text>
     <text x="64" y="745" class="what">A GPU as about a dozen rates and sizes, mostly from its datasheet, one JSON file per GPU</text>
     <text x="64" y="766" class="what">peak math per format, memory and L2 bandwidth, launch cost, links, capacity; a what-if changes one number</text>
   </g>
@@ -124,7 +124,7 @@
   <text x="1028" y="608" class="sidemod" text-anchor="middle">methodology.py</text>
   <text x="1028" y="628" class="sidemod" text-anchor="middle">data/calibration/</text>
   <rect x="989" y="650" width="78" height="26" rx="13" fill="#ffffff"/>
-  <text x="1028" y="668" class="pill" text-anchor="middle">ch. 4</text>
+  <text x="1028" y="668" class="pill" text-anchor="middle">ch. 5</text>
   <rect x="1112" y="104" width="144" height="674" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
   <text x="1184" y="304" class="side" text-anchor="middle">Validation</text>
   <text x="1184" y="330" class="sidetext" text-anchor="middle">every layer</text>
@@ -139,5 +139,5 @@
   <text x="1184" y="534" class="sidetext" text-anchor="middle">fail if a price</text>
   <text x="1184" y="552" class="sidetext" text-anchor="middle">leaves its range</text>
   <rect x="1145" y="576" width="78" height="26" rx="13" fill="#ffffff"/>
-  <text x="1184" y="594" class="pill" text-anchor="middle">ch. 21</text>
+  <text x="1184" y="594" class="pill" text-anchor="middle">ch. 22</text>
 </svg>

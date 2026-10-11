@@ -1,18 +1,19 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 4: Meeting a real GPU: calibration and its tiers"
-date: 2026-09-29 12:04:00 -0700
+title: "Building tinyperf, chapter 5: Meeting a real GPU: calibration and its tiers"
+date: 2026-09-29 12:05:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/04-meeting-a-real-gpu/
-excerpt: "Chapters 2 and 3 priced a kernel from a GPU's datasheet. Put that model next to a real GPU and it is wrong: against 27 GEMMs timed with cuBLAS on an RTX A6000, it predicts between 0.11 and 0.89 of the measured time, and is typically 48.5% off. It assumes a GPU at its boost clock, memory that delivers every byte it is rated for, and 3 µs to launch a kernel."
+permalink: /tinyperf/book/05-meeting-a-real-gpu/
+excerpt: "Chapters 3 and 4 priced a kernel from a GPU's datasheet. Put that model next to a real GPU and it is wrong: against 27 GEMMs timed with cuBLAS on an RTX A6000, it predicts between 0.11 and 0.89 of the measured time, and is typically 48.5% off. It assumes a GPU at its boost clock, memory that delivers every byte it is rated for, and 3 µs to launch a kernel."
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/29/building-tinyperf-m26.html
   - /tinyperf/perf-modeling/2026/08/31/building-tinyperf-m39.html
+  - /tinyperf/book/04-meeting-a-real-gpu/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py), `Calibration`, and [`tools/fit_calibration.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/fit_calibration.py), `fit` · Every table and the plot in this chapter come from `python3 book/scripts/ch04_calibration.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py), `Calibration`, and [`tools/fit_calibration.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/fit_calibration.py), `fit` · Every table and the plot in this chapter come from `python3 book/scripts/ch05_calibration.py`.*
 
-Chapters 2 and 3 priced a kernel from a GPU's datasheet. Put that model
+Chapters 3 and 4 priced a kernel from a GPU's datasheet. Put that model
 next to a real GPU and it is wrong: against 27 GEMMs timed with cuBLAS
 on an RTX A6000, it predicts between 0.11 and 0.89 of the measured time,
 and is typically 48.5% off. It assumes a GPU at its boost clock, memory
@@ -49,20 +50,20 @@ By the end of this chapter you will know:
 ## Three tiers
 
 tinyperf can price the same model three ways. The code calls each a
-*methodology* (Figure 4.1).
+*methodology* (Figure 5.1).
 
 ![Three tiers: speed of light, projected and calibrated, with the model
-and the rates each one uses.](/assets/tinyperf-book/ch04-tiers.svg)
+and the rates each one uses.](/assets/tinyperf-book/ch05-tiers.svg)
 
-*Figure 4.1. The three tiers. Speed of light and projected both run on
-datasheet rates; projected and calibrated both run chapter 3's model.
+*Figure 5.1. The three tiers. Speed of light and projected both run on
+datasheet rates; projected and calibrated both run chapter 4's model.
 The gap between the first two is what the mechanism adds; the gap
 between the last two is what the measured constants add.*
 
-- **Speed of light (SOL)** prices each operation with chapter 2's
+- **Speed of light (SOL)** prices each operation with chapter 3's
   roofline: operands read once, the full datasheet peak, no tiles, no
   waves, no launch cost. No real kernel is faster.
-- **Projected (PROJ)** runs chapter 3's model (tiles, waves, L2 reuse,
+- **Projected (PROJ)** runs chapter 4's model (tiles, waves, L2 reuse,
   pipeline fill, a 3 µs launch) on datasheet rates. It is the best guess
   for a GPU nobody has measured.
 - **Calibrated (CAL)** runs the same model on constants fitted to a real
@@ -111,7 +112,7 @@ class Calibration:
 For the four constants, `apply` is the whole trick; the per-kernel
 tables at the chapter's end are the exception. It hands the model a
 different GPU, with slower tensor cores and memory, a fitted L2
-bandwidth and a costlier launch, and every mechanism of chapter 3 runs
+bandwidth and a costlier launch, and every mechanism of chapter 4 runs
 on it unchanged. `source` records the GPU, library versions, kernels
 timed and fit error. Asking for CALIBRATED without a file is an error,
 not a silent fallback to PROJ: the labels exist so a reader
@@ -152,13 +153,13 @@ writes when its stream reaches it, so the time between the two is what
 the GPU saw: the kernel, plus any wait for the host to issue it. The
 timings are warm: repeated calls find their inputs in L2 where they fit.
 
-Table 4.1 compares PROJ with these timings as ratios, predicted ÷
+Table 5.1 compares PROJ with these timings as ratios, predicted ÷
 measured: a ratio of 0.8 reads 20% low. It sums up a set of ratios by
 their range and by their typical error, `exp(mean |ln ratio|) − 1`, the
-geometric mean distance from 1 (chapter 3).
+geometric mean distance from 1 (chapter 4).
 
 ```
-Table 4.1  The model on datasheet rates (PROJ) against cuBLAS: RTX A6000, 27 fp16 GEMMs
+Table 5.1  The model on datasheet rates (PROJ) against cuBLAS: RTX A6000, 27 fp16 GEMMs
   regime                    shapes  measured us  model/measured
   square, 1024-8192              4     44-10299       0.51-0.84
   decode-like, 1-128 rows       16       72-227       0.65-0.89
@@ -181,7 +182,7 @@ GEMM's 0.71 has another cause, below.)
 
 ## Fitting four constants
 
-The five regimes cover four terms of chapter 3's model:
+The five regimes cover four terms of chapter 4's model:
 
 ```
 tensor-core rate  = datasheet rate × math_efficiency      square, tall
@@ -229,7 +230,7 @@ constants, with jumps, and because a coarse grid is honest about how
 finely 27 shapes can determine a constant.
 
 ```
-Table 4.2  Four constants fitted to 27 cuBLAS GEMMs, and the typical error before (PROJ) and after (CAL, fitted)
+Table 5.2  Four constants fitted to 27 cuBLAS GEMMs, and the typical error before (PROJ) and after (CAL, fitted)
   GPU        math eff  DRAM eff (GB/s)  L2 GB/s (x est.)  launch us    PROJ    CAL
   RTX A6000      0.75       0.90 (691)         4000 (2x)       25.0   48.5%   4.9%
   H100 SXM       0.75      0.80 (2682)      8250 (0.75x)       12.0   71.6%   8.5%
@@ -253,11 +254,11 @@ square and tall GEMMs.
 **Hold out half the shapes.** Split each GPU's shapes into alternate
 halves of 14 and 13, so each half spans every regime. Fit on one half
 with the unmodified `fit`, measure the other, then swap. The halves are
-held out from the fit, not from the mechanism: chapter 3's L2 rule came
+held out from the fit, not from the mechanism: chapter 4's L2 rule came
 from the error left on one of these shapes.
 
 ```
-Table 4.3  Fit on half the shapes, test on the other half: held out from the fit, not from the mechanism
+Table 5.3  Fit on half the shapes, test on the other half: held out from the fit, not from the mechanism
   GPU        fitted on  math   DRAM L2 x est. launch us   error, fitted half  held-out half
   RTX A6000  14 even    0.75   0.85      3.0x*     20.0                 5.3%           7.4%
              13 odd     0.80   0.90      1.5x      25.0*                5.0%           5.3%
@@ -288,7 +289,7 @@ through the 12 decode-like GEMMs of 1 to 32 rows reads both constants
 off with no tile model and no grid.
 
 ```
-Table 4.4  Two constants read off a straight line through 12 decode-like GEMMs (1-32 rows)
+Table 5.4  Two constants read off a straight line through 12 decode-like GEMMs (1-32 rows)
   GPU        line: GB/s  of datasheet  intercept us   fit: DRAM eff  launch us
   RTX A6000         698          0.91          23.8            0.90       25.0
   H100 SXM         2693          0.80          12.4            0.80       12.0
@@ -314,15 +315,15 @@ The third check is the residuals, the errors left after a fit.
 ![Predicted over measured for 27 GEMMs on the RTX A6000, grouped by
 regime: on datasheet rates every ratio is below 1, lowest for the
 shortest kernels; with the fitted constants the points gather around
-1.](/assets/tinyperf-book/ch04-residuals.svg)
+1.](/assets/tinyperf-book/ch05-residuals.svg)
 
-*Figure 4.2. Predicted ÷ measured for the A6000's 27 shapes. On
+*Figure 5.2. Predicted ÷ measured for the A6000's 27 shapes. On
 datasheet rates (orange) each error tracks one term's share of the time;
 four fitted constants (blue), each set mostly by one regime, move them
 to 1. The lowest orange decode-like points are the 4096 × 4096 weights,
 where the missing launch cost weighs most.*
 
-The rule, which Figure 4.2 illustrates:
+The rule, which Figure 5.2 illustrates:
 
 - **An error that tracks one term's share of the time points at a
   constant.** It is uniform where that term dominates, and deepens as
@@ -332,14 +333,14 @@ The rule, which Figure 4.2 illustrates:
   mechanism.** A fit can only trade it between shapes, and the constants
   that come out absorb the mistake.
 
-Chapter 3's field note is the second kind. The earlier L2 model read the
-A6000's largest square GEMM high (17 ms against 10.3 ms, chapter 3)
+Chapter 4's field note is the second kind. The earlier L2 model read the
+A6000's largest square GEMM high (17 ms against 10.3 ms, chapter 4)
 while it read the others low, so any constant that brought one toward 1
 pushed the others away. The fix was a mechanism, judging L2 reuse one K
 slice at a time.
 
 ```
-Table 4.5  What the fit leaves: calibrated model/measured by regime
+Table 5.5  What the fit leaves: calibrated model/measured by regime
   regime                      RTX A6000   H100 SXM       B200
   square, 1024-8192           0.93-1.15  0.93-1.12  0.91-1.03
   decode-like, 1-128 rows     0.98-1.08  0.89-1.06  0.84-1.22
@@ -350,23 +351,23 @@ Table 4.5  What the fit leaves: calibrated model/measured by regime
   H100 squares: 1024 0.93, 2048 1.00, 4096 1.12, 8192 1.10
 ```
 
-In Table 4.5, on the A6000, every shape but the tiny two lands within
-0.89–1.15. The tiny ones read 0.76 and 0.91, and Table 4.1 shows why:
+In Table 5.5, on the A6000, every shape but the tiny two lands within
+0.89–1.15. The tiny ones read 0.76 and 0.91, and Table 5.1 shows why:
 the 128³ GEMM measures 34.3 µs, the larger 256³ one 29.7 µs. That is the
 host's time, and it varies more than a GPU model can follow. On the H100
 the squares read 0.93 at 1024 and 1.10–1.12 at the two largest sizes: an
 error that changes with shape, so a mechanism, possibly Hopper-class
-tile loading, which chapter 3 lists as a limit (not profiled). On the
+tile loading, which chapter 4 lists as a limit (not profiled). On the
 B200 the decode-like and batched shapes spread from 0.84 to 1.29, where
-launch cost dominates (Table 4.4).
+launch cost dominates (Table 5.4).
 
 ## Clocks and power
 
-Chapter 3's field note left the A6000's largest GEMM at 0.71 of its
+Chapter 4's field note left the A6000's largest GEMM at 0.71 of its
 measurement and put the gap down to the clocks this GPU sustains. The
 worked example below starts from the datasheet peak: streaming
 multiprocessors (SMs) × multiply-accumulates (MACs) per SM per clock ×
-2 FLOPs per MAC × clock (chapter 2).
+2 FLOPs per MAC × clock (chapter 3).
 
 ```
 Worked example  The 8192^3 fp16 GEMM on the RTX A6000: clocks and power
@@ -408,17 +409,17 @@ from eager PyTorch, not a property of the GPU.
 Serving engines avoid most of it with a **CUDA graph**: a recorded
 sequence of kernel launches that the GPU replays as one. The engine runs
 its step once while CUDA records every kernel and its arguments, then
-replays the recording at each step with a single launch (Figure 4.3).
+replays the recording at each step with a single launch (Figure 5.3).
 The price is rigidity: shapes and memory addresses are fixed when the
 graph is recorded, so an engine records one graph for each of a set of
-batch sizes (chapter 15).
+batch sizes (chapter 16).
 
 ![Two timelines of five small kernels: eagerly, the host issues each
 kernel and the GPU waits between them; from a CUDA graph, the host
 issues one replay and the kernels run back to
-back.](/assets/tinyperf-book/ch04-cuda-graph.svg)
+back.](/assets/tinyperf-book/ch05-cuda-graph.svg)
 
-*Figure 4.3. Eager launches against a CUDA graph. Eagerly, each small
+*Figure 5.3. Eager launches against a CUDA graph. Eagerly, each small
 kernel waits for the host; from a graph, the kernels run back to back.*
 
 `tools/measure_launch.py` measures both costs. It builds a chain of 100
@@ -428,7 +429,7 @@ records it once inside `torch.cuda.graph(g)` and times `g.replay()`
 between the same two events, and divides by the count.
 
 ```
-Table 4.6  Per-kernel cost of a chain of tiny addmm kernels on a B200: eager against a CUDA graph
+Table 5.6  Per-kernel cost of a chain of tiny addmm kernels on a B200: eager against a CUDA graph
   kernel     chain  eager us/kernel  graph us/kernel  eager/graph
   addmm64      100            13.86             2.78          5.0
   addmm64      400            13.16             3.17          4.2
@@ -437,13 +438,13 @@ Table 4.6  Per-kernel cost of a chain of tiny addmm kernels on a B200: eager aga
   addmm256     100            17.51             3.74          4.7
   addmm256     400            16.56             3.71          4.5
   median                      13.69             3.50          3.9
-  the B200's launch constant fitted from eager cuBLAS GEMMs (Table 4.2): 16 us; its graph constant: 3.5 us
+  the B200's launch constant fitted from eager cuBLAS GEMMs (Table 5.2): 16 us; its graph constant: 3.5 us
 ```
 
-From a graph, a kernel costs about what chapter 3's 3 µs default
+From a graph, a kernel costs about what chapter 4's 3 µs default
 assumed for the GPU's side alone: the host's work is gone. The eager
 median also checks the fit: a different workload, timed a different
-way, lands near Table 4.2's 16 µs.
+way, lands near Table 5.2's 16 µs.
 
 A calibration carries both launch constants, and `for_stack` picks one
 (docstring trimmed):
@@ -460,12 +461,12 @@ A calibration carries both launch constants, and `for_stack` picks one
 Only the launch constant changes: math and memory efficiency belong to
 the silicon, the cost per kernel to how kernels are issued, so calibrate
 against the stack you mean to predict. It matters most where kernels are
-many and short. Table 4.7 prices a decode step from the model's list of
-operations (chapter 5), at batch 1 and a context of 2,112 tokens (a
+many and short. Table 5.7 prices a decode step from the model's list of
+operations (chapter 6), at batch 1 and a context of 2,112 tokens (a
 2,048-token prompt plus 64 generated):
 
 ```
-Table 4.7  Launch cost in one decode step: Qwen3-8B at batch 1, context 2112, the model's list of operations
+Table 5.7  Launch cost in one decode step: Qwen3-8B at batch 1, context 2112, the model's list of operations
   GPU        kernels   weights     launch, eager     launch, graph  step, eager  step, graph
   RTX A6000      399    21.9ms   10.0 ms (25 us)   1.4 ms (3.5 us)       33.3ms       24.5ms
   B200           399     2.4ms    6.4 ms (16 us)   1.4 ms (3.5 us)        8.8ms        3.8ms
@@ -488,7 +489,7 @@ measurement (next section), but that bounds it only loosely:
 
 ## The ladder on a whole model
 
-Table 4.8 adds the eager rung to chapter 1's Table 1.2, which climbs
+Table 5.8 adds the eager rung to chapter 1's Table 1.2, which climbs
 the tiers like a ladder on the same eight cells of Qwen3-8B served by
 vLLM. Prefill sets the TTFT (time to first token), and a decode step
 the TPOT (time per output token). Decode is priced at the prompt length
@@ -497,7 +498,7 @@ after the first. The cells are in-sample: a mechanism was designed with
 them in view (below).
 
 ```
-Table 4.8  The ladder on a whole model: Qwen3-8B bf16 on one RTX A6000, against vLLM (in-sample)
+Table 5.8  The ladder on a whole model: Qwen3-8B bf16 on one RTX A6000, against vLLM (in-sample)
   milliseconds                      SOL       PROJ  CAL eager  CAL graph   measured
   prefill, 1 x 2048 tokens        212.3      239.8      300.6      292.0      291.3
   decode, batch 1                  20.1       21.7       33.3       24.5       24.3
@@ -521,10 +522,10 @@ constants came from cuBLAS GEMMs, and the per-kernel tables it uses
 here came from kernels timed alone. But this grid was in view while the
 model was built: its batched prefills are where the model learned to
 price attention per prompt in a batch, not over one concatenated
-sequence (chapter 6). So the numbers are in-sample (chapter 21 draws
+sequence (chapter 7). So the numbers are in-sample (chapter 22 draws
 that line). The measured times also include work outside the model's
 operations, such as the engine's sampler, which picks each next token;
-chapters 14 and 15 add it.
+chapters 15 and 16 add it.
 
 ## Beyond four constants
 
@@ -533,14 +534,14 @@ derives: cuBLAS's tile edges, a decode-attention kernel's fixed cost per
 call, a mixture-of-experts kernel that switches block size, NCCL
 (NVIDIA's library for exchanges between GPUs) changing protocol with
 message size. For each, the calibrated tier stores a measurement.
-Table 4.9's first row is the row curve, a measured correction to the
-tile model by row count for the edges of chapter 3's Figure 3.4. Most
+Table 5.9's first row is the row curve, a measured correction to the
+tile model by row count for the edges of chapter 4's Figure 4.4. Most
 rows price mechanisms of later chapters, named in the chapter column:
-MXFP4 is a 4-bit weight format (chapter 10), and the pair is two RTX
-A6000s linked over PCIe (chapter 11).
+MXFP4 is a 4-bit weight format (chapter 11), and the pair is two RTX
+A6000s linked over PCIe (chapter 12).
 
 ```
-Table 4.9  Beyond four constants: the other fields of the RTX A6000's calibration
+Table 5.9  Beyond four constants: the other fields of the RTX A6000's calibration
   field                          what it prices                           chapter  how it was obtained
   dense_gemm_row_factor          cuBLAS time over the tile model, by rows   3, 15  kernel alone
   kernel_launch_us_graph         per-kernel cost under CUDA-graph replay        4  tiny-kernel chain, B200
@@ -581,21 +582,21 @@ server, and the model's measured error band. Four fields break the rule,
 and the table says so: they were fitted end to end, to an engine's step
 times or TTFT, with some cells held out. The B200's file adds three
 more, fitted on the prefill of a hybrid model, which mixes attention
-layers with linear-attention ones (chapter 8). These are the fields to
+layers with linear-attention ones (chapter 9). These are the fields to
 distrust. A constant fitted to an end-to-end number absorbs everything
 the model gets wrong about it, in every prediction it touches. Chapter
-22 follows one, `weight_only_math_efficiency`, through the three
+23 follows one, `weight_only_math_efficiency`, through the three
 mechanisms it was hiding.
 
-> **Field note: three zeros.** Three fields in Table 4.9 are zero. Each
+> **Field note: three zeros.** Three fields in Table 5.9 are zero. Each
 > was once fitted to a serving engine's measurements and brought the
 > model closer to them, first as 63 µs per running sequence per step.
 > When pure decode steps turned out to need nothing, that became 3.3 ms
 > plus 213 µs per sequence for steps carrying part of a prompt. Measured
 > one kernel at a time, both costs were mechanisms: decode rows
 > re-reading their KV cache once per query head beside a prompt chunk
-> (chapter 16), and mostly cuBLAS's tile edge just past 1,024 rows
-> (chapter 3's row curve). Priced as mechanisms, the constants went to
+> (chapter 17), and mostly cuBLAS's tile edge just past 1,024 rows
+> (chapter 4's row curve). Priced as mechanisms, the constants went to
 > zero; they stay in the file as a record of what a good fit can hide.
 
 ## Where it breaks
@@ -639,7 +640,7 @@ mechanisms it was hiding.
    repository: the fit rewrites `data/calibration/<gpu>.json`, keeping
    only the graph launch cost and the attention efficiency, so here it
    would erase every per-kernel table. Which constants land near Table
-   4.2's?
+   5.2's?
 2. **Is 3.5 µs a GPU number?** Run `tools/measure_launch.py` on a second
    GPU generation. Does graph replay cost the same?
 3. **Scale the shapes.** Add decode-like GEMMs whose weights take 100 µs
@@ -654,4 +655,4 @@ mechanisms it was hiding.
 
 ---
 
-*[← Chapter 3: Pricing a GEMM]({% post_url 2026-09-29-tinyperf-03-pricing-a-gemm %}) · [Contents](/series/tinyperf/) · [Chapter 5: Graphs and the scheduler →]({% post_url 2026-09-29-tinyperf-05-graphs-and-the-scheduler %})*
+*[← Chapter 4: Pricing a GEMM]({% post_url 2026-09-29-tinyperf-04-pricing-a-gemm %}) · [Contents](/series/tinyperf/) · [Chapter 6: Graphs and the scheduler →]({% post_url 2026-09-29-tinyperf-06-graphs-and-the-scheduler %})*

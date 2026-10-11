@@ -17,7 +17,7 @@ Worked examples and figures connect the code to its measured limits.
 
 ## Building tinyperf
 
-A book in 22 chapters: build an analytical GPU performance model from
+A book in 23 chapters: build an analytical GPU performance model from
 scratch, from pricing one GEMM off a datasheet to simulating a serving
 engine under load, every mechanism checked against a real GPU and every
 number labelled by what the model had seen.

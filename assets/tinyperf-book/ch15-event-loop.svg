@@ -43,7 +43,7 @@
   <text x="56" y="250" class="label">2  Admission</text>
   <text x="56" y="272" class="small">first come, first served, while the batch</text>
   <text x="56" y="290" class="small">has room and the KV cache can hold the</text>
-  <text x="56" y="308" class="small">request: reserved, or paged (chapter 17)</text>
+  <text x="56" y="308" class="small">request: reserved, or paged (chapter 18)</text>
 
   <rect x="40" y="352" width="320" height="92" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
   <text x="56" y="376" class="label">3  Compose the step</text>
@@ -67,7 +67,7 @@
   <text x="436" y="376" class="label">4  Price the step</text>
   <text x="436" y="400" class="mono">decode_us(batch, context)</text>
   <text x="436" y="420" class="mono">mixed_step_us(decodes, chunks)</text>
-  <text x="436" y="438" class="small">chapters 15 and 16 build these prices</text>
+  <text x="436" y="438" class="small">chapters 16 and 17 build these prices</text>
 
   <!-- loop arrows -->
   <line x1="200" y1="204" x2="200" y2="222" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
@@ -89,8 +89,8 @@
   <text x="840" y="242" class="small">return the stored price</text>
   <text x="806" y="274" class="label">miss</text>
   <text x="848" y="274" class="small">build the step's graph</text>
-  <text x="848" y="292" class="small">(chapter 6), fuse, price it</text>
-  <text x="848" y="310" class="small">with execute (chapter 5),</text>
+  <text x="848" y="292" class="small">(chapter 7), fuse, price it</text>
+  <text x="848" y="310" class="small">with execute (chapter 6),</text>
   <text x="848" y="328" class="small">store the price</text>
   <text x="806" y="364" class="small">between two buckets:</text>
   <text x="806" y="382" class="small">interpolate the two prices</text>
@@ -102,7 +102,7 @@
   <!-- exit -->
   <rect x="40" y="480" width="700" height="72" rx="10" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
   <text x="56" y="506" class="label">When no request is left: the report</text>
-  <text x="56" y="530" class="small">add the online path's fixed cost to every request (chapter 16), then TTFT and TPOT percentiles,</text>
+  <text x="56" y="530" class="small">add the online path's fixed cost to every request (chapter 17), then TTFT and TPOT percentiles,</text>
   <text x="56" y="547" class="small">output tokens per second over the whole run, and the number of steps</text>
   <path d="M 40 170 L 22 170 L 22 516 L 36 516" fill="none" stroke="#15803d" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arr)"/>
   <text x="17" y="340" class="small" text-anchor="middle" transform="rotate(-90 17 340)">no request left</text>

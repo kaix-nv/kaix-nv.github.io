@@ -1,20 +1,21 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 20: Disaggregated prefill and decode"
-date: 2026-09-29 12:20:00 -0700
+title: "Building tinyperf, chapter 21: Disaggregated prefill and decode"
+date: 2026-09-29 12:21:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/20-disaggregated-serving/
-excerpt: "A GPU that runs prefill and decode makes them take turns: a step that carries part of a new prompt lasts several decode steps (chapter 16), and every running request waits for it. One remedy is structural. A prefill server computes each prompt's KV cache and first token, the cache is shipped to a decode server, and the decode server generates the reply without ever seeing a prompt. Should prefill and decode run on separate GPUs? When does splitting them win, which latency target does it serve, and what does moving the cache cost?"
+permalink: /tinyperf/book/21-disaggregated-serving/
+excerpt: "A GPU that runs prefill and decode makes them take turns: a step that carries part of a new prompt lasts several decode steps (chapter 17), and every running request waits for it. One remedy is structural. A prefill server computes each prompt's KV cache and first token, the cache is shipped to a decode server, and the decode server generates the reply without ever seeing a prompt. Should prefill and decode run on separate GPUs? When does splitting them win, which latency target does it serve, and what does moving the cache cost?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/31/building-tinyperf-m37.html
   - /tinyperf/perf-modeling/2026/09/22/building-tinyperf-m66.html
   - /tinyperf/perf-modeling/2026/09/24/building-tinyperf-m71.html
+  - /tinyperf/book/20-disaggregated-serving/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/disagg.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/disagg.py), `simulate_disagg`, `kv_transfer_us` and `simulate_replicas`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `kv_producer_us` and `simulate` · Every table and both plots in this chapter come from `python3 book/scripts/ch20_disagg.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/disagg.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/disagg.py), `simulate_disagg`, `kv_transfer_us` and `simulate_replicas`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `kv_producer_us` and `simulate` · Every table and both plots in this chapter come from `python3 book/scripts/ch21_disagg.py`.*
 
 A GPU that runs prefill and decode makes them take turns: a step that
-carries part of a new prompt lasts several decode steps (chapter 16),
+carries part of a new prompt lasts several decode steps (chapter 17),
 and every running request waits for it. One remedy is structural. A
 *prefill server* computes each prompt's KV cache and first token, the
 cache is shipped to a *decode server*, and the decode server generates
@@ -42,17 +43,17 @@ By the end of this chapter you will know:
 - what a disaggregated deployment does with a request, and what each
   part costs;
 - how tinyperf, the model this book builds, assembles one from two
-  copies of chapter 14's simulator and a priced link;
+  copies of chapter 15's simulator and a priced link;
 - what saving the cache adds to a prefill step, and how a server whose
   host waits for it holds finished answers for a step;
 - how close the model is on two GPUs, and how to choose a split on more.
 
 ## One GPU, two kinds of work
 
-Prefill is math-bound and decode streams weights (chapter 6): on an RTX
+Prefill is math-bound and decode streams weights (chapter 7): on an RTX
 A6000, a 1,024-token prompt of Qwen3-8B is a step of about 152 ms, a
-decode step at batch 1 about 25. With chunked prefill (chapter 14) the
-prompt rides beside the decodes in one forward (chapter 16), so every
+decode step at batch 1 about 25. With chunked prefill (chapter 15) the
+prompt rides beside the decodes in one forward (chapter 17), so every
 decoding request waits the whole step.
 
 A disaggregated deployment puts a small router, the *proxy*, in front of
@@ -64,13 +65,13 @@ producer*) it *saves* and sends each layer's KV; on the decode server it
 receives it. The decode server gets the cache of all but the last
 prompt token, so its first step computes one token and samples the
 first output. With one GPU per role the deployment is *1P1D*; in
-general, xPyD (x prefill GPUs, y decode GPUs). Figure 20.1 follows four
+general, xPyD (x prefill GPUs, y decode GPUs). Figure 21.1 follows four
 requests through both designs.
 
 ![Four requests on two GPUs, colocated and
-disaggregated.](/assets/tinyperf-book/ch20-timeline.svg)
+disaggregated.](/assets/tinyperf-book/ch21-timeline.svg)
 
-*Figure 20.1. Four requests on two GPUs, as the model schedules them.
+*Figure 21.1. Four requests on two GPUs, as the model schedules them.
 In the pair, r2's prompt lands on GPU 0 while r0 decodes, and r0's next
 token waits for the whole step. In 1P1D the decode GPU runs only short
 steps; the 26.9 ms before its first step is the prefill server's 25 ms
@@ -79,7 +80,7 @@ hop through the proxy. Two answers are held for a step, explained
 below.*
 
 ```
-Worked example  Figure 20.1's four requests: 1024 tokens in, 20 out, arriving at 0, 100, 420 and 560 ms, model
+Worked example  Figure 21.1's four requests: 1024 tokens in, 20 out, arriving at 0, 100, 420 and 560 ms, model
   request   arrives ms   colocated: TTFT ms  largest gap ms   1P1D: TTFT ms  largest gap ms
   r0                 0                179.1           164.3           402.6            26.9
   r1               100                179.1           164.3           302.6            26.9
@@ -95,10 +96,10 @@ later: 296–436 ms against 179–229.
 ## What splitting costs
 
 With *hop* the proxy's cost per pass, *overhead* a server's per-request
-overhead outside its steps (25 ms, chapters 14 and 16), *wait* the
+overhead outside its steps (25 ms, chapters 15 and 17), *wait* the
 queueing, including async scheduling's extra step (vLLM plans each step
-while the previous one runs; chapter 16), and *tp* the tensor-parallel
-degree (GPUs sharing every weight matrix; chapter 11):
+while the previous one runs; chapter 17), and *tp* the tensor-parallel
+degree (GPUs sharing every weight matrix; chapter 12):
 
 ```
 TTFT, colocated  =  hop + overhead + wait + prefill step
@@ -125,10 +126,10 @@ The transfer is missing because it hides. It is the cache's size over
 the link; with tensor parallelism each rank ships its shard over its own
 link. The H100 prefill below is priced from datasheet rates alone (a
 projection: nothing measured); the pair's is calibrated, priced with
-constants fitted to this GPU (chapter 4):
+constants fitted to this GPU (chapter 5):
 
 ```
-Table 20.1  Moving one prompt's KV cache: the transfer on three links, and the prefill it can hide behind
+Table 21.1  Moving one prompt's KV cache: the transfer on three links, and the prefill it can hide behind
                                           transfer ms
   model        tp KB/token  prompt  MB/GPU  PCIe pair  InfiniBand   NVLink  prefill ms, H100
   Qwen3-8B      1      144    1024     151       23.1         3.0     0.34              20.2
@@ -138,7 +139,7 @@ Table 20.1  Moving one prompt's KV cache: the transfer on three links, and the p
   links: the measured pair 6.55 GB/s; H100 InfiniBand 50 GB/s per GPU, NVLink 450; prefill at H100 datasheet rates (projection)
   Qwen3-8B on the RTX A6000 pair (calibrated): prefill 151.7 ms at 1024 tokens, 1345.3 at 8192; the transfer is 0.15 and 0.14 of it
   weight bytes per cached byte, Llama-3-70B over Qwen3-8B: 3.9 (tp=4 divides cache and math alike)
-  a latent cache (chapter 8): DeepSeek-V4-Flash 8300 bytes per token, 18 times less than Qwen3-8B's
+  a latent cache (chapter 9): DeepSeek-V4-Flash 8300 bytes per token, 18 times less than Qwen3-8B's
   the pair's rate: a 16 MB NCCL send/recv inside a CUDA graph, 2.56 ms: 6.55 GB/s, the model's p2p_bw_gbps
   the one-GPU device file, rtx_a6000: p2p_bw_gbps 0, nvlink_bw_gbps 56; its 1024-token transfer 2.7 ms
 ```
@@ -153,11 +154,11 @@ negligible.
 
 The pair's 6.55 GB/s is a send by NCCL (NVIDIA's collective
 communications library) inside a CUDA graph (launches recorded once and
-replayed; chapter 4). The one-GPU device file (the GPU's rates in
-`data/devices/`; chapter 2) lacks it (Where it breaks), so every run
+replayed; chapter 5). The one-GPU device file (the GPU's rates in
+`data/devices/`; chapter 3) lacks it (Where it breaks), so every run
 here loads the pair's own, `Device.load("rtx_a6000_pcie_pair")`:
-`p2p_bw_gbps` 6.55 beside chapter 11's 4.0 GB/s ring (the link rate of
-its all-reduce model). Each GPU's server is chapter 14's engine preset
+`p2p_bw_gbps` 6.55 beside chapter 12's 4.0 GB/s ring (the link rate of
+its all-reduce model). Each GPU's server is chapter 15's engine preset
 (the simulator set up as vLLM runs), `VLLM.with_(max_num_seqs=64)`. On
 the connector's own clock, as recorded during the runs:
 
@@ -181,7 +182,7 @@ the sends still hide is unmeasured.
 
 ## The model: two engines and a link
 
-`simulate_disagg` builds the deployment from chapter 14's serving
+`simulate_disagg` builds the deployment from chapter 15's serving
 simulator, `simulate`. Trimmed below: the docstring, most of the
 signature, the two step models (`lat_p`, `lat_d`), the settings both
 pools share (`common`), and the bookkeeping that copies results back:
@@ -241,7 +242,7 @@ the delivery, so the transfer starts a step late: harmless here (23 ms
 against 152). The **decode pool** is `simulate` on copies that arrive
 once both answer and cache have come, with `kv_loaded` tokens treated as
 cached: the first step computes one token, stays in the full CUDA graph
-and costs a decode step (chapter 15). `kv_transfer_us` is the formula
+and costs a decode step (chapter 16). `kv_transfer_us` is the formula
 (docstring, type annotations and the refusals of a missing link
 trimmed):
 
@@ -263,12 +264,12 @@ functions take `simulate`'s arguments, not the preset's: the script
 passes the server's 64 sequences and 2,048-token budget (the most
 tokens one step may carry) as `max_batch` and `chunk_tokens`.
 Round-robin matters: each GPU sees every other arrival of a Poisson
-stream (random arrivals at a fixed average rate; chapter 14), so its
+stream (random arrivals at a fixed average rate; chapter 15), so its
 gaps are sums of two exponential gaps, with 0.71 of the spread and
 fewer bursts. A random split would leave each GPU a Poisson stream:
 
 ```
-Table 20.2  Round-robin smooths arrivals: TTFT on one GPU fed Poisson arrivals, and on a pair fed twice
+Table 21.2  Round-robin smooths arrivals: TTFT on one GPU fed Poisson arrivals, and on a pair fed twice
   the rate, split round-robin or at random; model, median over 16 samples of 240 requests per GPU, 1024 in, 128 out, ms
   req/s per GPU  one GPU p50   p95  round-robin p50   p95  random p50   p95
             3.0          344   730              269   510         334   721
@@ -286,12 +287,12 @@ gathers the layer's KV blocks and queues them for a send thread. The
 gathers cost more than the sends. `tools/measure_prefill_step.py` sends
 k prompts at once behind a 2,048-token prompt, so they share one step,
 and times the forward on the engine's clock (the engine's own GPU
-timing of each step; chapters 15 and 16), on a plain server and on a
+timing of each step; chapters 16 and 17), on a plain server and on a
 pair's prefill server, same GPU. The two cells marked held out were
 left out of the fit:
 
 ```
-Table 20.3  The KV producer's step, fitted: the same prompts on a plain server and on a 1P1D prefill server,
+Table 21.3  The KV producer's step, fitted: the same prompts on a plain server and on a 1P1D prefill server,
   forward time on the engine's clock (median of 6-13 steps), RTX A6000, Qwen3-8B
   prompts/step tokens each  plain ms  producer ms  extra ms  model ms
              1         128      32.5         32.7       0.3       9.7   held out
@@ -335,7 +336,7 @@ finishes, because the connector saves a prompt split across steps once,
 with its last chunk.
 
 `kv_producer_layer_us` is *fitted end to end*, the kind of calibration
-field chapter 4 warns about: it came from whole forwards of a running
+field chapter 5 warns about: it came from whole forwards of a running
 server, a producer's minus a plain server's, not from a kernel timed
 alone, so it absorbs whatever else a producer's step does.
 
@@ -343,10 +344,10 @@ alone, so it absorbs whatever else a producer's step does.
 
 Because the host waits at every layer, the prefill server's forward
 blocks its engine thread, and under async scheduling a finished answer
-then leaves only when the next forward returns: chapter 16's "a host
+then leaves only when the next forward returns: chapter 17's "a host
 that waits for its GPU". On a prefill server whose steps run back to
 back, it waits for the next prompt's whole prefill: r0 and r2 in Figure
-20.1, 161.9 ms each. `simulate(host_sync_forward=True)` plans each step
+21.1, 161.9 ms each. `simulate(host_sync_forward=True)` plans each step
 after the previous one ends, and moves each delivery (the end of
 `simulate`):
 
@@ -384,7 +385,7 @@ scheduling on as deployed and, as a control, off on the prefill server
 alone:
 
 ```
-Table 20.4  The prefill server's answer on the proxy's clock, 1P1D at the sweep's own arrivals, ms:
+Table 21.4  The prefill server's answer on the proxy's clock, 1P1D at the sweep's own arrivals, ms:
   measured (as recorded) and today's model, with async scheduling on (as deployed) and off (the control)
   scheduling  req/s   measured p10/p50/p90/p99  model                  held, measured   model
   async on        1   179/185/340/484           187/187/349/535             40 of 241  35 of 240
@@ -413,7 +414,7 @@ pair also needed small connector patches, in `tools/vllm_patches/`.)
 ## How close is it: two GPUs, two designs
 
 ```
-Table 20.5  Two GPUs, two designs: Qwen3-8B on two RTX A6000s under vLLM, 240 requests of 1024 tokens in,
+Table 21.5  Two GPUs, two designs: Qwen3-8B on two RTX A6000s under vLLM, 240 requests of 1024 tokens in,
   128 out, measured and model/measured
          colocated pair                                    1P1D
   req/s  TTFT p50  model  TPOT ms  model  tok/s  model    TTFT p50  model  TPOT ms  model  tok/s  model
@@ -435,9 +436,9 @@ Table 20.5  Two GPUs, two designs: Qwen3-8B on two RTX A6000s under vLLM, 240 re
 ```
 
 ![Median TTFT and mean TPOT against load for the colocated pair and
-1P1D, model and measured.](/assets/tinyperf-book/ch20-load.svg)
+1P1D, model and measured.](/assets/tinyperf-book/ch21-load.svg)
 
-*Figure 20.2. The two designs against load: the model (dashed) and vLLM
+*Figure 21.2. The two designs against load: the model (dashed) and vLLM
 (solid lines through the measured points), same trace.*
 
 The pair wins TTFT at every rate: two GPUs can prefill, and nothing
@@ -447,7 +448,7 @@ saturates, and 1P1D stops at 740 tokens per second against 865. 1P1D
 wins TPOT at every rate, 34.9 ms against 92.9 at 8 per second, and its
 p95 TPOT stays within 8% of its mean where the pair's runs 10–29% above.
 
-Table 20.5 is today's model, and this sweep has tested every later
+Table 21.5 is today's model, and this sweep has tested every later
 change to it, so it is in-sample. Held out are the numbers committed
 before the runs, each the mean over eight other Poisson samples:
 
@@ -462,14 +463,14 @@ producer's save were both found on this sweep afterwards.
 
 **Which design wins depends on the SLO.** No single metric changes
 winner between 1 and 8 requests per second, but an SLO combines two.
-Table 20.6 applies limits to the run as a whole (its p95 TTFT and mean
-TPOT), not chapter 14's per-request SLO. We chose these limits after the
-runs. They re-read Table 20.5 rather than test anything new: the
+Table 21.6 applies limits to the run as a whole (its p95 TTFT and mean
+TPOT), not chapter 15's per-request SLO. We chose these limits after the
+runs. They re-read Table 21.5 rather than test anything new: the
 committed predictions agree in 16 of 20, today's model (in-sample on
 1P1D TTFT) in 19.
 
 ```
-Table 20.6  Which design sustains more load under run-level limits chosen after the runs: the highest rate
+Table 21.6  Which design sustains more load under run-level limits chosen after the runs: the highest rate
   at which it and every lower rate meet TTFT p95 and mean TPOT limits, pair : 1P1D, measured / today's model
   TTFT p95      TPOT 30 ms    TPOT 35 ms    TPOT 45 ms    TPOT 60 ms    TPOT 75 ms
   0.5 s          2:1 / 2:1     3:1 / 3:1     4:1 / 4:1     5:1 / 5:1     5:1 / 5:1
@@ -492,7 +493,7 @@ before any ran: the main sweep's shape on a new seed, and varied
 lengths:
 
 ```
-Table 20.7  The KV producer, held out: 1P1D on two new traces, the predictions committed before the runs
+Table 21.7  The KV producer, held out: 1P1D on two new traces, the predictions committed before the runs
   over the measurements, and today's model's TTFT p50 over the measurement
   trace                    req/s  TTFT p50 ms  TTFT p50  TTFT p95   TPOT  tok/s  criteria  today
   1024/128, seed 1             1          272      1.06      1.01   1.01   1.00    within   1.06
@@ -514,12 +515,12 @@ Table 20.7  The KV producer, held out: 1P1D on two new traces, the predictions c
 ```
 
 Eight of nine cells meet the committed criteria. The miss, 0.78 at the
-knee (the load where TTFT turns sharply upward; chapter 18) of the
+knee (the load where TTFT turns sharply upward; chapter 19) of the
 1,024-token shape, was named in advance by the committed file
 (`predictions_qwen3_8b_rtx_a6000_kv_producer_before_measurement.txt` in
 `data/validation`): under sustained load, steps carrying two such
 prompts had run 2–3% above the fitted cost, and near a knee a few
-percent per step is a large error in TTFT (chapter 18). An excluded
+percent per step is a large error in TTFT (chapter 19). An excluded
 first run, whose decode GPU another process shared, had missed on TPOT
 at 3 req/s.
 
@@ -531,7 +532,7 @@ decode GPU ran batches of about 26 (740 tokens per second × 34.9 ms).
 With more GPUs the ratio is a choice:
 
 ```
-Table 20.8  Choosing the split, a projection: four GPUs like the measured pair, 480 Poisson requests
+Table 21.8  Choosing the split, a projection: four GPUs like the measured pair, 480 Poisson requests
   workload                 design       TTFT p50     p95  TPOT ms    p95  tok/s
   1024 in, 128 out, 12/s   4 colocated       262     371     56.8   68.7   1410
                            1P3D            14876   30216     27.3   27.4    821
@@ -591,11 +592,11 @@ only at the right ratio.
    length below which the transfer stops hiding behind a prefill on the
    pair.
 2. **Fix the connector.** Move the gather's block indices to the GPU.
-   Predict with the model what happens to Table 20.4 and to 1P1D's TTFT
+   Predict with the model what happens to Table 21.4 and to 1P1D's TTFT
    at 3–5 requests per second, then measure it.
 3. **The SLO frontier.** For eight GPUs and your own workload, find the
    P:D ratio that maximizes goodput (throughput from the requests that
-   meet the SLO; chapter 14) when each request must see TTFT ≤ 1 s and
+   meet the SLO; chapter 15) when each request must see TTFT ≤ 1 s and
    TPOT ≤ 40 ms. How does it move as prompts lengthen?
 4. **tp in a pool.** Serve Llama-3-70B as 1P1D with tp=4 per pool on
    H100s over InfiniBand, pricing the transfer by the shard each rank
@@ -603,4 +604,4 @@ only at the right ratio.
 
 ---
 
-*[← Chapter 19: Speculative decoding]({% post_url 2026-09-29-tinyperf-19-speculative-decoding %}) · [Contents](/series/tinyperf/) · [Chapter 21: Validating a performance model →]({% post_url 2026-09-29-tinyperf-21-validating-a-performance-model %})*
+*[← Chapter 20: Speculative decoding]({% post_url 2026-09-29-tinyperf-20-speculative-decoding %}) · [Contents](/series/tinyperf/) · [Chapter 22: Validating a performance model →]({% post_url 2026-09-29-tinyperf-22-validating-a-performance-model %})*

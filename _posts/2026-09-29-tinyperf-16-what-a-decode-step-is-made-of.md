@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 15: What a decode step is made of"
-date: 2026-09-29 12:15:00 -0700
+title: "Building tinyperf, chapter 16: What a decode step is made of"
+date: 2026-09-29 12:16:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/15-what-a-decode-step-is-made-of/
+permalink: /tinyperf/book/16-what-a-decode-step-is-made-of/
 excerpt: "Serve Qwen3-8B with vLLM on an RTX A6000, start 64 requests together, and once their prompts are read the engine gives each of them a new token every 36.2 milliseconds. Send the same requests with greedy decoding and a step takes 31.5 ms; nothing else changed. A serving engine's decode step takes a measured number of milliseconds: what exactly is in it, and how do you price each part?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m55.html
@@ -11,9 +11,10 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/09/building-tinyperf-m57.html
   - /tinyperf/perf-modeling/2026/09/22/building-tinyperf-m67.html
   - /tinyperf/perf-modeling/2026/09/24/building-tinyperf-m70.html
+  - /tinyperf/book/15-what-a-decode-step-is-made-of/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel.decode_us`, `sampler_us` and `padded_batch`, and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_row_corrected` · Every table and the plot in this chapter come from `python3 book/scripts/ch15_decode_step.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel.decode_us`, `sampler_us` and `padded_batch`, and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_row_corrected` · Every table and the plot in this chapter come from `python3 book/scripts/ch16_decode_step.py`.*
 
 Serve Qwen3-8B with vLLM on an RTX A6000, start 64 requests together,
 and once their prompts are read the engine gives each of them a new
@@ -24,7 +25,7 @@ exactly is in it, and how do you price each part?
 
 The short answer: a decode step is one forward pass, replayed from a
 CUDA graph (kernel launches recorded once and replayed as one;
-chapter 4), then the sampler, which picks each sequence's next token.
+chapter 5), then the sampler, which picks each sequence's next token.
 The forward is mostly the weight GEMMs and the LM head, which together
 read 15.14 GB of weights once: about 23 ms on this GPU for one sequence
 or 32, and 6–9% more above 32 rows, where cuBLAS's time steps up. The
@@ -56,11 +57,11 @@ By the end of this chapter you will know:
 ## A step, part by part
 
 In steady decoding a serving engine repeats three things. Its scheduler
-picks the running sequences (chapter 14). It runs one forward pass that
+picks the running sequences (chapter 15). It runs one forward pass that
 carries one new token per sequence through all 36 layers and the LM
-head, replayed from a CUDA graph (chapter 4). And its sampler picks each
+head, replayed from a CUDA graph (chapter 5). And its sampler picks each
 sequence's next token from that sequence's row of logits. The serving
-simulator of chapter 14 charges each step five parts:
+simulator of chapter 15 charges each step five parts:
 
 ```
 step = GEMMs + small ops + LM head      at the graph's rows
@@ -68,13 +69,13 @@ step = GEMMs + small ops + LM head      at the graph's rows
      + sampler                          for the real sequences
 ```
 
-Table 15.1 prices them for Qwen3-8B on the RTX A6000 at the rates
-chapter 4 fitted, with kernels issued from a CUDA graph. The context,
+Table 16.1 prices them for Qwen3-8B on the RTX A6000 at the rates
+chapter 5 fitted, with kernels issued from a CUDA graph. The context,
 278 tokens, is that of the measurement this chapter ends with: 128-token
 prompts, halfway through 300 generated tokens.
 
 ```
-Table 15.1  A decode step's parts as the model prices them: Qwen3-8B, RTX A6000 in a CUDA graph, context 278, ms
+Table 16.1  A decode step's parts as the model prices them: Qwen3-8B, RTX A6000 in a CUDA graph, context 278, ms
   batch   GEMMs  attention  LM head  small ops  forward  sampler: greedy  top-p  step: greedy  top-p
       1   21.00       0.44     1.83       0.77    24.05             0.01   0.48         24.06  24.53
       8   21.32       0.88     1.86       0.85    24.91             0.03   0.94         24.94  25.85
@@ -93,13 +94,13 @@ Table 15.1  A decode step's parts as the model prices them: Qwen3-8B, RTX A6000 
 
 ![Stacked bars of a Qwen3-8B decode step by batch on an RTX A6000, split
 into GEMMs, LM head, small ops, attention and sampler, with the measured
-step as a dot.](/assets/tinyperf-book/ch15-step-parts.svg)
+step as a dot.](/assets/tinyperf-book/ch16-step-parts.svg)
 
-*Figure 15.1. The model's decode step by batch, and the step measured on
-the engine's clock (dots; see Timing a step). Left: Table 15.1 with
+*Figure 16.1. The model's decode step by batch, and the step measured on
+the engine's clock (dots; see Timing a step). Left: Table 16.1 with
 top-p sampling. Right: steady batches of half 128-token and half
-1,920-token prompts, mean context 1,124, greedy (chapter 7's Table
-7.7). The GEMMs are at least half of every step and flat to 32
+1,920-token prompts, mean context 1,124, greedy (chapter 8's Table
+8.7). The GEMMs are at least half of every step and flat to 32
 sequences; attention and the sampler grow with the batch. Every dot is
 within 2% of its bar.*
 
@@ -108,7 +109,7 @@ Read the table by columns.
 - **GEMMs.** The weights, 21.9 ms at the fitted 691 GB/s, are most of
   the GEMM and LM head columns (22.83 ms at one sequence). To 32
   sequences the GEMMs grow 4%: extra rows share one read of the weights
-  (chapter 6). From 32 to 40 they jump 1.86 ms.
+  (chapter 7). From 32 to 40 they jump 1.86 ms.
 - **Attention** grows in a straight line with the batch: 53% of the
   forward at 64 sequences of 2,048 tokens.
 - **Small ops** (norms, rotary embedding, activation, residual adds, the
@@ -117,24 +118,24 @@ Read the table by columns.
 
 ## The weight GEMMs: cuBLAS's row curve
 
-Chapter 3 found that the tile model (its GEMM price built from output
+Chapter 4 found that the tile model (its GEMM price built from output
 tiles and waves of thread blocks) can't follow a library's own choices:
 one row past a 128-row tile, cuBLAS's time jumps by up to 73%, and no
 first-principles argument says which kernel it will pick. The
 calibrated tier, the model on constants fitted to one GPU, stores a
-measured correction for this, `dense_gemm_row_factor` (chapter 4,
-Table 4.9). In a decode step it matters well before 128 rows.
+measured correction for this, `dense_gemm_row_factor` (chapter 5,
+Table 5.9). In a decode step it matters well before 128 rows.
 
 `tools/measure_decode_gemms.py` times Qwen3-8B's four layer GEMMs the
 way vLLM calls them: `F.linear` in bf16, captured in a CUDA graph, at
-vLLM's graph sizes and beyond. Table 15.2 sums the 36 layers. Its last
+vLLM's graph sizes and beyond. Table 16.2 sums the 36 layers. Its last
 line tries the curve on shapes it never saw, each GPU's at tp=2 (each
-GPU holds half of every weight matrix; chapter 11), and sums up each
+GPU holds half of every weight matrix; chapter 12), and sums up each
 set of ratios by its typical error, their geometric-mean distance
-from 1 (chapter 3).
+from 1 (chapter 4).
 
 ```
-Table 15.2  The 36 layers' four weight GEMMs by rows, as vLLM calls them (bf16, CUDA graph), RTX A6000: sum of 144 GEMMs, ms
+Table 16.2  The 36 layers' four weight GEMMs by rows, as vLLM calls them (bf16, CUDA graph), RTX A6000: sum of 144 GEMMs, ms
   rows  measured  tile model  model/meas  with the row curve  model/meas  row factor
      1     21.08       21.00        1.00               21.00        1.00           -
      8     20.94       21.32        1.02               21.32        1.02           -
@@ -162,7 +163,7 @@ two wide GEMMs, the QKV projection (6,144 columns) and gate-up (24,576),
 cuBLAS switching kernels for the wide shapes above 32 rows (not
 profiled). Past 64 rows, which a pure decode step here never reaches,
 the curve carries the tile edges that a mixed step of decodes and a
-prompt chunk runs into (chapter 16): 129 rows cost 34% more than 128.
+prompt chunk runs into (chapter 17): 129 rows cost 34% more than 128.
 
 The correction is a table of factors: the measured sum over the tile
 model's sum, at 33 row counts from 32 to 1,280, with points on both
@@ -187,7 +188,7 @@ Between measured points the corrected times are joined by a straight
 line in rows, not the model's own tile steps. Beyond the table a GEMM
 runs in whole 128-row tiles; at 32 rows or fewer nothing changes. The
 scheduler, tinyperf's pricing of a graph operator by operator
-(chapter 5), applies it to dense layer GEMMs only (the arguments of
+(chapter 6), applies it to dense layer GEMMs only (the arguments of
 `estimate_gemm` and the lines around it trimmed):
 
 ```python
@@ -207,7 +208,7 @@ shapes the curve never saw, it moves 40–64 rows from 0.91–0.95 to
 
 ## Attention at the mean context
 
-Chapter 7 prices decode attention from its kernel and shows that a
+Chapter 8 prices decode attention from its kernel and shows that a
 batch's attention depends on its contexts only through their mean. The
 simulator passes each step's mean context, and `decode_us` interpolates
 between prices every 256 tokens.
@@ -223,7 +224,7 @@ Worked example  The LM head
 The head reads 1.24 GB at any batch, so its time barely moves. The model
 prices it 4% high; the row curve, measured on the layer GEMMs, doesn't
 apply. Under tensor parallelism vLLM splits the head by vocabulary and
-all-gathers the logits for the sampler; chapter 11 prices both.
+all-gathers the logits for the sampler; chapter 12 prices both.
 
 ## The sampler
 
@@ -246,7 +247,7 @@ behind it, as a step's forward does, and CUDA events bracket only the
 sampler.
 
 ```
-Table 15.3  vLLM's sampler timed alone against its price: vocabulary 151,936, RTX A6000, ms of GPU time
+Table 16.3  vLLM's sampler timed alone against its price: vocabulary 151,936, RTX A6000, ms of GPU time
   rows  greedy meas  price  sample meas  price   top-k meas  price   top-p meas  price
      1        0.015  0.012        0.069  0.036        0.370  0.160        0.262  0.477
      8        0.027  0.030        0.112  0.114        0.312  0.302        0.931  0.943
@@ -280,7 +281,7 @@ SAMPLERS = {"greedy": (10.0, 2.8), "sample": (25.0, 12.7), "top_k": (140.0, 23.1
 ```
 
 With data-parallel attention (`dp` groups of GPUs, each serving its own
-requests; chapter 12) each of the `dp` replicas samples its own rows.
+requests; chapter 13) each of the `dp` replicas samples its own rows.
 
 ```
 Worked example  The top-p sampler for 64 sequences
@@ -291,7 +292,7 @@ Worked example  The top-p sampler for 64 sequences
 
 Top-p's 75.8 passes per row are consistent with sorting 151,936
 numbers (not profiled); greedy's argmax takes 2.8. The constants were
-fitted to the kernel timings at 8–64 rows (Table 15.3 shows four of the
+fitted to the kernel timings at 8–64 rows (Table 16.3 shows four of the
 eight). There the other modes' price is within 3%, and greedy's within
 4 µs. Below 8 rows the form fails: one row of top-p takes 0.262 ms where
 the price says 0.477, and top-k's single row costs more than its two.
@@ -304,11 +305,11 @@ serve` (version 0.15.1, as measured here), sends no sampling parameters,
 so the server applies the model's generation config, for Qwen3
 temperature 0.6, top-k 20 and top-p 0.95: every step sorts. A tool that
 sends `temperature: 0` gets greedy. Two runs of "the same" benchmark can
-differ by 4.76 ms a step at 64 sequences (Table 15.6). If you serve with
-a model's generation config, tell the model; chapter 14's engine preset,
+differ by 4.76 ms a step at 64 sequences (Table 16.6). If you serve with
+a model's generation config, tell the model; chapter 15's engine preset,
 `serving.VLLM`, says `"top_p"` for these checkpoints.
 
-> **Field note: the constant that was the sampler.** Chapter 4's field
+> **Field note: the constant that was the sampler.** Chapter 5's field
 > note "three zeros" follows where a per-sequence cost went; this is
 > what it was. A load sweep of 128-token prompts once left the model's
 > decode steps 3.4–4.2 ms short at 64 running sequences, and a fit put
@@ -320,7 +321,7 @@ a model's generation config, tell the model; chapter 14's engine preset,
 > constant's size and signature. Its absence stayed mostly hidden, for
 > two reasons. The simulator then priced each step at its batch's
 > longest context, rounded up to 256 tokens: 768 tokens on that sweep at
-> saturation, against a mean near 384 (chapter 7's field note tells that
+> saturation, against a mean near 384 (chapter 8's field note tells that
 > side). And greedy steps looked exact by a second cancellation: priced
 > with the same round-up they ran 1.1–1.3 ms high at 32 and 64
 > sequences, while the forward at 48–64 ran 1.7–2.9 ms low, mostly in
@@ -330,22 +331,22 @@ a model's generation config, tell the model; chapter 14's engine preset,
 ## CUDA-graph padding
 
 A CUDA graph fixes every kernel's shapes when it is recorded
-(chapter 4), so an engine records one graph per batch size and runs a
+(chapter 5), so an engine records one graph per batch size and runs a
 step in the smallest graph that holds it. vLLM's default sizes, capped
 at the 64 sequences these measurements allow, are 1, 2, 4 and every
 multiple of 8 up to 64. A step of 9 sequences runs the 16-sequence graph
-(Figure 15.2).
+(Figure 16.2).
 
 ![A decode step of 9 sequences in the 16-row CUDA graph: the GEMMs run
 all 16 rows, attention reads the 9 real caches, the sampler runs on 9
-rows.](/assets/tinyperf-book/ch15-padded-graph.svg)
+rows.](/assets/tinyperf-book/ch16-padded-graph.svg)
 
-*Figure 15.2. A padded step. The graph's GEMMs, LM head and small ops
+*Figure 16.2. A padded step. The graph's GEMMs, LM head and small ops
 run all 16 rows. Attention reads the 9 real sequences' caches, each at
 its own length; a padded slot holds no KV. The sampler runs on the 9
 real rows.*
 
-The padded rows hold whatever the input buffer held (chapter 9 shows the
+The padded rows hold whatever the input buffer held (chapter 10 shows the
 router of an MoE, a mixture-of-experts model, routing them). Below 32
 rows they cost the GEMMs almost nothing, since the weights are read once
 either way. `padded_batch` finds the graph:
@@ -388,17 +389,17 @@ trimmed):
 `_price` builds, prices and caches the decode graph at `batch` rows and
 one context; `KV_BUCKET` is 256 tokens. `decode_attention_us` is the
 same graphs' attention kernels alone. A shared prefix (prompt tokens
-several requests reuse; chapter 17), pipeline stages (chapter 12) and a
-cache offloaded to host memory (chapter 17) keep the padded price.
-Chapter 14's loop prices a pure decode step of n sequences as
+several requests reuse; chapter 18), pipeline stages (chapter 13) and a
+cache offloaded to host memory (chapter 18) keep the padded price.
+Chapter 15's loop prices a pure decode step of n sequences as
 `decode_us(padded_batch(n), mean context, real=n) + sampler_us(n)`
 (simplified: a shared-prefix argument and a retired per-sequence
 constant, now zero, dropped).
 
-Table 15.4 prices steps between graph sizes, at a longer context.
+Table 16.4 prices steps between graph sizes, at a longer context.
 
 ```
-Table 15.4  CUDA-graph padding: B sequences run in the graph for the next size up. Qwen3-8B, RTX A6000, context 1024, greedy, ms
+Table 16.4  CUDA-graph padding: B sequences run in the graph for the next size up. Qwen3-8B, RTX A6000, context 1024, greedy, ms
     B  graph  as the engine runs it  unpadded, B rows  padding costs  attention for every row  too high by
     3      4                  24.97             24.87           0.4%                    25.20         0.9%
     5      8                  25.55             25.49           0.2%                    26.23         2.7%
@@ -418,7 +419,7 @@ Table 15.4  CUDA-graph padding: B sequences run in the graph for the next size u
 The model prices padding itself at 0.2–0.5% below 32 sequences. At 33 it
 costs 5.2%: the step runs 40 rows, past cuBLAS's change at 32. At 49 and
 57 it is slightly negative, because cuBLAS ran 56 and 64 rows faster
-than 48 (Table 15.2) and between measured points the curve is a straight
+than 48 (Table 16.2) and between measured points the curve is a straight
 line. The larger error is the other one: charging attention for every
 row of the graph reads up to 6.0% high, at 9 sequences in the 16-row
 graph. The engine's step logs from online sweeps (a server fed a stream
@@ -457,14 +458,14 @@ token ids each, 300 tokens generated, end-of-sequence ignored) under one
 sampling mode, and keeps the steps with exactly B requests and no
 prompt, arrival or finish: 295–299 steps per cell
 (`data/validation/vllm_qwen3_8b_rtx_a6000_decode_step_sampling.json`),
-whose medians are Table 15.6's measurements.
+whose medians are Table 16.6's measurements.
 
-When every step is alike, a client measures the step well (Table 15.6).
+When every step is alike, a client measures the step well (Table 16.6).
 When steps differ, the two diverge: with a prompt chunk, an arrival or a
 finish in a step, a client's gaps no longer map one to one onto steps,
 and an engine that plans one step while the previous one runs can split
-a long step's delay across two gaps (chapter 16). TPOT (time per output
-token), the per-request average of the gaps (chapter 14), mixes every
+a long step's delay across two gaps (chapter 17). TPOT (time per output
+token), the per-request average of the gaps (chapter 15), mixes every
 kind of step a request lived through. So a step's price is checked
 against the engine's clock, and TPOT against the whole simulator.
 
@@ -476,7 +477,7 @@ What the kernels timed alone leave of the forward is *the rest*: the
 small ops, launches, and every other part's error.
 
 ```
-Table 15.5  The step part by part: each part timed alone or on the engine's clock, against the model. Context 278, ms
+Table 16.5  The step part by part: each part timed alone or on the engine's clock, against the model. Context 278, ms
   batch         GEMMs      LM head    attention     the rest      forward  fwd ratio  sampler, top-p
           meas  model   meas model   meas model   meas model   meas model                 meas model
       1  21.08  21.00   1.75  1.83   0.42  0.44   0.55  0.77  23.80 24.05      1.010     0.29   0.48
@@ -484,14 +485,14 @@ Table 15.5  The step part by part: each part timed alone or on the engine's cloc
      32  21.92  21.85   1.80  1.86   2.47  2.38   1.16  1.09  27.36 27.18      0.994     2.58   2.54
      48  23.90  23.90   1.81  1.88   3.42  3.39   1.07  1.26  30.19 30.42      1.007     3.65   3.61
      64  23.26  23.25   1.83  1.89   4.45  4.39   1.77  1.42  31.30 30.95      0.989     4.71   4.68
-  GEMMs and LM head: timed alone (Table 15.2's measurement); attention: timed alone at contexts 256 and 512 (chapter 7), read at 278
+  GEMMs and LM head: timed alone (Table 16.2's measurement); attention: timed alone at contexts 256 and 512 (chapter 8), read at 278
   forward: the engine's clock, greedy; the rest = forward - GEMMs - LM head - attention, all measured
   the rest against the model's small ops: within 0.35 ms at every batch
   forward, model/measured: 0.989-1.010
 ```
 
 What kind of number each is: the GEMMs at 48 and 64 rows are the row
-curve's own points, and chapter 7's attention constants came from these
+curve's own points, and chapter 8's attention constants came from these
 kernel cells (*fitted*); the LM head, 3–5% high, and the sampler in the
 engine, within 0.07 ms from 16 rows up, are *held out*. The rest is
 within 0.35 ms of the model's small ops, about as close as a difference
@@ -500,7 +501,7 @@ of four measurements can show.
 The whole step, for all four sampling modes:
 
 ```
-Table 15.6  Whole decode steps on the engine's clock: Qwen3-8B, RTX A6000, 128-token prompts, 300 generated, model/measured
+Table 16.6  Whole decode steps on the engine's clock: Qwen3-8B, RTX A6000, 128-token prompts, 300 generated, model/measured
   batch  greedy ms  ratio  sample ratio  top-k ratio  top-p ms  ratio  sampler in the engine, top-p: meas  model
       1      23.82  1.010         1.004        0.959     24.29  1.010                                0.29   0.48
      16      25.53  1.002         0.994        0.950     27.27  0.990                                1.55   1.48
@@ -563,8 +564,8 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
   Beyond its largest size the model prices a step unpadded but still at
   the graph's launch cost, where the engine runs without the graph (not
   measured). Pass the engine's own list as `cudagraph_sizes`.
-- **The host.** Here the host keeps ahead of the GPU (Table 15.6). On a
-  GPU whose step takes a few milliseconds (chapter 4 prices Qwen3-8B's
+- **The host.** Here the host keeps ahead of the GPU (Table 16.6). On a
+  GPU whose step takes a few milliseconds (chapter 5 prices Qwen3-8B's
   batch-1 step on a B200 at 3.8 ms), the engine's work between steps
   could show; the model has no term for it.
 - **One model, one GPU, one engine version.**
@@ -593,10 +594,10 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
    with Nsight Systems, NVIDIA's timeline profiler. Which kernels run
    between the forward's last GEMM and the sampler?
 3. **Few rows.** Find a form for the sampler's price that fits all of
-   Table 15.3's rows, 1 to 64. How much does it move a step of one
+   Table 16.3's rows, 1 to 64. How much does it move a step of one
    sequence?
 4. **Choose capture sizes.** Run `simulate` with `chunk_tokens` and a
-   `trace` list (chapter 14) on a load of your choice, and histogram the
+   `trace` list (chapter 15) on a load of your choice, and histogram the
    decodes per step. How much step time does padding cost with vLLM's
    default sizes, and with a graph at every multiple of 4?
 5. **Another model's row curve.** Time another dense model's decode
@@ -605,4 +606,4 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
 
 ---
 
-*[← Chapter 14: A serving simulator]({% post_url 2026-09-29-tinyperf-14-a-serving-simulator %}) · [Contents](/series/tinyperf/) · [Chapter 16: The mixed step →]({% post_url 2026-09-29-tinyperf-16-the-mixed-step %})*
+*[← Chapter 15: A serving simulator]({% post_url 2026-09-29-tinyperf-15-a-serving-simulator %}) · [Contents](/series/tinyperf/) · [Chapter 17: The mixed step →]({% post_url 2026-09-29-tinyperf-17-the-mixed-step %})*

@@ -3,7 +3,7 @@
   <title id="title">An H100 SXM as its device file sees it, each number tagged with what it prices</title>
   <desc id="description">
     A GPU drawn as the few rates a performance model keeps, each tagged with the
-    group of Table 2.1 it prices. Math time: 132 streaming multiprocessors (SMs)
+    group of Table 3.1 it prices. Math time: 132 streaming multiprocessors (SMs)
     run at 1.83 GHz, and each SM has four tensor cores, each doing 512 fp16
     multiply-accumulates per clock, 2,048 per SM. Memory time: 228 KB of shared
     memory per SM, a 50 MB L2 cache shared by the SMs, whose bandwidth, about
@@ -30,7 +30,7 @@
   </defs>
   <rect width="1100" height="500" rx="18" fill="#f8fafc"/>
   <text x="40" y="46" class="title">An H100 SXM, as its device file sees it</text>
-  <text x="40" y="72" class="subtitle">A performance model keeps rates, not structure. Each dark tag names what a number prices (Table 2.1).</text>
+  <text x="40" y="72" class="subtitle">A performance model keeps rates, not structure. Each dark tag names what a number prices (Table 3.1).</text>
 
   <!-- the GPU chip -->
   <rect x="40" y="100" width="680" height="180" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>

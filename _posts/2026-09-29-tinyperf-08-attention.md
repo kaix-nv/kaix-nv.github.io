@@ -1,17 +1,18 @@
 ---
 layout: post
-title: "Building tinyperf, chapter 7: Attention"
-date: 2026-09-29 12:07:00 -0700
+title: "Building tinyperf, chapter 8: Attention"
+date: 2026-09-29 12:08:00 -0700
 categories: [tinyperf, perf-modeling]
-permalink: /tinyperf/book/07-attention/
+permalink: /tinyperf/book/08-attention/
 excerpt: "Every other operation in a transformer layer costs the same whether a sequence has a hundred tokens behind it or a hundred thousand. Attention does not. In prefill its work grows with the square of the prompt; in decode, each new token reads the keys and values of every token before it. So how do you price the one part of a transformer whose cost grows with the context? And why does the answer depend on which kernel the serving engine runs?"
 redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m7.html
   - /tinyperf/perf-modeling/2026/09/23/building-tinyperf-m68.html
   - /tinyperf/perf-modeling/2026/09/26/building-tinyperf-m75.html
+  - /tinyperf/book/07-attention/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `fuse_attention`; [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_fmha`; [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_exec_fmha`; and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `mixed_reread_us` · Every table and both plots in this chapter come from `python3 book/scripts/ch07_attention.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `fuse_attention`; [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_fmha`; [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_exec_fmha`; and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `mixed_reread_us` · Every table and both plots in this chapter come from `python3 book/scripts/ch08_attention.py`.*
 
 Every other operation in a transformer layer costs the same whether a
 sequence has a hundred tokens behind it or a hundred thousand.
@@ -47,13 +48,13 @@ By the end of this chapter you will know:
 - the step in which FlashAttention-2 loses it, and why that makes the
   backend a model parameter;
 - how close it gets: 5.6% typical error (the geometric mean miss;
-  chapter 3) on a decode kernel it was not fitted to, and whole decode
+  chapter 4) on a decode kernel it was not fitted to, and whole decode
   steps within 1.5%.
 
 ## Attention as written
 
 Take one layer and a step of b sequences, with h query heads sharing g
-KV heads (grouped-query attention, chapter 6) of dimension d, and s new
+KV heads (grouped-query attention, chapter 7) of dimension d, and s new
 tokens per sequence, each attending to kv keys:
 
 ```
@@ -62,26 +63,26 @@ P = softmax(S)      row by row
 O = P · V           (h/g)·s rows × d columns, contracting over kv
 ```
 
-Chapter 6's graph builder writes exactly this: a `BatchedMatMul`, a
+Chapter 7's graph builder writes exactly this: a `BatchedMatMul`, a
 `Softmax` and a second `BatchedMatMul`.
 
 S holds b·h·s·kv numbers. In prefill kv is the causal average,
-(s + 1)/2 (chapter 6), so S grows with the square of the prompt. Tensor
+(s + 1)/2 (chapter 7), so S grows with the square of the prompt. Tensor
 cores accumulate in fp32, but a GEMM library can write its output in 16
 bits. tinyperf assumes the unfused path keeps S in fp32, as a float32
 softmax does (not measured); softmax then writes the probabilities in 16
-bits for the second GEMM (chapter 6's builder: `out_dtype=DType.FP32`).
+bits for the second GEMM (chapter 7's builder: `out_dtype=DType.FP32`).
 Per score, the three kernels move
 
 ```
 QKᵀ writes 4 bytes, softmax reads 4 and writes 2, PV reads 2:   12 bytes per score
 ```
 
-Table 7.1 prices one layer of Qwen3-8B, whose 32 query heads share 8 KV
+Table 8.1 prices one layer of Qwen3-8B, whose 32 query heads share 8 KV
 heads, on an A100 at its datasheet rates.
 
 ```
-Table 7.1  Attention as written, one layer: Qwen3-8B prefill, A100 SXM, datasheet rates, us
+Table 8.1  Attention as written, one layer: Qwen3-8B prefill, A100 SXM, datasheet rates, us
   tokens  scores GB      QK^T   softmax        PV  three ops     fused  fused bound
     2048       0.27     146.9     200.7      86.0      433.5     172.7  math
     8192       4.30    2263.4    3163.4    1165.6     6592.4    2715.6  math
@@ -99,7 +100,7 @@ length the three operations take 2.4–2.5 times as long.
 
 FlashAttention (Dao and colleagues, 2022) computes the same O without S
 ever leaving the SM, the streaming multiprocessor that computes it
-(Figure 7.1). A CTA (a thread block, which runs on one SM; chapter 3)
+(Figure 8.1). A CTA (a thread block, which runs on one SM; chapter 4)
 keeps a block of query rows in registers and streams K and V through
 shared memory, one block of keys at a time. For each block it computes
 that block's scores on chip, updates a running maximum and running sum
@@ -108,9 +109,9 @@ the block's share of P·V. After the last block it divides by the sum and
 writes O. The model charges Q, K, V and O once each.
 
 ![Three kernels passing the score matrix through DRAM, and one fused
-kernel keeping it on chip.](/assets/tinyperf-book/ch07-fused.svg)
+kernel keeping it on chip.](/assets/tinyperf-book/ch08-fused.svg)
 
-*Figure 7.1. Attention as written and as FlashAttention runs it. The
+*Figure 8.1. Attention as written and as FlashAttention runs it. The
 unfused path writes and reads every score twice (orange), 12 bytes per
 score; the fused kernel keeps one block of scores at a time on the SM,
 and the running maximum and sum let it rescale the output as it goes.*
@@ -184,12 +185,12 @@ time  = max(flops / (peak · efficiency), bytes / bandwidth) + launch
 step's tokens. The efficiency defaults to 0.65: FlashAttention-2's paper
 reports its kernels at 50–73% of the A100's datasheet peak. On a
 calibrated GPU, one whose rates were fitted to measurements, it
-multiplies chapter 4's fitted GEMM rate, "0.65 of what the best GEMMs
+multiplies chapter 5's fitted GEMM rate, "0.65 of what the best GEMMs
 reach": on the A6000, whose fitted rate is 0.75 of its datasheet peak,
 0.65 × 0.75 = 0.49 of datasheet peak.
 
 ```
-Table 7.2  What fusion saves: Qwen3-8B on an A100 SXM, datasheet rates, whole forward pass, ms
+Table 8.2  What fusion saves: Qwen3-8B on an A100 SXM, datasheet rates, whole forward pass, ms
   step                    unfused    fused  saved   unfused, fp16 scores  saved
   prefill, 2048 tokens      123.6    114.2   7.6%                  119.5   4.4%
   prefill, 8192 tokens      647.1    507.6  21.6%                  577.0  12.0%
@@ -205,7 +206,7 @@ launches per layer; at 32 × 4,096, the scores' traffic too.
 
 > **Field note: the scores at half width.** The model first let every
 > operator's output inherit its input's precision, which priced the
-> scores at 16 bits: Table 7.2's last two columns. Against the fp32
+> scores at 16 bits: Table 8.2's last two columns. Against the fp32
 > price, that reads 3% low for a 2,048-token prefill and 21% low for a
 > 32,768-token one, and fusion saves 25% where the fp32 price says 41%.
 > A difference that grows with context points at a term that does; how
@@ -214,15 +215,15 @@ launches per layer; at 32 × 4,096, the scores' traffic too.
 ## Prefill: math at a kernel's efficiency
 
 A prefill's attention does 4·h·d·s·kv FLOPs per layer and moves only Q,
-K, V and O, so it is bound by math (Table 7.1's last column), and its
-price rests on the kernel's efficiency. Is 0.65 right? Table 7.3 times
+K, V and O, so it is bound by math (Table 8.1's last column), and its
+price rests on the kernel's efficiency. Is 0.65 right? Table 8.3 times
 prefill attention kernels alone, one prompt with no earlier context, on
 an RTX A6000 (84 SMs), and reads off the efficiency each reaches. Its
 ratios, like every ratio in this book, are predicted ÷ measured: above
 1 the model reads high.
 
 ```
-Table 7.3  Prefill attention timed alone: one prompt, one layer, RTX A6000
+Table 8.3  Prefill attention timed alone: one prompt, one layer, RTX A6000
   efficiency: achieved FLOP/s over the fitted math rate; model/measured with the fused price at 0.65 and at 0.215
   kernel, model (query/KV heads x head dim)     tokens measured us efficiency  at 0.65 at 0.215
   FlashAttention-2, Qwen3-8B (32/8 x 128)          512        52.5       0.35     0.61        -
@@ -257,9 +258,9 @@ feeds little math; that is consistent with its rate (not profiled), and
 the model carries the measured value. The calibration stores this
 backend's own efficiency, 0.215: 0.65 times the median ratio over both
 of gpt-oss's layer kinds (it alternates full attention with 128-token
-sliding windows, chapter 8). The last column is therefore fitted, and it
+sliding windows, chapter 9). The last column is therefore fitted, and it
 still drifts from 0.91 to 1.10. For a while a constant fitted to whole
-gpt-oss prefills absorbed this factor of three; chapter 22 tells that
+gpt-oss prefills absorbed this factor of three; chapter 23 tells that
 story.
 
 ## Decode: reading the cache
@@ -269,7 +270,7 @@ its whole context. The math is negligible; the bytes are the sequence's
 cache, context × 2·g·d values per layer. So the obvious price is the
 bytes over the bandwidth plus a launch. Here it is for the smallest cell
 of the measurement described below, run inside a CUDA graph (launches
-recorded once and replayed together; chapter 4):
+recorded once and replayed together; chapter 5):
 
 ```
 Worked example  One decode-attention call: Qwen3-8B, one sequence, context 256, RTX A6000 in a CUDA graph
@@ -284,8 +285,8 @@ contexts most of that doesn't grow with the cache. The model carries it
 as a measured floor (not profiled).
 
 The measurement calls vLLM's FlashAttention-2 decode kernel the way the
-engine does: the cache paged in 16-token blocks (chapter 17), one query
-token per sequence, inside a CUDA graph (chapter 4), at batches of 1 to
+engine does: the cache paged in 16-token blocks (chapter 18), one query
+token per sequence, inside a CUDA graph (chapter 5), at batches of 1 to
 64 and contexts of 256 to 8,192 tokens, 36 cells. Two constants fitted
 over all 36 price it: 7 µs per call, `fmha_decode_floor_us`, and the
 cache streamed at 0.96 of the fitted DRAM rate,
@@ -305,7 +306,7 @@ costs `floor + launch + cache bytes / (bandwidth · 0.96)`: 10.5 µs plus
 the cache here.
 
 ```
-Table 7.4  The decode attention kernel timed alone: vLLM's FlashAttention-2, Qwen3-8B, RTX A6000 in a CUDA graph
+Table 8.4  The decode attention kernel timed alone: vLLM's FlashAttention-2, Qwen3-8B, RTX A6000 in a CUDA graph
   batch  context  measured us/layer  model/measured  generic/measured
       1      256               11.7           1.034             0.431
       1     1024               13.1           1.282             0.730
@@ -326,9 +327,9 @@ Table 7.4  The decode attention kernel timed alone: vLLM's FlashAttention-2, Qwe
 ```
 
 ![Decode attention per layer against context at batches 1, 8 and 64,
-measured and modelled.](/assets/tinyperf-book/ch07-decode-kernel.svg)
+measured and modelled.](/assets/tinyperf-book/ch08-decode-kernel.svg)
 
-*Figure 7.2. The decode kernel against its model, both axes
+*Figure 8.2. The decode kernel against its model, both axes
 logarithmic. At batch 64 the cache dominates from the shortest context.
 At batch 1 the kernel costs 12–13 µs a layer up to 1,024 tokens, then
 jumps; the generic price (grey) misses the floor at every context.*
@@ -348,7 +349,7 @@ one side of the jump and 0.90 on the other.
 Each sequence reads its own cache, so a batch's cache bytes are the sum
 of its contexts times the bytes per token: the batch size times the
 *mean* context. The floor is per call. So a step's attention depends on
-its contexts only through their mean, and chapter 14's serving
+its contexts only through their mean, and chapter 15's serving
 simulator prices each step there:
 
 ```python
@@ -363,7 +364,7 @@ lengths differ; "How close is it?" measures by how much.
 > simulator once priced every decode step at its batch's longest
 > context, rounded up to 256 tokens. That overcharge had been cancelling
 > a cost the model lacked, the sampler, which picks each next token
-> (chapter 15), and pricing the mean alone moved seven validated results
+> (chapter 16), and pricing the mean alone moved seven validated results
 > at once, one of them to 0.88. The fix was to price each piece of the
 > step from its own kernel, timed alone, and only then change the
 > context. An error you can't remove without making things worse is
@@ -376,23 +377,23 @@ each with one query token. FlashAttention-2 packs them: when every
 sequence in the call has exactly one query token, it treats the group's
 query heads as the rows of one tile (the block of output one CTA
 computes), and one CTA reads the KV head's cache once for all four
-(Figure 7.3, left). Table 7.4's second-to-last line shows it: at batch
+(Figure 8.3, left). Table 8.4's second-to-last line shows it: at batch
 64 and 8,192 tokens, counting every byte of cache once, the kernel reads
 at 0.98 of the fitted DRAM rate. If each query head read the cache for
 itself, the time could be up to four times longer.
 
-With *chunked prefill* (chapter 14) an engine runs chunks of a new
+With *chunked prefill* (chapter 15) an engine runs chunks of a new
 prompt in the same step as the running decodes: a *mixed step* (chapter
-16). vLLM's FlashAttention-2 backend runs all of a step's rows through
+17). vLLM's FlashAttention-2 backend runs all of a step's rows through
 one call per layer. Now some sequences have hundreds of query tokens,
 the kernel doesn't pack, and each decode row's cache is read once per
-query head, four times (Figure 7.3, right). The L2 cache catches some of
+query head, four times (Figure 8.3, right). The L2 cache catches some of
 the repeats; the rest come from DRAM.
 
 ![One CTA reading a KV head's cache once for four query heads, and four
-CTAs each reading it.](/assets/tinyperf-book/ch07-gqa-packing.svg)
+CTAs each reading it.](/assets/tinyperf-book/ch08-gqa-packing.svg)
 
-*Figure 7.3. GQA packing. In a pure decode step the group shares one
+*Figure 8.3. GQA packing. In a pure decode step the group shares one
 read of its KV head's cache. Beside a prompt chunk, FlashAttention-2
 runs each query head on its own and reads the cache once per head.*
 
@@ -405,7 +406,7 @@ alone) ÷ decode alone: 0 if the call costs its parts, 3 if every one of
 four query heads read the cache from DRAM.
 
 ```
-Table 7.5  Decode rows beside a 512-token prompt chunk, context 1150: one layer, RTX A6000, us (timed eagerly)
+Table 8.5  Decode rows beside a 512-token prompt chunk, context 1150: one layer, RTX A6000, us (timed eagerly)
         FlashAttention-2                                                     FlashInfer           
   rows  decode alone  chunk alone  together  extra reads  model extra reads  together  extra reads
      8          77.9         51.6     166.1         0.47               1.43     121.2         0.02
@@ -446,18 +447,18 @@ rows; the 60 cells with 1–4 rows were measured but not fitted:
 ```
 
 (Docstring trimmed.) The result is added to the mixed step's price;
-chapter 16 composes the rest of that step. Table 7.5 checks the kernel
+chapter 17 composes the rest of that step. Table 8.5 checks the kernel
 as measured decode alone × (1 + modelled extra reads) + measured chunk
 alone. Without the term, that reads 120% typical error on the cells it
 was fitted to; with it, 10%. Held out on 64/8 heads, where a decode row
 can be read eight times, it reads 11.5% where no term reads 260%. On
 16/8 it reads 1.02–1.91, all high: the line overestimates the misses for
-a group of two, and, in Figure 7.4, at few rows.
+a group of two, and, in Figure 8.4, at few rows.
 
 ![Extra reads of the decode rows' cache against decode rows, for
-FlashAttention-2, its model and FlashInfer.](/assets/tinyperf-book/ch07-reread.svg)
+FlashAttention-2, its model and FlashInfer.](/assets/tinyperf-book/ch08-reread.svg)
 
-*Figure 7.4. Extra reads beside a 512-token chunk at context 1,150,
+*Figure 8.4. Extra reads beside a 512-token chunk at context 1,150,
 Qwen3-8B. FlashAttention-2 approaches the limit of 3 as rows are added;
 the fitted line runs high below 16 rows. FlashInfer pays nothing at any
 row count. At 1–2 rows the extra reads are negative: the eager timing
@@ -469,10 +470,10 @@ The re-read belongs to one kernel, not to attention. vLLM's FlashInfer
 backend runs a step's decodes through FlashInfer's decode kernel, which
 packs a KV head's query heads as rows whether or not the step carries a
 chunk, and the chunk through a separate prefill call. Its two calls
-together cost their parts: 0.01–0.02 extra reads in Table 7.5, 0.7%
+together cost their parts: 0.01–0.02 extra reads in Table 8.5, 0.7%
 extra at the median over all 220 cells, where FlashAttention-2's is 85%.
 (Its decode kernel has two constants of its own, fitted to its own run
-of Table 7.4's 36 cells.) vLLM's Triton kernel packs a KV head's query
+of Table 8.4's 36 cells.) vLLM's Triton kernel packs a KV head's query
 heads into every program, and all 60 of its mixed cells cost less than
 their parts.
 
@@ -491,7 +492,7 @@ this GPU; other backends are overrides (reformatted):
 `Calibration.for_attention` swaps in the backend's fields. The serving
 model takes the backend by name,
 `StepLatencyModel(p, device, attn_backend="flashinfer")`, and applies it
-after its software stack's launch cost (eager or CUDA graph; chapter 4),
+after its software stack's launch cost (eager or CUDA graph; chapter 5),
 `cal.for_stack(stack).for_attention(attn_backend)`. A `null` re-read
 means packed. Triton's entry sets no decode fields, so it keeps
 FlashAttention-2's floor and rate: an assumption the next section tests.
@@ -505,7 +506,7 @@ on gpt-oss-20b's full-attention layers (64/8 heads of dimension 64),
 timed alone in a CUDA graph, priced with FlashAttention-2's constants:
 
 ```
-Table 7.6  Held out: vLLM's Triton decode kernel priced with FlashAttention-2's constants, gpt-oss-20b full-attention layers, model/measured
+Table 8.6  Held out: vLLM's Triton decode kernel priced with FlashAttention-2's constants, gpt-oss-20b full-attention layers, model/measured
   batch     512    1024    2048    3072    4096    6144
       8    1.06    1.00    1.01    0.99    1.00    1.00
      16    0.90    0.92    0.97    0.99    1.00    1.02
@@ -524,11 +525,11 @@ kernel reads the cache at more than the fitted 0.96 of the DRAM rate.
 **Batches whose contexts differ.** Steady batches on vLLM, half
 128-token prompts and half 1,920, 200 tokens generated, timed by the
 engine's own clock (CUDA events around each step on the engine's stream;
-chapter 15). The mean context is about half the maximum. The step
-includes its GEMMs and the sampler (chapter 15):
+chapter 16). The mean context is about half the maximum. The step
+includes its GEMMs and the sampler (chapter 16):
 
 ```
-Table 7.7  Steady batches, half 128-token and half 1920-token prompts: Qwen3-8B decode steps on the engine's clock, RTX A6000
+Table 8.7  Steady batches, half 128-token and half 1920-token prompts: Qwen3-8B decode steps on the engine's clock, RTX A6000
   mean context 1124, maximum 2020
   batch  measured ms  at the mean: ms  model/meas  at the maximum: ms  model/meas  attention ms, mean / max
      16        28.36            28.59       1.008               31.77       1.120                 4.4 / 7.6
@@ -545,7 +546,7 @@ engine's clock: 8, 32 or 63 sequences decoding from prompts of 256,
 1,024 or 2,048 tokens, beside an injected prompt of 128–1,024 tokens:
 
 ```
-Table 7.8  The backend in the engine: Qwen3-8B mixed steps with 63 decodes, FlashInfer over FlashAttention-2, RTX A6000
+Table 8.8  The backend in the engine: Qwen3-8B mixed steps with 63 decodes, FlashInfer over FlashAttention-2, RTX A6000
   decodes prompt  chunk  FlashAttention-2 ms  FlashInfer ms  ratio measured  predicted  its re-read, model ms
              256    128                 56.9           45.3            0.80       0.79                   11.5
              256   1024                183.9          167.5            0.91       0.93                   12.2
@@ -571,7 +572,7 @@ predicted one. The backend alone can halve a mixed step.
 - **K and V read once.** The kernel reads K and V once per block of
   query rows and relies on the L2 for the repeats; `estimate_fmha`
   reads them once per KV head and has no L2 term.
-- **The decode kernel's own jumps.** The line through Table 7.4 can't
+- **The decode kernel's own jumps.** The line through Table 8.4 can't
   follow the batch-1 jump between 1,024 and 2,048 tokens, nor Triton's
   switch at 16 sequences.
 - **The re-read's form.** A straight line in rows reads 1.43 extra
@@ -582,7 +583,7 @@ predicted one. The backend alone can halve a mixed step.
   A6000 with vLLM 0.15.1. Elsewhere the model has the published 0.65 and
   a generic decode price.
 - **Dense attention only.** Sliding windows, sinks, latent caches and
-  sparse attention change what is read; chapter 8 covers them.
+  sparse attention change what is read; chapter 9 covers them.
 
 ## What you built
 
@@ -605,22 +606,22 @@ predicted one. The backend alone can halve a mixed step.
 ## Exercises
 
 1. Replace the single 0.65 with an efficiency that depends on the
-   prompt's length, fitted to Table 7.3 and the chunk timings in
+   prompt's length, fitted to Table 8.3 and the chunk timings in
    `data/calibration/mixed_attention_rtx_a6000_32_8.json`. How much does
    a 512-token chunked prefill step change, and why?
 2. Derive the re-read's miss fraction from an occupancy argument instead
    of a line: the bytes of cache that a wave of unpacked CTAs (one round
-   of CTAs across the SMs; chapter 3) needs resident, against the
+   of CTAs across the SMs; chapter 4) needs resident, against the
    A6000's 6 MB of L2. Test it on the 16/8 and 64/8 grids, where the
    line misses.
 3. Time FlashAttention-2's decode kernel at batch 1 from 1,024 to 2,048
    tokens in steps of 128 (`tools/measure_decode_attention.py`). Where
    is the jump? Write a split-context term for `estimate_fmha` that
    produces it.
-4. Using Table 7.2's method, find the prompt length at which fusion
+4. Using Table 8.2's method, find the prompt length at which fusion
    saves a quarter of a Qwen3-8B prefill on the H100 and on the B200
    (`data/devices/`). Why does it differ from the A100's?
 
 ---
 
-*[← Chapter 6: A transformer: prefill, decode and memory]({% post_url 2026-09-29-tinyperf-06-a-transformer-prefill-decode-and-memory %}) · [Contents](/series/tinyperf/) · [Chapter 8: Attention variants →]({% post_url 2026-09-29-tinyperf-08-attention-variants %})*
+*[← Chapter 7: A transformer: prefill, decode and memory]({% post_url 2026-09-29-tinyperf-07-a-transformer-prefill-decode-and-memory %}) · [Contents](/series/tinyperf/) · [Chapter 9: Attention variants →]({% post_url 2026-09-29-tinyperf-09-attention-variants %})*
