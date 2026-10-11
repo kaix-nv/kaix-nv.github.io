@@ -31,6 +31,8 @@ By the end of this chapter you will know:
   cycle;
 - how tinyperf, the model this book builds, is put together, and which
   chapter builds each piece;
+- how tinyperf is designed, and why: what each design choice buys and
+  what it costs;
 - how to price a real model (predict its times) in a few lines, and how
   close it comes to a real server;
 - the rules this book uses to say how far to trust a number.
@@ -197,6 +199,200 @@ four layers; without it the model prices from the datasheet alone.
 `data/validation/` holds them, `tools/` the scripts that took them, and
 `tests/` fails if a price leaves its validated range.
 
+## How tinyperf is designed, and why
+
+The map says what the layers are. This section says why they are drawn
+that way. Each choice buys something and costs something, and the costs
+come back in every chapter's "Where it breaks".
+
+### An analytical model, built from mechanisms
+
+tinyperf prices work by counting it and dividing by rates. It doesn't
+simulate cycles, and it doesn't fit a curve to measured times. Each
+behaviour of a real kernel that changes its time enters as a
+*mechanism*, an effect with a formula: work padded to whole tiles, data
+reused through the L2, a fixed cost per launch.
+
+Three things follow. A price takes milliseconds, so sweeps of thousands
+of configurations are practical. Any GPU with a datasheet can be priced,
+including one that doesn't exist yet. And every price says which
+resource set it, which a stopwatch can't. A fitted curve would do none
+of this: it is only good near the points it was fitted to, and says
+nothing about why.
+
+The rule that keeps mechanisms honest: add one at a time, and check it
+against a measurement before adding the next. Some behaviour can't be
+derived, such as which tile cuBLAS, NVIDIA's matrix-multiply library,
+picks for each row count, how NCCL, its library for communication
+between GPUs, performs on one particular link, or which experts an MoE
+model's router (the layer that sends each token to its experts)
+chooses. There the model carries a measured table, says so, and prices
+around it (chapters 3, 9, 11 and 15).
+
+The cost: the model knows only the mechanisms someone put in. A missing
+one shows up as error, which is why the book sets its prices beside
+measurements wherever it can, and says when a number is unmeasured. And
+a measured table holds only for the GPU and kernels it was measured on.
+
+### A GPU is data, the model is code
+
+A device is a frozen record of about a dozen rates and sizes, read from
+a JSON file in `data/devices/`. Math is stored as factors, not peaks:
+the SM count (streaming multiprocessors, the GPU's processors;
+chapter 2), each SM's multiply-accumulates per clock for each number
+format, and the clock. The peaks are derived. No GPU's rates are written
+in the code; the few constants measured on one card, such as the
+sampler's fixed cost, say so where they are defined.
+
+So a new GPU is a new file, not new code. A what-if, such as twice the
+bandwidth or 8 SMs disabled, is an override that returns a new device.
+The record is frozen, so the original can't change by accident. Derived
+numbers are methods, so none of them goes stale when a field changes.
+And a field earns its place only if some price uses it (chapter 2).
+
+The cost: what isn't a rate isn't modelled. How the SMs are wired, how
+warps (groups of 32 threads that run in lockstep) are scheduled, and
+how the caches replace lines enter only through mechanisms or measured
+constants.
+
+### One step, written down as a graph
+
+A model builder turns a model's configuration and a step's shape into a
+*graph*: an ordered list of operators, each with its tensor shapes, its
+FLOPs, its bytes and a *family*, the kind of cost model that prices it.
+A layer that repeats is stored once, with a count.
+
+The graph separates what a step does from what it costs. The same graph
+can be priced at any tier (how much of reality a price includes; below)
+and on any device. *Passes* rewrite it the way a runtime would, each a
+rewrite rather than a second model: they fuse attention into one kernel
+(chapter 7), run GEMMs in 8- or 4-bit formats or mark weights as sparse
+or stored in 4 bits (chapter 10), or add the gradient computation for
+training (chapter 13). The graph's FLOPs and bytes can be checked
+against counts derived by hand, so a missing operator shows (chapter 5).
+And storing a repeated layer once keeps a step's graph small: 16
+records stand for a decode step's 419 kernel calls (chapter 5).
+
+The cost: a graph holds only work on tensors. The host's work, the
+engine's scheduling and the time a request spends outside the GPU live
+outside it, in the serving simulator.
+
+### Price each operator, then add
+
+`execute` sends each operator to its family's cost model. There are
+five families: GEMMs, memory-bound operations, collectives, fused
+attention and linear attention. Inside a GEMM, math, DRAM and L2
+traffic overlap, so its time is the largest of the three, plus its
+launch; a memory-bound operation costs its bytes over the DRAM rate,
+plus its launch (chapter 5). Across operators, the times add.
+
+Adding is right for a step on one GPU, because its kernels run one
+after another, especially when an engine replays them as a CUDA graph
+(the step's kernel launches recorded once and replayed together;
+unrelated to tinyperf's graph). The report keeps one row per operator,
+with the resource that bound it, so every price comes with its reason.
+Where overlap between operators is real, the model doesn't simulate
+concurrent streams. For communication hidden under computation it takes
+the fraction hidden as an input, `comm_overlap`, between the serial sum
+and the fully hidden case (chapter 11); offloaded weights streamed
+during the forward are priced at one end or the other, fully hidden by
+default (chapter 17).
+
+The cost: kernels that run concurrently, and overlap that is only
+partly hidden, are approximations.
+
+### Three tiers, and calibration as data
+
+The same mechanisms run at three tiers (chapter 4). The speed-of-light
+tier keeps only the roofline. The projected tier adds every mechanism,
+at datasheet rates. The calibrated tier also applies a record of
+constants fitted to kernels timed on the real GPU. That record is data
+too, a file in `data/calibration/`. It holds four core constants (the
+fraction of peak math and of DRAM bandwidth that real kernels reach, the
+L2 rate and the launch cost) and, for a GPU studied closely, further
+fields for particular kernels and engine costs, with a note on how each
+was measured (Table 4.9).
+
+The tier tells you what kind of number you have: a projection for any
+GPU, or a calibrated price where measurements exist. The gap between
+the tiers measures what the datasheet misses. Keeping calibration as
+data means the code is the same for every GPU, and adding one means
+measuring, not programming. One rule protects the evidence: each field
+is measured on its own kernel, never fitted to the end-to-end times it
+will later be checked against, so comparing those stays a test. The few
+fields that break the rule are marked, and are the first to distrust
+(chapter 4).
+
+The cost: a calibration describes one GPU under one software stack.
+Launch cost alone differs several times between eager PyTorch, which
+launches each kernel as Python reaches it, and a CUDA graph (chapter 4),
+and a new library version can move the other constants. Using a
+calibration with another stack is an unmeasured extrapolation.
+
+### Serving: one engine's scheduler, played step by step
+
+The serving simulator is a discrete-event simulation: its clock jumps
+from one event to the next, and its events are the engine's step
+boundaries and arrivals at an idle engine. At each step it forms the
+batch the way one engine's scheduler does, that of vLLM 0.15.1, a
+widely used open-source serving engine: its admission of waiting
+requests, chunked prefill (a long prompt fed in pieces beside the
+running decodes), paged KV cache (the cache held in fixed-size blocks)
+and planning one step ahead. It then asks the step model for the step's
+price and advances its clock. The step model, `StepLatencyModel`,
+caches prices by step shape and prices contexts every 256 tokens,
+interpolating between them.
+
+Latency under load comes from the queue, and the queue depends on how
+the engine forms its batches, so the simulator copies one engine's
+rules rather than a generic "continuous batching" loop (requests
+joining and leaving the batch every step). Simulating steps, not
+kernels, reuses the step model unchanged and adds only scheduling. The
+cache makes it cheap: one load sweep of 15,059 steps builds only 639 of
+tinyperf's graphs (Table 14.1). The engine's settings travel together as
+one preset, `serving.VLLM`, so a run gets the engine's scheduler, its
+sampler (which picks each next token) and the right tier together.
+
+The cost: another engine, or another version of this one, needs its
+own rules. Work outside the steps (the HTTP request, handing it to the
+engine, streaming the answer) enters as one constant per request, set
+on an idle server (chapter 16).
+
+### Small, plain Python
+
+tinyperf is pure Python using only the standard library: no NumPy, and
+nothing to install. It runs wherever Python runs, the book can quote
+its functions whole, and a reader can follow any price to the line that
+computes it. Plain Python is slow at arithmetic, but a step's graph is
+tens of operator records, and the caches remove the repetition across a
+sweep.
+
+The cost: no vectorized sweeps. Very large sweeps depend on the caches,
+and on pricing a repeated layer once.
+
+### Evidence kept with the code
+
+The measurements live in the repository, in `data/validation/` and
+`data/calibration/`. Predictions for new runs are committed before the
+runs, every number says what the model had seen, and tests pin
+validated results so that a change which breaks one fails loudly
+(chapter 21). This book's tables are printed by scripts and checked
+against the text on every change.
+
+A performance model is worth only as much as the trust in its error
+bars, and that trust has to survive the next change to the code. The
+cost is deliberate friction: a new mechanism must keep every pinned
+result inside its bounds.
+
+### Left out on purpose
+
+tinyperf has no cycle-level behaviour, no kernel source, and no
+autotuning on hardware (the GEMM model searches its own menu of tiles;
+chapter 3), and it validates only one engine's scheduler. It prices one
+GPU type per deployment, and a clock as one number. Each omission keeps
+the model small enough to check against measurements piece by piece;
+each chapter's "Where it breaks" says what it costs there.
+
 ## How to read this book
 
 Part I (chapters 1–4) prices one kernel; Part II (5–10) one model on one
@@ -236,11 +432,11 @@ numbers are the two an LLM server's user feels:
   tokens. In a batch that decodes together, it is one decode step.
 
 Chapter 14 is their home. Here they are measured through the offline
-batch API of vLLM, a widely used open-source serving engine, with no
-server in front: b prompts go to the engine together, TTFT is the time
-until all b have their first token, and TPOT is the mean of the 128
-decode steps that follow. Those steps see contexts from about s to
-s + 128 tokens, so the model prices one step at the mean, s + 64.
+batch API of vLLM, with no server in front: b prompts go to the engine
+together, TTFT is the time until all b have their first token, and TPOT
+is the mean of the 128 decode steps that follow. Those steps see
+contexts from about s to s + 128 tokens, so the model prices one step at
+the mean, s + 64.
 
 Inside, `StepLatencyModel`, the object that prices steps, runs the
 whole map for each step shape. Here is the function that does it,
@@ -305,13 +501,12 @@ Every TTFT is within 5%, from 80 ms to 10.4 s. TPOT is within 1.3% up
 to batch 8, and at batch 32 reads 2.0% and 4.2% low.
 
 Nothing in the model was fitted to these times: its constants come from
-kernels timed on their own (GEMMs from cuBLAS, NVIDIA's matrix-multiply
-library; launch costs; the engine's decode-attention kernel; this
-model's layer GEMMs by row count). But a mechanism was designed with
-this grid in view. It exposed a flaw in how the model priced a batch of
-prompts (Table 1.5), and every change since has had to keep it inside
-fixed bounds. So Table 1.1 is in-sample, for one dense model on one GPU
-and one engine.
+kernels timed on their own (GEMMs from cuBLAS; launch costs; the
+engine's decode-attention kernel; this model's layer GEMMs by row
+count). But a mechanism was designed with this grid in view. It exposed
+a flaw in how the model priced a batch of prompts (Table 1.5), and every
+change since has had to keep it inside fixed bounds. So Table 1.1 is
+in-sample, for one dense model on one GPU and one engine.
 
 How much of the agreement is mechanism and how much fitted constants?
 Table 1.2 prices the same grid at the model's three tiers: the *speed of
