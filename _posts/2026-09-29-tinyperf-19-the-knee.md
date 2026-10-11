@@ -10,7 +10,7 @@ redirect_from:
   - /tinyperf/book/18-the-knee/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, `simulate(step_scale=)` and `bench_requests`, and `Calibration.serving_error_band` in [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py) · Every table and both plots in this chapter come from `python3 book/scripts/ch19_knee.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `prediction_interval`, `simulate(step_scale=)` and `bench_requests`, and `Calibration.serving_error_band` in [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/methodology.py) · Every table and both plots in this chapter come from `python3 book/scripts/ch19_knee.py`.*
 
 Chapter 15's load curve is flat, then it isn't. Serving Qwen3-8B on one
 RTX A6000, the median time to first token (TTFT) is 0.44 s at 3.5

@@ -13,7 +13,7 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/09/08/building-tinyperf-m52.html
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Appendices · Code: [`tinyperf/sweep.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/sweep.py), `pareto`, `find_knee` and `tip_fraction`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval`, and at a [later commit](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) `VLLM` and `recorded_trace`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`; [`tinyperf/energy.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/energy.py), `energy_report` · Every table and both figures in this appendix come from `python3 book/scripts/appA_using.py`.*
+*[Building tinyperf](/series/tinyperf/) · Appendices · Code: [`tinyperf/sweep.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/sweep.py), `pareto`, `find_knee` and `tip_fraction`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `prediction_interval`, and at a [later commit](https://github.com/kaix-nv/tinyperf/blob/dd27bf0/tinyperf/serving.py) `VLLM` and `recorded_trace`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/capacity.py), `vllm_kv_pool`; [`tinyperf/energy.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/energy.py), `energy_report` · Every table and both figures in this appendix come from `python3 book/scripts/appA_using.py`.*
 
 The chapters built a model that prices a step (predicts the time of
 one forward pass over a batch) and a simulator that replays a server

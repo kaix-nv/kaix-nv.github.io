@@ -11,7 +11,7 @@ redirect_from:
   - /tinyperf/book/10-precision-and-sparsity/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `apply_recipe`, `apply_weight_only`, `apply_sparsity`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and plot in this chapter comes from `python3 book/scripts/ch11_precision.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/passes.py), `apply_recipe`, `apply_weight_only`, `apply_sparsity`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_gemm` · Every table and plot in this chapter comes from `python3 book/scripts/ch11_precision.py`.*
 
 Running a model in FP8 or FP4 (8- and 4-bit floating point), with 4-bit
 weights, or with half its weights pruned is advertised as 2×, 4×, 4× and

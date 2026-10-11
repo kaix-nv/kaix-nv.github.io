@@ -11,7 +11,7 @@ redirect_from:
   - /tinyperf/book/06-a-transformer-prefill-decode-and-memory/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`, and [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `max_batch` · Every table and the plot in this chapter come from `python3 book/scripts/ch07_transformer.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), `build_llm_graph`, and [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/capacity.py), `max_batch` · Every table and the plot in this chapter come from `python3 book/scripts/ch07_transformer.py`.*
 
 Chapter 4 priced one GEMM, and chapter 6 turned a list of operations
 into a time. This chapter writes the list for a whole language model

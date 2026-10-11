@@ -10,7 +10,7 @@ redirect_from:
   - /tinyperf/book/21-validating-a-performance-model/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tests/test_core.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tests/test_core.py), `test_silicon_envelope`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `prediction_interval` · Every table and the plot in this chapter come from `python3 book/scripts/ch22_validation.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tests/test_core.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tests/test_core.py), `test_silicon_envelope`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `prediction_interval` · Every table and the plot in this chapter come from `python3 book/scripts/ch22_validation.py`.*
 
 tinyperf, the performance model this book builds, has a knob for almost
 everything: an efficiency per kernel class, a fixed cost per call, a

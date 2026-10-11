@@ -14,7 +14,7 @@ redirect_from:
   - /tinyperf/book/11-collectives-and-tensor-parallelism/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py), the tensor-parallel lines of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), and `_exec_comm` in [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch12_collectives.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/comm_model.py), the tensor-parallel lines of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), and `_exec_comm` in [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/scheduler.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch12_collectives.py`.*
 
 A model that doesn't fit on one GPU, or runs too slowly on one, can be
 split across several. The most common split for inference is *tensor

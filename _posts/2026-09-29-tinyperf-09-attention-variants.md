@@ -15,7 +15,7 @@ redirect_from:
   - /tinyperf/book/08-attention-variants/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_linear_attention` · Every table and the plots in this chapter come from `python3 book/scripts/ch09_variants.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_linear_attention` · Every table and the plots in this chapter come from `python3 book/scripts/ch09_variants.py`.*
 
 Chapter 7 found two costs that grow with every token a sequence holds:
 the KV cache, which takes memory, and its read in every decode step,

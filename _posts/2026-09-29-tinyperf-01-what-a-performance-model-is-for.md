@@ -9,7 +9,7 @@ redirect_from:
   - /tinyperf/perf-modeling/2026/08/18/building-tinyperf-m0.html
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel` · Every table in this chapter comes from `python3 book/scripts/ch01_intro.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `StepLatencyModel` · Every table in this chapter comes from `python3 book/scripts/ch01_intro.py`.*
 
 Before you buy a GPU, rent a thousand of them or promise a customer a
 response time, you want to know how fast your model will run there.

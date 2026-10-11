@@ -10,7 +10,7 @@ redirect_from:
   - /tinyperf/book/16-the-mixed-step/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `mixed_step_us`, `chunk_us` and `simulate` · Every table and the plot in this chapter come from `python3 book/scripts/ch17_mixed_step.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `mixed_step_us`, `chunk_us` and `simulate` · Every table and the plot in this chapter come from `python3 book/scripts/ch17_mixed_step.py`.*
 
 A serving engine with *chunked prefill* doesn't stop its running
 sequences to read a new prompt (chapter 15). It cuts the prompt into

@@ -12,7 +12,7 @@ redirect_from:
   - /tinyperf/book/07-attention/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `fuse_attention`; [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_fmha`; [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_exec_fmha`; and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `mixed_reread_us` · Every table and both plots in this chapter come from `python3 book/scripts/ch08_attention.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/passes.py), `fuse_attention`; [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_fmha`; [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/scheduler.py), `_exec_fmha`; and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `mixed_reread_us` · Every table and both plots in this chapter come from `python3 book/scripts/ch08_attention.py`.*
 
 Every other operation in a transformer layer costs the same whether a
 sequence has a hundred tokens behind it or a hundred thousand.

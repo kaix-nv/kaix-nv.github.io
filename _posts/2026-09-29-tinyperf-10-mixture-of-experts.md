@@ -15,7 +15,7 @@ redirect_from:
   - /tinyperf/book/09-mixture-of-experts/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/routing.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/routing.py) and the MoE block of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch10_moe.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/routing.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/routing.py) and the MoE block of `build_llm_graph` in [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch10_moe.py`.*
 
 Many of today's largest language models replace each feed-forward layer
 with a set of smaller feed-forward networks, the *experts*, and a small

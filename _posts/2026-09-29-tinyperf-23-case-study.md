@@ -17,7 +17,7 @@ redirect_from:
   - /tinyperf/book/22-case-study/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), the weight-only branch of `_exec_gemm`, and [`data/calibration/rtx_a6000.json`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/data/calibration/rtx_a6000.json) · Every table and the plot in this chapter come from `python3 book/scripts/ch23_case_study.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part V: Knowing it's right · Code: [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/scheduler.py), the weight-only branch of `_exec_gemm`, and [`data/calibration/rtx_a6000.json`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/data/calibration/rtx_a6000.json) · Every table and the plot in this chapter come from `python3 book/scripts/ch23_case_study.py`.*
 
 Chapter 22 set out a method for keeping a performance model honest.
 This chapter follows it through one case, in order, wrong turns

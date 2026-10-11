@@ -12,7 +12,7 @@ redirect_from:
   - /tinyperf/book/13-training/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/passes.py), `add_backward`, and [`tinyperf/training.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/training.py) · Every table and figure in this chapter comes from `python3 book/scripts/ch14_training.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/passes.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/passes.py), `add_backward`, and [`tinyperf/training.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/training.py) · Every table and figure in this chapter comes from `python3 book/scripts/ch14_training.py`.*
 
 Every chapter so far priced inference. A training step does more with
 the same model: a forward pass over a batch of sequences, a loss, a

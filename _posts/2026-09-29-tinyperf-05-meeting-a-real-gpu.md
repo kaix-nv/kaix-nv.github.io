@@ -11,7 +11,7 @@ redirect_from:
   - /tinyperf/book/04-meeting-a-real-gpu/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/methodology.py), `Calibration`, and [`tools/fit_calibration.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/fit_calibration.py), `fit` · Every table and the plot in this chapter come from `python3 book/scripts/ch05_calibration.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/methodology.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/methodology.py), `Calibration`, and [`tools/fit_calibration.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tools/fit_calibration.py), `fit` · Every table and the plot in this chapter come from `python3 book/scripts/ch05_calibration.py`.*
 
 Chapters 3 and 4 priced a kernel from a GPU's datasheet. Put that model
 next to a real GPU and it is wrong: against 27 GEMMs timed with cuBLAS

@@ -7,7 +7,7 @@ permalink: /tinyperf/book/02-how-tinyperf-is-designed/
 excerpt: "Chapter 1 drew tinyperf, the performance model this book builds, as a stack of layers. This chapter opens the stack. How does a price travel from a GPU's datasheet and a model's configuration to a latency? What crosses each boundary between the layers, why are the boundaries drawn where they are, and what does each choice cost? The rest of the book builds the layers one at a time. This chapter is the plan they fit into, and the place to come back to when you want to change something."
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/`](https://github.com/kaix-nv/tinyperf/tree/4ae68ec/tinyperf) at commit `4ae68ec`, chiefly [`scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/scheduler.py), `execute`, and [`serving.py`](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py), `StepLatencyModel` and `simulate` · Every table in this chapter comes from `python3 book/scripts/ch02_design.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/`](https://github.com/kaix-nv/tinyperf/tree/dd27bf0/tinyperf) at commit `dd27bf0`, chiefly [`scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/dd27bf0/tinyperf/scheduler.py), `execute`, and [`serving.py`](https://github.com/kaix-nv/tinyperf/blob/dd27bf0/tinyperf/serving.py), `StepLatencyModel` and `simulate` · Every table in this chapter comes from `python3 book/scripts/ch02_design.py`.*
 
 Chapter 1 drew tinyperf, the performance model this book builds, as a
 stack of layers. This chapter opens the stack. How does a price travel
@@ -205,7 +205,7 @@ needs nothing but Python.
 ## The contracts between layers
 
 Each arrow in Figure 2.1 is a contract: an object with known fields.
-This section quotes each from the code at commit `4ae68ec`, trimmed
+This section quotes each from the code at commit `dd27bf0`, trimmed
 where marked.
 
 ### A device is a frozen record

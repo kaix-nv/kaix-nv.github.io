@@ -12,7 +12,7 @@ redirect_from:
   - /tinyperf/book/19-speculative-decoding/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/spec_decode.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/spec_decode.py), `expected_tokens` and `SpecStepLatencyModel`, and [`tinyperf/mtp.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/mtp.py), `MTPStepLatencyModel` · Every table and figure in this chapter comes from `python3 book/scripts/ch20_speculation.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/spec_decode.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/spec_decode.py), `expected_tokens` and `SpecStepLatencyModel`, and [`tinyperf/mtp.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/mtp.py), `MTPStepLatencyModel` · Every table and figure in this chapter comes from `python3 book/scripts/ch20_speculation.py`.*
 
 A decode step reads every weight of the model to give each sequence one
 token (chapter 7). For Qwen3-8B on an RTX A6000, tinyperf's calibrated

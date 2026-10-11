@@ -12,7 +12,7 @@ redirect_from:
   - /tinyperf/book/20-disaggregated-serving/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/disagg.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/disagg.py), `simulate_disagg`, `kv_transfer_us` and `simulate_replicas`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `kv_producer_us` and `simulate` · Every table and both plots in this chapter come from `python3 book/scripts/ch21_disagg.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/disagg.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/disagg.py), `simulate_disagg`, `kv_transfer_us` and `simulate_replicas`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `kv_producer_us` and `simulate` · Every table and both plots in this chapter come from `python3 book/scripts/ch21_disagg.py`.*
 
 A GPU that runs prefill and decode makes them take turns: a step that
 carries part of a new prompt lasts several decode steps (chapter 17),

@@ -10,7 +10,7 @@ redirect_from:
   - /tinyperf/book/02-a-gpu-as-a-handful-of-rates/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/device.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/device.py), `Device`, and [`tinyperf/datatypes.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/datatypes.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch03_device.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/device.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/device.py), `Device`, and [`tinyperf/datatypes.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/datatypes.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch03_device.py`.*
 
 A performance model can't simulate tens of billions of transistors. It
 stands for the GPU with a few numbers, and every price it gives (a

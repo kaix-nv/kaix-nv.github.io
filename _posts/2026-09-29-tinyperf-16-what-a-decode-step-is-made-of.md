@@ -14,7 +14,7 @@ redirect_from:
   - /tinyperf/book/15-what-a-decode-step-is-made-of/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel.decode_us`, `sampler_us` and `padded_batch`, and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `_row_corrected` · Every table and the plot in this chapter come from `python3 book/scripts/ch16_decode_step.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `StepLatencyModel.decode_us`, `sampler_us` and `padded_batch`, and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/scheduler.py), `_row_corrected` · Every table and the plot in this chapter come from `python3 book/scripts/ch16_decode_step.py`.*
 
 Serve Qwen3-8B with vLLM on an RTX A6000, start 64 requests together,
 and once their prompts are read the engine gives each of them a new

@@ -13,7 +13,7 @@ redirect_from:
   - /tinyperf/book/14-a-serving-simulator/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` and `StepLatencyModel`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/4ae68ec/tinyperf/serving.py) at a later commit, `EngineConfig` and `VLLM`; and [`tools/bench_trace.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tools/bench_trace.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch15_serving.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `simulate` and `StepLatencyModel`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/dd27bf0/tinyperf/serving.py) at a later commit, `EngineConfig` and `VLLM`; and [`tools/bench_trace.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tools/bench_trace.py) · Every table and the plot in this chapter come from `python3 book/scripts/ch15_serving.py`.*
 
 Every price so far has been one step, one forward pass of the model
 over a batch. A server never runs one step. Requests arrive when their

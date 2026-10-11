@@ -13,7 +13,7 @@ redirect_from:
   - /tinyperf/book/17-memory-under-load/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py), `vllm_kv_pool`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `simulate` · Every table, and Figures 18.1 and 18.3, come from `python3 book/scripts/ch18_memory.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part IV: Serving · Code: [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/capacity.py), `vllm_kv_pool`, and [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `simulate` · Every table, and Figures 18.1 and 18.3, come from `python3 book/scripts/ch18_memory.py`.*
 
 Chapter 7 counted the requests that fit on a GPU with a rule of thumb:
 90% of the memory, less the weights, divided by one request's cache. A

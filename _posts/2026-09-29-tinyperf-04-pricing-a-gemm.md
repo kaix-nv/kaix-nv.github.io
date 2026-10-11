@@ -14,7 +14,7 @@ redirect_from:
   - /tinyperf/book/03-pricing-a-gemm/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/gemm_model.py), `estimate_gemm` · Every table and the plot in this chapter come from `python3 book/scripts/ch04_gemm.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part I: Pricing one kernel · Code: [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_gemm` · Every table and the plot in this chapter come from `python3 book/scripts/ch04_gemm.py`.*
 
 Nearly every expensive operation in a transformer is a matrix multiply:
 the attention projections, the feed-forward layers, the experts of a

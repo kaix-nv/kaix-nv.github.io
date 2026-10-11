@@ -11,7 +11,7 @@ redirect_from:
   - /tinyperf/book/05-graphs-and-the-scheduler/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/graph.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/graph.py), [`tinyperf/operators.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/operators.py) and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/scheduler.py), `execute` · Every table and the plot in this chapter come from `python3 book/scripts/ch06_graph.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/graph.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/graph.py), [`tinyperf/operators.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/operators.py) and [`tinyperf/scheduler.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/scheduler.py), `execute` · Every table and the plot in this chapter come from `python3 book/scripts/ch06_graph.py`.*
 
 Chapter 4 priced one GEMM. A language model runs hundreds of kernels to
 produce one token: written out operator by operator, a decode step of

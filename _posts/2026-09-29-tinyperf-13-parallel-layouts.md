@@ -13,7 +13,7 @@ redirect_from:
   - /tinyperf/book/12-parallel-layouts/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/nets/transformer.py), `build_llm_graph`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/serving.py), `StepLatencyModel`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/capacity.py) and [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/8b7ae99/tinyperf/comm_model.py) · Every table in this chapter comes from `python3 book/scripts/ch13_layouts.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part III: Many GPUs · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), `build_llm_graph`; [`tinyperf/serving.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/serving.py), `StepLatencyModel`; [`tinyperf/capacity.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/capacity.py) and [`tinyperf/comm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/comm_model.py) · Every table in this chapter comes from `python3 book/scripts/ch13_layouts.py`.*
 
 Chapter 12 spread a model over the GPUs of a node by slicing every
 weight matrix. That has two limits. It all-reduces (sums a buffer
