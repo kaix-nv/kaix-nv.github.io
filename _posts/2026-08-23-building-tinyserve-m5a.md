@@ -10,14 +10,38 @@ excerpt: "Bound prefill interference with a per-step token budget, pack short pr
 *Milestone 5, part 1, of [building an LLM inference engine from scratch](/series/tinyserve/).
 Previous: [M4 — continuous batching]({% post_url 2026-08-18-building-tinyserve-m4 %}).*
 
-Code: [`tinyserve` @ `d55b086`](https://github.com/kaix-nv/tinyserve/tree/d55b086ba2828cc5b2e416410661914e3d5e54d7).
+Code: [`tinyserve` @ `b99649e`](https://github.com/kaix-nv/tinyserve/tree/b99649e23c4852c63bf5dbd8ee681e0e26a2b345).
 
-## The problem: one prompt can interrupt every decoder
+## The problem: why chunked prefill is required
 
 M4 reconsidered batch membership after every engine iteration, but it
 still treated each admitted prompt as indivisible work. If a long prompt
-arrived while other requests were generating, M4 prefetched the whole
+arrived while other requests were generating, M4 prefilled the whole
 prompt before the next decode. Every streaming request waited behind it.
+
+The prompt does not interrupt a GPU kernel that is already running. The
+problem appears at the next scheduling decision: M4 chooses the admitted
+prompt's complete prefill instead of advancing the active decoders. For a
+prompt of `L` tokens, the prefill work inserted between two decode batches
+therefore scales with all `L` tokens.
+
+![Without chunking, a whole long prompt delays the next decode batch; with
+chunking, existing requests decode between bounded pieces of prompt
+work](/assets/tinyserve/m5-why-chunked-prefill.svg)
+
+*Figure 1. A and B are already streaming when long request C arrives.
+Without chunking, C's entire `L`-token prefill sits between two decode
+batches, so A and B see one large inter-token gap. M5a decodes A and B
+first, then processes at most `chunk_size` prompt tokens. Repeating
+that sequence lets A and B advance between C's chunks. Chunking does not
+reduce C's total prefill work: it trades a potentially longer TTFT for C
+for smaller interference gaps for existing streams.*
+
+This is the scheduler-level reason chunking is required: without it,
+there is no fixed upper bound on prompt work between decode batches. With
+it, that work is at most `chunk_size` prompt tokens. The budget bounds work,
+not elapsed time; kernel shapes, batching, and backend overhead still
+determine how long each chunk takes.
 
 The retained M4 measurement captured the symptom: at λ=32 requests/s,
 median inter-token latency (ITL) was 25 ms while the reported p99 was
@@ -25,7 +49,7 @@ median inter-token latency (ITL) was 25 ms while the reported p99 was
 execution order makes one source of interference certain: decode could
 not resume until every newly admitted prompt forward finished.
 
-There are two ways prompt work becomes a long interruption:
+There are two ways prompt work creates a long delay:
 
 1. One long prompt creates one long prefill forward.
 2. A burst of short prompts creates many sequential forwards. Even when
@@ -55,7 +79,7 @@ The third step has two cases:
 ![One engine step decoding first, packing two whole prompts, and spending
 the remaining budget on a long prompt chunk](/assets/tinyserve/m5-prefill-budget-step.svg)
 
-*Figure 1. With a 12-token example budget, decode advances A and B first.
+*Figure 2. With a 12-token example budget, decode advances A and B first.
 The engine then packs whole prompts C and D, consuming seven prompt
 tokens in one forward, and spends the remaining five tokens on the head
 of long prompt E. C and D emit their first tokens and become `RUNNING`;
@@ -72,8 +96,32 @@ latency guarantee.
 
 ## Packing whole prompts
 
-Packing reuses M2's left-padded prefill layout, but only inside one model
-forward. Suppose prompt lengths are 4 and 7:
+Here **packing** means batching several complete prompts in one model
+invocation. It does not concatenate their histories into one attention
+sequence. Each request remains an independent row with its own RoPE
+positions, attention mask, paged-KV block table, and output logits.
+
+Suppose short prompts C, D, and E all fit the remaining prompt-token
+budget. Without packing, the engine runs three forwards and pays the
+fixed per-forward costs—Python and framework dispatch plus kernel-launch
+overhead—three times. With packing, `_paged_prefill_batch([C, D, E])`
+runs one batched forward and pays those fixed costs once.
+
+![Three separate short-prompt forwards compared with one packed batched
+forward](/assets/tinyserve/m5-why-pack-prompts.svg)
+
+*Figure 3. Without packing, a burst of three short prompts creates three
+model invocations before the next decode. Packing forms one temporary
+left-padded batch, computes the three rows together, and returns one set
+of final-position logits per request. Attention never crosses rows, and
+each row writes to its own paged-KV blocks.*
+
+Packing trades fewer model invocations for some rectangular padding work.
+It helps when amortizing fixed costs across short prompts is worth that
+padding; it does not bound one oversized prompt—that is chunking's job.
+
+Mechanically, packing reuses M2's left-padded prefill layout, but only
+inside one model forward. Suppose prompt lengths are 4 and 7:
 
 ```text
 input row 0: [pad pad pad a0 a1 a2 a3]
@@ -118,7 +166,7 @@ future chunk tokens and unwritten capacity in the last block.
 ![Ordinary local causal masking compared with the shifted causal mask
 needed by a chunk after a cached prefix](/assets/tinyserve/m5-shifted-causal-mask.svg)
 
-*Figure 2. The cached prefix has positions 0–3 and the new chunk has
+*Figure 4. The cached prefix has positions 0–3 and the new chunk has
 queries 4–6. Ordinary `is_causal` applies the local rule `j <= i`: q4
 sees only k0, q5 sees k0–k1, and q6 sees k0–k2. It therefore hides the
 recent prefix and the chunk's own valid keys. The shifted rule
@@ -186,34 +234,6 @@ the next head is too large, one chunk forward. Decode is still a separate
 model invocation. Production engines commonly token-pack decode and
 prefill work into a unified variable-length forward; M5a deliberately
 stops before that complexity so the scheduling invariant stays visible.
-
-## The proof
-
-The complete suite now contains **25 passing tests**. The M5a-specific
-coverage in [`tests/test_chunked.py`](https://github.com/kaix-nv/tinyserve/blob/d55b086ba2828cc5b2e416410661914e3d5e54d7/tests/test_chunked.py) and
-[`tests/test_scheduler.py`](https://github.com/kaix-nv/tinyserve/blob/d55b086ba2828cc5b2e416410661914e3d5e54d7/tests/test_scheduler.py) checks:
-
-1. **Chunk parity:** 61 random tokens, chunk size 7, block size 16. The
-   awkward sizes force chunks across block boundaries. Final fp32 logits
-   match whole prefill within `1e-3`, with identical argmax.
-2. **Packed-prefill parity:** three ragged rows of 19, 47, and 33 tokens
-   exercise left padding and scratch writes. Every row's final logits
-   match individual paged prefill within `1e-3`, with identical argmax.
-3. **End-to-end chunk parity:** `serve(chunk_size=8)` produces the same
-   greedy strings as unchunked `generate_paged()`.
-4. **Decode/prefill interleaving:** a long prompt arriving mid-generation
-   leaves both its own output and the existing request's output equal to
-   their solo runs.
-5. **Partial-prefill preemption:** a microscopic pool forces a half-filled
-   `PREFILLING` request to lose its blocks. It returns to `WAITING` with
-   `num_cached == 0` and is later admitted with fresh blocks.
-6. **Invalid budget:** `chunk_size <= 0` raises instead of leaving a
-   prefilling request in a no-progress loop.
-
-All numerical parity checks use greedy decoding, fp32, and the PyTorch
-gather backend. They establish the code paths used by this milestone;
-they do not establish stochastic-sampling equivalence under regrouping,
-FlashInfer chunk-prefill parity, or performance portability.
 
 ## A retained measurement snapshot
 
