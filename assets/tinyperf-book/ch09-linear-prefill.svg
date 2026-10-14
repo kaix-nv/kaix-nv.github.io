@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-labelledby="title desc">
 <title id="title">One layer&#x27;s attention in a prefill: Qwen3.8-27B on a B200</title>
-<desc id="desc">Milliseconds per layer against prompt length, 512 to 131,072 tokens, both axes logarithmic. Full attention grows with the square of the prompt. The linear core grows in proportion to it: at the asserted efficiency it is far below full attention everywhere; with the constants fitted to vLLM&#x27;s prefill times it sits on a 0.55 ms floor up to about 2,000 tokens and costs more than full attention below about 23,000 tokens.</desc>
+<desc id="desc">Milliseconds per layer against prompt length, 512 to 131,072 tokens, both axes logarithmic. Full attention grows with the square of the prompt. The linear core grows in proportion to it: at the asserted efficiency it is at or below full attention everywhere; with the constants fitted to vLLM&#x27;s kernels it sits on a 0.13 ms floor at the shortest prompts and costs more than full attention below about 16,000 tokens.</desc>
 <defs><style>
   .title { font: 700 22px system-ui, sans-serif; fill: #0f172a; }
   .axis { font: 500 14px system-ui, sans-serif; fill: #334155; }
@@ -49,18 +49,18 @@
 <circle cx="870.0" cy="106.1" r="3.2" fill="#0f172a"/>
 <line x1="99.7" y1="79.6" x2="129.7" y2="79.6" stroke="#0f172a" stroke-width="2.2"/>
 <text x="137.7" y="83.6" class="legend">full attention (fused, fitted rate)</text>
-<polyline points="80.0,271.7 178.8,271.7 277.5,271.7 376.2,252.9 475.0,233.3 573.8,213.8 672.5,194.2 771.2,174.7 870.0,155.1" fill="none" stroke="#15803d" stroke-width="2.2"/>
-<circle cx="80.0" cy="271.7" r="3.2" fill="#15803d"/>
-<circle cx="178.8" cy="271.7" r="3.2" fill="#15803d"/>
-<circle cx="277.5" cy="271.7" r="3.2" fill="#15803d"/>
-<circle cx="376.2" cy="252.9" r="3.2" fill="#15803d"/>
-<circle cx="475.0" cy="233.3" r="3.2" fill="#15803d"/>
-<circle cx="573.8" cy="213.8" r="3.2" fill="#15803d"/>
-<circle cx="672.5" cy="194.2" r="3.2" fill="#15803d"/>
-<circle cx="771.2" cy="174.7" r="3.2" fill="#15803d"/>
-<circle cx="870.0" cy="155.1" r="3.2" fill="#15803d"/>
+<polyline points="80.0,312.3 178.8,302.5 277.5,283.2 376.2,263.7 475.0,244.2 573.8,224.7 672.5,205.1 771.2,185.6 870.0,166.0" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="312.3" r="3.2" fill="#15803d"/>
+<circle cx="178.8" cy="302.5" r="3.2" fill="#15803d"/>
+<circle cx="277.5" cy="283.2" r="3.2" fill="#15803d"/>
+<circle cx="376.2" cy="263.7" r="3.2" fill="#15803d"/>
+<circle cx="475.0" cy="244.2" r="3.2" fill="#15803d"/>
+<circle cx="573.8" cy="224.7" r="3.2" fill="#15803d"/>
+<circle cx="672.5" cy="205.1" r="3.2" fill="#15803d"/>
+<circle cx="771.2" cy="185.6" r="3.2" fill="#15803d"/>
+<circle cx="870.0" cy="166.0" r="3.2" fill="#15803d"/>
 <line x1="99.7" y1="101.6" x2="129.7" y2="101.6" stroke="#15803d" stroke-width="2.2"/>
-<text x="137.7" y="105.6" class="legend">linear core, fitted constants</text>
+<text x="137.7" y="105.6" class="legend">linear core, fitted to kernels</text>
 <polyline points="80.0,396.7 178.8,387.2 277.5,374.6 376.2,359.2 475.0,342.0 573.8,323.6 672.5,304.6 771.2,285.3 870.0,265.9" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
 <line x1="99.7" y1="123.6" x2="129.7" y2="123.6" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
 <text x="137.7" y="127.6" class="legend">linear core, asserted 0.55</text>

@@ -28,8 +28,8 @@ The short answer: each design bounds one term and pays somewhere else.
 - A **sliding window** stops a layer looking back more than W tokens;
   the full layers carry the growth.
 - **Linear attention** replaces the cache with a fixed-size state, but
-  the deployed kernel that builds it runs, by the constants fitted to
-  it, at about a hundredth of the tensor cores' rate.
+  the deployed kernel that builds it runs, measured in vLLM's own
+  steps, at about a hundredth of the tensor cores' rate.
 - A **latent cache** (from multi-head latent attention, MLA) stores one
   small vector per token, 53 times smaller than per-head keys and values
   here, but it cannot be split across GPUs by heads.
@@ -251,34 +251,34 @@ sequence at that length.
 Prefill is where the constants matter. Table 9.4 prices one layer's
 attention in a prefill with the linear core two ways: at the asserted
 efficiency, the 0.55 in the code, set by hand and never measured; and at
-the constants fitted to vLLM's TTFT (time to first token) on a B200
-(below).
+the constants fitted to vLLM's own kernels on a B200 (Table 9.10,
+below).
 
 ```
 Table 9.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200, us per layer
    tokens  linear, asserted    linear, fitted  full attention
-      512               6.6             553.5             6.5
-     2048              14.5             553.5            51.2
-     8192              45.9            2154.7           766.2
-    32768             172.5            8608.3         12204.6
-   131072             679.4           34422.8        195211.7
-  asserted: 0.55 of the fitted tensor rate, no floor; fitted: 0.0108 and a 550 us floor (0.0081 of the datasheet peak)
-  the fitted linear core costs more than a full layer's attention below 23,093 tokens
-  whole prefill, hybrid / all-attention twin: 2.21 at 512, 1.35 at 2048, 1.24 at 8192, 0.92 at 32768, 0.54 at 131072
+      512               6.6             131.5             6.5
+     2048              14.5             368.8            51.2
+     8192              45.9            1464.7           766.2
+    32768             172.5            5848.3         12204.6
+   131072             679.4           23382.7        195211.7
+  asserted: 0.55 of the fitted tensor rate, no floor; fitted to the kernels of Table 9.10: 0.0159 and a 128 us floor (0.0119 of the datasheet peak)
+  the fitted linear core costs more than a full layer's attention below 15,680 tokens
+  whole prefill, hybrid / all-attention twin: 1.31 at 512, 1.24 at 2048, 1.13 at 8192, 0.85 at 32768, 0.51 at 131072
 ```
 
 ![Per-layer prefill time against prompt length for full attention and
 the linear core at two sets of constants.](/assets/tinyperf-book/ch09-linear-prefill.svg)
 
-*Figure 9.3. The scaling is as designed: the linear core grows with
-the prompt, full attention with its square. The level is not: with the
-fitted constants the linear core costs more than full attention below
-about 23,000 tokens, and the whole hybrid prefill costs more than its
-twin's below some length between 8k and 32k tokens.*
+*Figure 9.3. The scaling is as designed: the linear core grows with the
+prompt, full attention with its square. The level is not: with the
+constants fitted to the kernels the linear core costs more than full
+attention below about 16,000 tokens, and the whole hybrid prefill costs
+more than its twin's below some length between 8k and 32k tokens.*
 
 At the asserted efficiency the linear core is almost free. At the
-fitted one it runs at 0.8% of the datasheet peak, and the floor
-dominates short prompts: the hybrid's 512-token prefill costs 2.2
+fitted one it runs at 1.2% of the datasheet peak, and the floor
+dominates short prompts: the hybrid's 512-token prefill costs 1.3
 times its twin's. Above the floor both columns grow in proportion to
 the prompt, so no check of scaling alone could tell them apart.
 
@@ -287,8 +287,8 @@ the prompt, so no check of scaling alone could tell them apart.
 > a B200. Doubling the prompt from 2,048 to 8,192 tokens multiplied its
 > time by 1.98, then 1.94: linear, as claimed. But at 0.1% of the
 > datasheet peak its time was the loop, linear by construction. It said
-> nothing about the level, where the asserted 0.55 was 51 times too
-> high.
+> nothing about the level: the asserted 0.55 is 35 times the efficiency
+> the kernels show.
 
 ## Latent caches
 
@@ -489,9 +489,9 @@ square (`m = n = patches`), with no causal halving.
 ```
 Table 9.8  One image through the Qwen3.8 vision tower, B200 at its fitted rates
   pixels  patches  tokens for the LLM  encode ms  attention share  LLM prefill of those tokens ms
-     512     1024                 256       1.80              12%                             8.0
-    1024     4096                1024       5.49              37%                            34.2
-    2048    16384                4096      42.32              73%                           167.8
+     512     1024                 256       1.80              12%                             8.4
+    1024     4096                1024       5.49              37%                            41.2
+    2048    16384                4096      42.32              73%                           169.4
   the tower: 27 layers, 16 heads of 72, 0.458B parameters; LLM prefill after a 512-token text prompt
 ```
 
@@ -538,41 +538,100 @@ splitting each context and not (chapter 8; not profiled). It is a small
 term: at 6,144 tokens a windowed layer costs 12% of a full one at 8
 sequences and 3% at 64.
 
-**The hybrid, served.** Qwen3.8-27B in bf16 on one B200 under vLLM, five
-cells, each timed in forward and reverse cell order (the table uses the
-midpoint). TTFT and TPOT (time per output token) are as in chapter 7.
+**The hybrid, kernel by kernel.** The linear core's two constants come
+from vLLM's own prefill steps. `tools/profile_gdn_steps.py` runs
+Qwen3.8-27B in bf16 on one B200 under vLLM 0.22 with PyTorch's profiler,
+compiled as served but with CUDA graphs off so each kernel can be tied
+to the operation that launched it, and `tools/analyze_gdn_profile.py`
+sums the gated-delta operation's kernels: the short convolution, the
+gating, the chunked delta rule and the state copies. The model's
+`lin_core` plus `lin_conv1d` are fitted to it on one-prompt prefills;
+the batched ones are held out. vLLM has three kernels for the chunked
+delta rule (Triton's, FlashInfer's, and one in CuTe DSL, CUTLASS's
+Python kernel language) but runs Triton's for this model, because it
+looks for the key head size where this checkpoint doesn't keep it;
+setting that value (`hf_overrides={"linear_key_head_dim": 128}`) brought
+in the other two. The constants these replace had been fitted to the
+TTFT (time to first token) of served prefills (below).
 
 ```
-Table 9.10  Qwen3.8-27B served by vLLM on one B200: model/measured, calibrated model
-  batch prompt             TTFT ms model/meas  without the three constants   TPOT ms model/meas
-      1    512  fitted        56.7      0.988                        0.419     11.41      0.954
-      1   2048  fitted       106.0      1.012                        0.711     11.38      0.958
-      1   8192  held out     417.7      0.946                        0.689     11.46      0.957
-      8   2048  fitted       764.3      0.992                        0.719     12.09      0.944
-     32   2048  held out    2995.0      1.000                        0.728     15.03      0.878
-  the three: the gated-delta prefill kernel at 0.0108 of the fitted tensor rate, a 550 us floor per layer, 6 ms per prefill pass
-  TPOT, nothing fitted to this grid: 0.878-0.958, typical error 6.6%
+Table 9.10  The gated-delta op in vLLM's prefill steps, picked out kernel by kernel: Qwen3.8-27B, one B200, us per layer
+  batch x tokens              Triton    model model/meas  CuTe-DSL FlashInfer  full attn
+  1 x 512        fitted        137.9    138.3      1.003      80.1       87.4       16.8
+  1 x 2048       fitted        394.3    385.4      0.977     198.0      232.1       88.8
+  1 x 8192       fitted       1467.6   1520.6      1.036     653.9      713.1      763.0
+  1 x 32768      fitted       6060.5   6061.5      1.000    2417.5     2758.8    10221.5
+  8 x 2048       held out     2904.5   3034.3      1.045    1290.0     1096.3      591.8
+  4 x 8192       held out     5737.6   6061.5      1.056    2212.1     1934.4     2974.5
+  model: lin_core + lin_conv1d at 0.0159 of the fitted tensor rate and a 128 us floor; typical error 1.5% fitted, 5.1% held out
+  of the datasheet peak, by the model's count over the whole op: Triton 0.8-1.2%, CuTe-DSL 1.4-3.2%, FlashInfer 1.2-3.6%
+  full attn: a full layer's attention op, FlashInfer's kernel (vLLM's default attention here)
+  the constants fitted to TTFT before these measurements, 0.0108 and a 550 us floor: 1.45-4.06x these kernels
+  all six cells, Triton over CuTe-DSL: 2.44x; over FlashInfer: 2.45x
+```
+
+The kernel choice moves the level about 2.4 times, yet even the fastest
+reaches only a few percent of peak. Table 9.4's fitted column is
+`lin_core` alone; Table 9.10 adds the convolution, 7 µs a layer at 512
+tokens and 213 at 32,768.
+
+**The hybrid, served.** The first B200 run forced FlashAttention-2.
+Predicted with the asserted 0.55, its prefill read 27–58% low on every
+cell. Three constants were then fitted to its TTFT (the kernel's
+efficiency, its floor, and an engine cost of 6 ms per prefill pass);
+they matched it within 6% while pricing the kernels at 1.45–4.06 times
+their time. With the kernels measured, predictions were committed
+before a second run in vLLM's default configuration, the one profiled
+(Table 9.11; TPOT, time per output token, as in chapter 7).
+
+```
+Table 9.11  Qwen3.8-27B served by vLLM on one B200, predictions written before the run: model/measured
+  batch prompt            TTFT ms model/meas   TPOT ms model/meas
+      1   1024  held out     55.8      0.991     11.14      0.978
+      1   4096  held out    198.0      0.926     11.15      0.980
+      1  12288  held out    578.2      0.939     11.25      0.979
+      4   1024  held out    201.6      0.899     11.30      0.980
+      4   4096  held out    739.5      0.944     11.47      0.977
+      4  12288  held out   2283.2      0.937     11.96      0.965
+     16   1024  held out    750.2      0.918     12.38      0.956
+     16   4096  held out   2964.7      0.929     13.23      0.933
+     16  12288  held out   9178.4      0.929     15.19      0.901
+  nine new cells, held out: TTFT 0.899-0.991 (typical error 7.0%), TPOT 0.901-0.980 (4.1%)
+  the first run's grid widened to nine, partly: TTFT 0.746-0.968 (typical error 10.5%), TPOT 0.875-0.980 (5.2%)
+  partly held out: five of those nine were in the first run, and the 6 ms engine cost was fitted on three
+  the predictions file and today's model: the same, cell for cell
+  the model's TTFT = its kernels + 6 ms of engine cost per prefill (fitted end to end); against the kernels profiled (profiler on, CUDA graphs off):
+  1 x 512: model kernels 29.8 ms, profiled kernels 27.2, TTFT 48.0; the profiled step's GPU idle 63% of its span
+  1 x 8192: model kernels 356.0 ms, profiled kernels 362.5, TTFT 382.7; the profiled step's GPU idle 2% of its span
+  8 x 2048: model kernels 685.8 ms, profiled kernels 719.6, TTFT 746.9; the profiled step's GPU idle 2% of its span
 ```
 
 ```
-Recorded  Predictions committed before the B200 measurement, model/measured
-  TTFT: the column without the three constants, cell for cell; TPOT: 0.882-0.958
+Recorded  The first B200 run (FlashAttention-2 forced, five cells): model/measured, midpoint of both orders
+  recorded, the predictions written before it (the asserted 0.55): TTFT 0.42-0.73, TPOT 0.882-0.958
+  recomputed, with the constants once fitted to it (0.0108, 550 us): TTFT 0.946-1.012
+  recomputed, today's model: TTFT 0.631-0.929, TPOT 0.878-0.958
+  measured, first run minus the default-configuration run, TTFT: 1 x 512 +8.8 ms, 1 x 2048 +4.3 ms, 1 x 8192 +35.0 ms, 8 x 2048 +17.3 ms, 32 x 2048 +37.8 ms
+  the first run also used PyTorch's sampler and no DeepGEMM, on another driver and transformers version
 ```
 
-Decode passed, 0.88–0.96 on every cell with nothing fitted to it: a
-decode step here is bytes (the weights, the states, the caches) at a
-memory rate fitted on GEMMs, and nothing specific to linear attention
-enters it. Prefill failed, 27–58% low on every cell: the linear kernel
-was priced at the asserted 0.55, with no floor. Three constants, now in
-the B200's calibration file, fix it: the kernel's efficiency, a floor
-per layer, and a fixed engine cost per prefill pass. They were fitted on
-the three cells marked; the other two, held out, read 0.946 and 1.000
-(the file recorded 5.3% and 0.0% at fitting). The floor's cause has not
-been profiled; the model carries the fitted value.
+Decode reads 0.90–0.98: a decode step is bytes at a memory rate fitted
+on GEMMs, and no linear-attention constant enters it. Prefill reads
+0.90–0.99, about 7% low, partly in the kernels (at 8 × 2,048 the model
+prices them at 685.8 ms where they took 719.6) and partly outside them:
+the TTFT exceeds the profiled kernels by 20–27 ms in the cells shown,
+of which the model prices 6. At 512 tokens the outside time is most of
+the gap, and the profiled step's GPU sat idle 63% of the time,
+consistent with a short step waiting on the host (not profiled further).
 
-That is the chapter's lesson in miniature: the bytes-over-bandwidth
-part of a price carried over to a new architecture unchanged, and the
-kernel's efficiency had to be fitted to the engine that runs it.
+The first run was 4–38 ms slower per cell than the second. Besides
+FlashAttention-2 it ran PyTorch's sampler without DeepGEMM on another
+driver, none of it profiled. The fitted constants had matched it by
+absorbing what is not the linear kernel: time outside the kernels, and
+whatever slowed that configuration. That is the chapter's lesson in
+miniature: the bytes-over-bandwidth part of a price carried over to a
+new architecture unchanged, but a kernel's efficiency has to be measured
+on its own kernels in the engine that runs it, not fitted to the total.
 
 **The rest, on paper.** No latent, sparse or compressed model has run
 here; their prices rest on the mechanisms above, untested. What can be
@@ -609,10 +668,13 @@ as `kv_local_bytes` charges.
 - **The skip rule in prefill** compares the causal mean, `(s + 1) / 2`,
   with k. A prompt between k and 2k tokens skips the indexer, though
   its later queries need one.
-- **Linear attention** is measured for one kernel version in one engine
-  on one GPU. Other gated linear layers (GLM-5.3's, Kimi-K3's) inherit
-  Qwen's constants on the B200 and 0.55 elsewhere. TPOT reads 0.878 at
-  32 sequences, a gap not yet explained.
+- **Linear attention** is measured for one kernel, vLLM 0.22's Triton
+  chunked delta rule, on one GPU; the faster CuTe-DSL and FlashInfer
+  kernels would need constants of their own. Other gated linear layers
+  (GLM-5.3's, Kimi-K3's) inherit Qwen's constants on the B200 and 0.55
+  elsewhere. TTFT reads about 7% low, part in the kernels and part
+  outside them, where the model prices only a fixed 6 ms per prefill;
+  TPOT reads as low as 0.875, a gap not yet explained.
 - **Windows** that also keep the first few tokens (sinks) pay for them
   unpriced; gpt-oss's sinks are a logit (chapter 8) and cost nothing.
 - **Compressed attention:** the pooling and V4's residual stream, four
@@ -625,8 +687,8 @@ as `kv_local_bytes` charges.
 - `kv_local_bytes` and `lin_state_bytes`: what every design stores.
 - Windowed layers as attention over `min(context, W)` keys.
 - Linear attention as a recurrent decode step priced by state traffic
-  and a chunked prefill priced by math, with kernel constants fitted to
-  the engine.
+  and a chunked prefill priced by math, with kernel constants measured
+  in the engine's own steps.
 - Latent caches, absorbed in decode and materialized in prefill.
 - Sparse and compressed attention: a capped attention and an indexer
   that grows with the context, skipped when there is nothing to select

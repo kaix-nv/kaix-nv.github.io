@@ -580,13 +580,17 @@ never saw that error.
 Two fields are not kernel prices: a request's overhead on an idle
 server, and the model's measured error band. Four fields break the rule,
 and the table says so: they were fitted end to end, to an engine's step
-times or TTFT, with some cells held out. The B200's file adds three
-more, fitted on the prefill of a hybrid model, which mixes attention
-layers with linear-attention ones (chapter 9). These are the fields to
-distrust. A constant fitted to an end-to-end number absorbs everything
-the model gets wrong about it, in every prediction it touches. Chapter
-23 follows one, `weight_only_math_efficiency`, through the three
-mechanisms it was hiding.
+times or TTFT, with some cells held out. The B200's file adds one more,
+a fixed engine cost per prefill pass, fitted on the TTFT of a hybrid
+model, which mixes attention layers with linear-attention ones (chapter
+9). Two others in that file, the linear kernel's efficiency and floor,
+were fitted the same way until they were measured on the kernels: fitted
+to TTFT, they priced the kernels at 1.45–4.06 times the kernels' time
+(the B200's calibration file records it). These are
+the fields to distrust. A constant fitted to an end-to-end number
+absorbs everything the model gets wrong about it, in every prediction it
+touches. Chapter 23 follows one, `weight_only_math_efficiency`, through
+the three mechanisms it was hiding.
 
 > **Field note: three zeros.** Three fields in Table 5.9 are zero. Each
 > was once fitted to a serving engine's measurements and brought the

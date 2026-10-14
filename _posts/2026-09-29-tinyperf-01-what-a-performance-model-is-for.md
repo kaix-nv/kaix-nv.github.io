@@ -448,7 +448,7 @@ Table 1.5  Recorded: the calibrated tier's predictions, written down before the 
      32     512             3210.0       1.465              30.19       1.010
      32    2048            25403.2       2.793              40.68       0.969
   TPOT: every cell within 3.1% (0.97-1.01); TTFT: one prompt 0.95-1.05, a batch of prompts 1.08-2.79
-  data/validation holds 37 files of predictions written before their measurements
+  data/validation holds 38 files of predictions written before their measurements
 ```
 
 Both columns are recorded and held out: they were written before the

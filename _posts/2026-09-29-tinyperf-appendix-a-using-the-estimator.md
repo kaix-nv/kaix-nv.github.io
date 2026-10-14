@@ -415,7 +415,7 @@ Table A.6  Speculation at a latency target: decode steps alone, alpha 0.8, the c
          40           55   0.099          1     81   0.067          0.067                0.68
          60          128   0.063          1     95   0.065          0.065                1.04
   Qwen3.8-27B with its MTP head, B200 ($5.99/h), context 4096; batch at most 246
-          6         wall                  5     42   0.236          0.414                   -
+          6         wall                  5     42   0.234          0.414                   -
          10         wall                  3     96   0.170          0.213                   -
          12           12   1.658          3    112   0.170          0.194                0.12
          16           54   0.491          3    160   0.159          0.176                0.36
@@ -464,7 +464,8 @@ projections.
   **`price_decode_config`** at the calibrated tier charges the eager
   launch cost (each kernel issued from Python, 12–25 µs), not a CUDA
   graph's.
-- **Other GPUs.** The H100 and B200 have GEMM constants only; a held-out
+- **Other GPUs.** The H100 has GEMM constants only, and the B200 adds one
+  hybrid model's linear-attention kernel (chapter 9); a held-out
   B200 decode step of Qwen3.8-27B read 0.878–0.958 (chapter 9). The
   25 ms per-request overhead (time a request spends outside the GPU's
   steps; chapter 15), fitted on one A6000 server, is latency only,

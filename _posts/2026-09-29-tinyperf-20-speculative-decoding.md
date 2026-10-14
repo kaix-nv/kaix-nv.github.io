@@ -427,14 +427,14 @@ Table 20.8  Time per token by depth, the MTP head run k times: Qwen3.8-27B, B200
         2        4.95        5.08        5.22        5.53
         3        4.29        4.60        4.92        5.51
         4        3.94        4.46        4.93        5.72
-        6        3.64        4.59        5.28        6.22
-        8        3.60        4.92        5.71        6.72
-       12        3.79        5.65        6.57        7.73
-       16        4.15        6.39        7.43        8.75
+        6        3.64        4.59        5.28        6.21
+        8        3.59        4.91        5.70        6.71
+       12        3.78        5.64        6.55        7.72
+       16        4.14        6.37        7.41        8.73
    best k           8           4           3           3
   speedup       3.04x       2.45x       2.22x       1.98x
   plain decoding: 10.92 ms per token
-  the i.i.d. choice, k = 8, if acceptance decays: 2.22x at decay 0.9, 1.91x at decay 0.8, 1.62x at decay 0.6
+  the i.i.d. choice, k = 8, if acceptance decays: 2.23x at decay 0.9, 1.92x at decay 0.8, 1.63x at decay 0.6
   Qwen3-8B + Qwen3-0.6B, RTX A6000, batch 1, context 1024: best k 5 (i.i.d., 2.16x), 3 (decay 0.9, 1.93x), 3 (decay 0.8, 1.81x), 2 (decay 0.6, 1.71x)
 ```
 
@@ -448,7 +448,7 @@ the i.i.d. curve keeps rising past k = 4.*
 
 The i.i.d. formula does more than overstate the gain, 3.04 times where
 decay 0.8 gives 2.22. It also picks the wrong depth, eight where three
-are best. If acceptance decays by 0.8, those eight give 1.91 times
+are best. If acceptance decays by 0.8, those eight give 1.92 times
 against 2.22 at k = 3. The separate draft shifts the same way, from 5
 to 2 or 3. A wrong recommendation is worse than a wide error bar.
 
