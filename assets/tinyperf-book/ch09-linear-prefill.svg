@@ -37,23 +37,23 @@
 <line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
 <text x="475.0" y="498" class="axis" text-anchor="middle">prompt tokens</text>
 <text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">ms per layer</text>
-<polyline points="80.0,397.2 178.8,372.7 277.5,338.9 376.2,301.3 475.0,262.5 573.8,223.5 672.5,184.4 771.2,145.2 870.0,106.1" fill="none" stroke="#0f172a" stroke-width="2.2"/>
-<circle cx="80.0" cy="397.2" r="3.2" fill="#0f172a"/>
-<circle cx="178.8" cy="372.7" r="3.2" fill="#0f172a"/>
-<circle cx="277.5" cy="338.9" r="3.2" fill="#0f172a"/>
-<circle cx="376.2" cy="301.3" r="3.2" fill="#0f172a"/>
-<circle cx="475.0" cy="262.5" r="3.2" fill="#0f172a"/>
+<polyline points="80.0,402.9 178.8,375.0 277.5,339.6 376.2,301.4 475.0,262.6 573.8,223.5 672.5,184.4 771.2,145.2 870.0,106.1" fill="none" stroke="#0f172a" stroke-width="2.2"/>
+<circle cx="80.0" cy="402.9" r="3.2" fill="#0f172a"/>
+<circle cx="178.8" cy="375.0" r="3.2" fill="#0f172a"/>
+<circle cx="277.5" cy="339.6" r="3.2" fill="#0f172a"/>
+<circle cx="376.2" cy="301.4" r="3.2" fill="#0f172a"/>
+<circle cx="475.0" cy="262.6" r="3.2" fill="#0f172a"/>
 <circle cx="573.8" cy="223.5" r="3.2" fill="#0f172a"/>
 <circle cx="672.5" cy="184.4" r="3.2" fill="#0f172a"/>
 <circle cx="771.2" cy="145.2" r="3.2" fill="#0f172a"/>
 <circle cx="870.0" cy="106.1" r="3.2" fill="#0f172a"/>
 <line x1="99.7" y1="79.6" x2="129.7" y2="79.6" stroke="#0f172a" stroke-width="2.2"/>
 <text x="137.7" y="83.6" class="legend">full attention (fused, fitted rate)</text>
-<polyline points="80.0,312.3 178.8,302.5 277.5,283.2 376.2,263.7 475.0,244.2 573.8,224.7 672.5,205.1 771.2,185.6 870.0,166.0" fill="none" stroke="#15803d" stroke-width="2.2"/>
-<circle cx="80.0" cy="312.3" r="3.2" fill="#15803d"/>
-<circle cx="178.8" cy="302.5" r="3.2" fill="#15803d"/>
+<polyline points="80.0,312.1 178.8,302.6 277.5,283.2 376.2,263.8 475.0,244.2 573.8,224.7 672.5,205.1 771.2,185.6 870.0,166.0" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<circle cx="80.0" cy="312.1" r="3.2" fill="#15803d"/>
+<circle cx="178.8" cy="302.6" r="3.2" fill="#15803d"/>
 <circle cx="277.5" cy="283.2" r="3.2" fill="#15803d"/>
-<circle cx="376.2" cy="263.7" r="3.2" fill="#15803d"/>
+<circle cx="376.2" cy="263.8" r="3.2" fill="#15803d"/>
 <circle cx="475.0" cy="244.2" r="3.2" fill="#15803d"/>
 <circle cx="573.8" cy="224.7" r="3.2" fill="#15803d"/>
 <circle cx="672.5" cy="205.1" r="3.2" fill="#15803d"/>
@@ -61,7 +61,7 @@
 <circle cx="870.0" cy="166.0" r="3.2" fill="#15803d"/>
 <line x1="99.7" y1="101.6" x2="129.7" y2="101.6" stroke="#15803d" stroke-width="2.2"/>
 <text x="137.7" y="105.6" class="legend">linear core, fitted to kernels</text>
-<polyline points="80.0,396.7 178.8,387.2 277.5,374.6 376.2,359.2 475.0,342.0 573.8,323.6 672.5,304.6 771.2,285.3 870.0,265.9" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
+<polyline points="80.0,402.3 178.8,391.1 277.5,377.0 376.2,360.6 475.0,342.7 573.8,324.0 672.5,304.8 771.2,285.4 870.0,266.0" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
 <line x1="99.7" y1="123.6" x2="129.7" y2="123.6" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5"/>
 <text x="137.7" y="127.6" class="legend">linear core, asserted 0.55</text>
 </svg>

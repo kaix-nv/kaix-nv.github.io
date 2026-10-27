@@ -365,7 +365,7 @@ Worked example  The MTP head of Qwen3.8-27B as a draft: what one step reads, B20
   LM head, shared with the trunk: 248,320 x 5,120 x 2 bytes = 2.54 GB
   the head's one decoder layer: 0.74 GB of weights
   not in the model: the input projection joining hidden state and embedding, 2h x h = 0.10 GB
-  one MTP step at batch 1, context 4096: 0.572 ms, of which the LM head 0.407 (71%)
+  one MTP step at batch 1, context 4096: 0.578 ms, of which the LM head 0.404 (70%)
 ```
 
 The LM head dominates: a vocabulary of 248,320 makes the output
@@ -375,20 +375,27 @@ projection three and a half times the layer. The head is one layer in
 ```
 Table 20.6  The MTP head as a draft: Qwen3.8-27B on a B200, calibrated tier, k = 1
   batch  context  target ms  MTP step ms  % of target  LM head share  verify/decode  break-even alpha
-      1     4096      10.92        0.572         5.2%            71%          1.001             0.053
-      8     4096      11.58        0.598         5.2%            69%          1.003             0.055
-     32     4096      13.84        0.659         4.8%            62%          1.013             0.060
-     64     4096      16.87        0.755         4.5%            56%          1.020             0.065
-      1    32768      11.22        0.590         5.3%            69%          1.001             0.053
-     32    32768      23.24        1.246         5.4%            33%          1.008             0.061
-  held out: the target's decode step against vLLM on a B200 without speculation (chapter 9), 5 cells: model/measured 0.878-0.958
+      1     4096      11.13        0.578         5.2%            70%          0.985             0.037
+      8     4096      11.89        0.602         5.1%            69%          0.994             0.044
+     32     4096      14.42        0.651         4.5%            63%          1.005             0.050
+     64     4096      17.67        0.731         4.1%            57%          1.037             0.079
+      1    32768      11.38        0.593         5.2%            68%          0.989             0.042
+     32    32768      22.25        1.140         5.1%            36%          1.074             0.125
+  in-sample: the target's decode step against vLLM on a B200 without speculation (chapter 9), 5 cells: model/measured 0.924-0.977
   published, DeepSeek-V3 technical report, section 5.4.3: second-token acceptance 0.85-0.90 with one MTP module (E = 1.85-1.90 at k = 1), 1.8 times TPS
 ```
 
 At c ≈ 0.05, against 0.14 for the separate draft (Table 20.3), the
-head breaks even near 5% acceptance. The target's step it rests on is
-held out against vLLM (nothing in it was fitted to those runs), 4–12%
-low (chapter 9).
+head breaks even at 4–5% acceptance up to 32 sequences, and at 8–13% at
+64 sequences or 32,768 tokens, where verifying costs 4–7% more than a
+decode step. At one and eight sequences the verify step prices 0.6–1.5%
+below a decode step, which it can't be: the B200's decode-attention
+constants (chapter 16) apply to one-token queries only, so a two-token
+verify step's attention is priced without the decode kernel's fixed
+cost (not measured), and the break-even there comes out a little low.
+The target's step it rests on reads 2–8% low against vLLM (chapter 9).
+Nothing in it was fitted to those runs, but its constants were measured
+with them in view, so the comparison is in-sample.
 
 An MTP head is trained to look one token ahead. An engine can draft
 deeper by running it again on its own output, and `MTPStepLatencyModel`
@@ -423,33 +430,33 @@ draft is another step, so the optimum is shallow:
 ```
 Table 20.8  Time per token by depth, the MTP head run k times: Qwen3.8-27B, B200, batch 1, context 4096, alpha 0.8 at the first position, ms
   depth k      i.i.d.   decay 0.9   decay 0.8   decay 0.6
-        1        6.39        6.39        6.39        6.39
-        2        4.95        5.08        5.22        5.53
-        3        4.29        4.60        4.92        5.51
-        4        3.94        4.46        4.93        5.72
-        6        3.64        4.59        5.28        6.21
-        8        3.59        4.91        5.70        6.71
-       12        3.78        5.64        6.55        7.72
-       16        4.14        6.37        7.41        8.73
+        1        6.41        6.41        6.41        6.41
+        2        4.97        5.10        5.25        5.55
+        3        4.31        4.62        4.94        5.54
+        4        3.96        4.48        4.96        5.75
+        6        3.66        4.62        5.31        6.25
+        8        3.61        4.94        5.73        6.76
+       12        3.81        5.68        6.60        7.78
+       16        4.17        6.43        7.47        8.80
    best k           8           4           3           3
-  speedup       3.04x       2.45x       2.22x       1.98x
-  plain decoding: 10.92 ms per token
-  the i.i.d. choice, k = 8, if acceptance decays: 2.23x at decay 0.9, 1.92x at decay 0.8, 1.63x at decay 0.6
+  speedup       3.08x       2.48x       2.25x       2.01x
+  plain decoding: 11.13 ms per token
+  the i.i.d. choice, k = 8, if acceptance decays: 2.25x at decay 0.9, 1.94x at decay 0.8, 1.65x at decay 0.6
   Qwen3-8B + Qwen3-0.6B, RTX A6000, batch 1, context 1024: best k 5 (i.i.d., 2.16x), 3 (decay 0.9, 1.93x), 3 (decay 0.8, 1.81x), 2 (decay 0.6, 1.71x)
 ```
 
 ![Speedup against the number of drafted tokens, 1 to 16: the i.i.d.
-curve peaks at 3.04 at k = 8; decaying acceptance peaks at k = 3 or 4
+curve peaks at 3.08 at k = 8; decaying acceptance peaks at k = 3 or 4
 and falls after.](/assets/tinyperf-book/ch20-depth.svg)
 
 *Figure 20.3. Speedup by depth for Qwen3.8-27B's MTP head run k times,
 B200, one sequence, 4,096 tokens, first-position acceptance 0.8. Only
 the i.i.d. curve keeps rising past k = 4.*
 
-The i.i.d. formula does more than overstate the gain, 3.04 times where
-decay 0.8 gives 2.22. It also picks the wrong depth, eight where three
-are best. If acceptance decays by 0.8, those eight give 1.92 times
-against 2.22 at k = 3. The separate draft shifts the same way, from 5
+The i.i.d. formula does more than overstate the gain, 3.08 times where
+decay 0.8 gives 2.25. It also picks the wrong depth, eight where three
+are best. If acceptance decays by 0.8, those eight give 1.94 times
+against 2.25 at k = 3. The separate draft shifts the same way, from 5
 to 2 or 3. A wrong recommendation is worse than a wide error bar.
 
 `decay` defaults to 1, so the model's default is the assumption this

@@ -262,27 +262,27 @@ def operating_point(sweep, target_ms):
 ```
 Table A.3  The price of latency: Qwen3-8B, one GPU per replica, 1024 tokens in, 128 out; $ per million output tokens at the busiest rate meeting p95 TTFT <= 1 s and p95 TPOT <= the target
   TPOT target ms     RTX A6000 ($0.49/h)      H100 SXM ($2.49/h)          B200 ($5.99/h)
-               5                    wall                    wall      2.21 at 5.89 req/s
-               8                    wall     26.88 at 0.20 req/s     0.57 at 22.64 req/s
-              10                    wall      1.34 at 4.02 req/s     0.41 at 31.69 req/s
-              15                    wall     0.54 at 10.05 req/s     0.29 at 45.28 req/s
-              20                    wall     0.38 at 14.08 req/s     0.29 at 45.28 req/s
-              25                    none     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-              30      3.80 at 0.28 req/s     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-              40      1.06 at 1.00 req/s     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-              60      0.53 at 2.00 req/s     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-             100      0.38 at 2.81 req/s     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-             150      0.33 at 3.21 req/s     0.28 at 19.10 req/s     0.29 at 45.28 req/s
-  $/Mtok = $/h / (req/s x 128 x 3600 / 10^6), a point prediction; wall (chapter 19's a, top-p, context 1,088): 24.71, 7.54, 4.22 ms; none: no simulated rate meets it
+               5                    wall                    wall      5.70 at 2.28 req/s
+               8                    wall     26.88 at 0.20 req/s     0.57 at 22.82 req/s
+              10                    wall      1.34 at 4.02 req/s     0.41 at 31.94 req/s
+              15                    wall     0.54 at 10.05 req/s     0.28 at 45.63 req/s
+              20                    wall     0.38 at 14.08 req/s     0.28 at 45.63 req/s
+              25                    none     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+              30      3.80 at 0.28 req/s     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+              40      1.06 at 1.00 req/s     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+              60      0.53 at 2.00 req/s     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+             100      0.38 at 2.81 req/s     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+             150      0.33 at 3.21 req/s     0.28 at 19.10 req/s     0.28 at 45.63 req/s
+  $/Mtok = $/h / (req/s x 128 x 3600 / 10^6), a point prediction; wall (chapter 19's a, top-p, context 1,088): 24.71, 7.54, 4.61 ms; none: no simulated rate meets it
   prices illustrative (usd_per_hour); floors, no TPOT target: 0.677, 0.114, 0.048 GPU-hours per million tokens,
-  at 0.80, 0.95, 1.00 x the envelope's knee, p95 TTFT 996, 668, 711 ms
+  at 0.80, 0.95, 1.00 x the envelope's knee, p95 TTFT 996, 668, 731 ms
   RTX A6000: at 30 ms 11.4 x its floor; prompts take 50% of its time there; at the planned 2.75 req/s, $0.387
   find_knee, RTX A6000: 100 ms, 1.5 req/s at $0.70; 30 ms, no rate of its list (from 0.25 req/s)
-  78 simulations of 240-2,000 Poisson requests, 1,574,352 engine steps, 4,010 step graphs; H100 and B200 projected
+  78 simulations of 240-2,000 Poisson requests, 1,532,028 engine steps, 4,012 step graphs; H100 and B200 projected
 ```
 
 ![Three curves of dollars per million tokens against the p95 TPOT
-target, both on log scales: each starts steeply at its GPU's wall, 4.2,
+target, both on log scales: each starts steeply at its GPU's wall, 4.6,
 7.5 and 24.7 ms, and flattens to about $0.3 per million
 tokens.](/assets/tinyperf-book/appA-price.svg)
 
@@ -313,7 +313,7 @@ simulated curve rises earlier (at 30 ms the A6000 pays 11.4 times its
 floor): the formula gives the shape, the simulator the numbers.
 
 **The floor.** Once the target clears the step at the knee, the TTFT
-target and the seats set the rate: $0.33, $0.28 and $0.29 per million
+target and the seats set the rate: $0.33, $0.28 and $0.28 per million
 tokens. These are point predictions at 0.80–1.00 of each envelope's
 knee, without margin; at Table A.2's planned 2.75 requests per second
 the A6000 costs $0.387.
@@ -322,8 +322,8 @@ So the cheapest GPU depends on the target: loose targets cost
 $0.28–0.33 on all three at these prices, but below 25 ms the A6000
 can't serve, nor the H100 below 8. At the A6000's floor, prompts take
 half the GPU's time. The step-price cache (step prices stored by shape
-and reused; chapter 15) keeps all this cheap: 1.6 million engine steps
-took 4,010 step graphs.
+and reused; chapter 15) keeps all this cheap: 1.5 million engine steps
+took 4,012 step graphs.
 
 ## Energy per token
 
@@ -377,9 +377,9 @@ Table A.5  Energy per token, projected: Qwen3-8B, context 1,088, calibrated tier
   RTX A6000  measured            6.040      0.821      0.266      0.178         0.0495    0.0484         249-269 / 334-346
   RTX A6000  net                 5.968      0.811      0.261      0.174         0.0452    0.0441         246-262 / 305-315
   H100 SXM   derived             2.084      0.277      0.092      0.058         0.0134    0.0130         293-330 / 518-542
-  B200       derived             1.642      0.217      0.069      0.043         0.0090    0.0084         432-497 / 734-815
+  B200       derived             1.693      0.224      0.068      0.042         0.0089    0.0084         425-507 / 753-817
   net: pj_per_flop 1.152, less the fitting GEMM's DRAM energy; derived: from the TDP, 12% static and 15% active assumed; A6000 prefill held to 300 W: 0.0444, 0.0420
-  at Table A.3's floors, weighted by prompt share, prefill held to the limit: RTX A6000 0.185-0.190, H100 SXM 0.046-0.049, B200 0.029-0.030 kWh per million tokens
+  at Table A.3's floors, weighted by prompt share, prefill held to the limit: RTX A6000 0.185-0.190, H100 SXM 0.046-0.049, B200 0.028-0.030 kWh per million tokens
 ```
 
 Table A.5 is a projection: no step's energy was measured. The net row
@@ -415,18 +415,18 @@ Table A.6  Speculation at a latency target: decode steps alone, alpha 0.8, the c
          40           55   0.099          1     81   0.067          0.067                0.68
          60          128   0.063          1     95   0.065          0.065                1.04
   Qwen3.8-27B with its MTP head, B200 ($5.99/h), context 4096; batch at most 246
-          6         wall                  5     42   0.234          0.414                   -
-         10         wall                  3     96   0.170          0.213                   -
-         12           12   1.658          3    112   0.170          0.194                0.12
-         16           54   0.491          3    160   0.159          0.176                0.36
-         24          133   0.300          4    246   0.155          0.170                0.57
+          6         wall                  5     42   0.233          0.472                   -
+         10         wall                  3     90   0.185          0.225                   -
+         12            9   2.218          3    110   0.181          0.204                0.09
+         16           48   0.553          5    149   0.168          0.200                0.36
+         24          123   0.324          5    234   0.161          0.178                0.55
   no prompts, sampler, seat cap or queue: read its ratios, not its dollars; memory by chapter 7's 90% rule
-  plain walls (no sampler): 24.21 and 10.92 ms; the B200's 246 charges the MTP head's cache when unused (255 otherwise)
+  plain walls (no sampler): 24.21 and 11.13 ms; the B200's 246 charges the MTP head's cache when unused (255 otherwise)
 ```
 
 - **It moves the wall**, one step with one sequence: 24.21 ms for
   Qwen3-8B here (no sampler, context 1,024; Table A.3's 24.71 has both)
-  and 10.92 ms for Qwen3.8-27B. Speculating, the A6000 serves 15 ms and
+  and 11.13 ms for Qwen3.8-27B. Speculating, the A6000 serves 15 ms and
   the B200 6.
 - **Next to the wall it is worth far more than its speedup.** At 25 ms
   plain decoding fits 3 sequences at $1.128 per million tokens;
@@ -437,7 +437,7 @@ Table A.6  Speculation at a latency target: decode steps alone, alpha 0.8, the c
   drafted tokens) pass the ridge point, where they turn math-bound
   (chapter 20), and the draft's weights and cache cap the batch at 95
   against plain decoding's 128. The MTP head, about 5% of a target step
-  with a one-layer cache, still saves 43% at 24 ms.
+  with a one-layer cache, still saves 45% at 24 ms.
 - **Decay matters most where targets are tightest:** at 15 ms the
   i.i.d. formula quotes about half the decaying price.
 
@@ -465,8 +465,10 @@ projections.
   launch cost (each kernel issued from Python, 12–25 µs), not a CUDA
   graph's.
 - **Other GPUs.** The H100 has GEMM constants only, and the B200 adds one
-  hybrid model's linear-attention kernel (chapter 9); a held-out
-  B200 decode step of Qwen3.8-27B read 0.878–0.958 (chapter 9). The
+  hybrid model's linear-attention kernel (chapter 9) and its decode
+  step's constants, measured inside the engine (chapter 16); that step
+  reads TPOT 0.895–1.005 against vLLM on eighteen cells (in-sample) and
+  0.889–1.007 on nine predicted before they ran. The
   25 ms per-request overhead (time a request spends outside the GPU's
   steps; chapter 15), fitted on one A6000 server, is latency only,
   never capacity, and absent elsewhere: at the B200's 45 requests per

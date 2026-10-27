@@ -35,27 +35,27 @@
 <line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
 <text x="475.0" y="498" class="axis" text-anchor="middle">context (tokens)</text>
 <text x="22" y="255.0" class="axis" text-anchor="middle" transform="rotate(-90 22 255.0)">us per layer</text>
-<polyline points="80.0,372.2 159.0,357.4 238.0,337.8 317.0,314.3 396.0,288.2 475.0,260.6 554.0,232.2 633.0,203.3 712.0,174.2 791.0,144.9 870.0,115.6" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<polyline points="80.0,381.1 159.0,363.5 238.0,341.5 317.0,316.4 396.0,289.4 475.0,261.2 554.0,232.5 633.0,203.4 712.0,174.2 791.0,145.0 870.0,115.6" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
 <line x1="95.8" y1="81.6" x2="125.8" y2="81.6" stroke="#0f172a" stroke-width="2.2" stroke-dasharray="7 5"/>
 <text x="133.8" y="85.6" class="legend">full-context attention (twin)</text>
-<polyline points="80.0,372.2 159.0,357.4 238.0,312.0 317.0,309.8 396.0,305.8 475.0,298.8 554.0,287.4 633.0,271.2 712.0,250.3 791.0,225.9 870.0,199.2" fill="none" stroke="#2563eb" stroke-width="2.2"/>
-<circle cx="80.0" cy="372.2" r="3.2" fill="#2563eb"/>
-<circle cx="159.0" cy="357.4" r="3.2" fill="#2563eb"/>
-<circle cx="238.0" cy="312.0" r="3.2" fill="#2563eb"/>
-<circle cx="317.0" cy="309.8" r="3.2" fill="#2563eb"/>
-<circle cx="396.0" cy="305.8" r="3.2" fill="#2563eb"/>
-<circle cx="475.0" cy="298.8" r="3.2" fill="#2563eb"/>
-<circle cx="554.0" cy="287.4" r="3.2" fill="#2563eb"/>
-<circle cx="633.0" cy="271.2" r="3.2" fill="#2563eb"/>
-<circle cx="712.0" cy="250.3" r="3.2" fill="#2563eb"/>
-<circle cx="791.0" cy="225.9" r="3.2" fill="#2563eb"/>
-<circle cx="870.0" cy="199.2" r="3.2" fill="#2563eb"/>
+<polyline points="80.0,381.1 159.0,363.5 238.0,316.0 317.0,313.6 396.0,309.3 475.0,301.7 554.0,289.7 633.0,272.7 712.0,251.2 791.0,226.4 870.0,199.5" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+<circle cx="80.0" cy="381.1" r="3.2" fill="#2563eb"/>
+<circle cx="159.0" cy="363.5" r="3.2" fill="#2563eb"/>
+<circle cx="238.0" cy="316.0" r="3.2" fill="#2563eb"/>
+<circle cx="317.0" cy="313.6" r="3.2" fill="#2563eb"/>
+<circle cx="396.0" cy="309.3" r="3.2" fill="#2563eb"/>
+<circle cx="475.0" cy="301.7" r="3.2" fill="#2563eb"/>
+<circle cx="554.0" cy="289.7" r="3.2" fill="#2563eb"/>
+<circle cx="633.0" cy="272.7" r="3.2" fill="#2563eb"/>
+<circle cx="712.0" cy="251.2" r="3.2" fill="#2563eb"/>
+<circle cx="791.0" cy="226.4" r="3.2" fill="#2563eb"/>
+<circle cx="870.0" cy="199.5" r="3.2" fill="#2563eb"/>
 <line x1="95.8" y1="103.6" x2="125.8" y2="103.6" stroke="#2563eb" stroke-width="2.2"/>
 <text x="133.8" y="107.6" class="legend">sparse layer: attention + indexer</text>
-<polyline points="238.0,329.7 317.0,326.4 396.0,320.6 475.0,310.9 554.0,296.4 633.0,277.1 712.0,253.8 791.0,227.8 870.0,200.2" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<polyline points="238.0,332.7 317.0,329.2 396.0,323.0 475.0,312.9 554.0,297.8 633.0,277.9 712.0,254.3 791.0,228.1 870.0,200.4" fill="none" stroke="#ea580c" stroke-width="2.2"/>
 <line x1="95.8" y1="125.6" x2="125.8" y2="125.6" stroke="#ea580c" stroke-width="2.2"/>
 <text x="133.8" y="129.6" class="legend">indexer alone</text>
-<polyline points="80.0,372.2 159.0,357.4 238.0,357.4 317.0,357.4 396.0,357.4 475.0,357.4 554.0,357.4 633.0,357.4 712.0,357.4 791.0,357.4 870.0,357.4" fill="none" stroke="#15803d" stroke-width="2.2"/>
+<polyline points="80.0,381.1 159.0,363.5 238.0,363.5 317.0,363.5 396.0,363.5 475.0,363.5 554.0,363.5 633.0,363.5 712.0,363.5 791.0,363.5 870.0,363.5" fill="none" stroke="#15803d" stroke-width="2.2"/>
 <line x1="95.8" y1="147.6" x2="125.8" y2="147.6" stroke="#15803d" stroke-width="2.2"/>
 <text x="133.8" y="151.6" class="legend">top-2048 attention alone</text>
 </svg>

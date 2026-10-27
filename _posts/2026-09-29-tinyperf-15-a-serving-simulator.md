@@ -324,7 +324,7 @@ Table 15.2  What bucketing costs: decode steps interpolated between 256-token bu
   qwen3-8b          RTX A6000  calibrated    320       +0.03%              32, 1  none
   qwen3-8b          B200       calibrated    320       +0.02%              32, 1  none
   gpt-oss-20b       RTX A6000  calibrated    320       -0.14%            32, 128  128-token window
-  glm-5.3-flash     H100 SXM   projected     320       -1.61%            1, 2049  indexer, past 2048
+  glm-5.3-flash     H100 SXM   projected     320       -1.59%            1, 2049  indexer, past 2048
   deepseek-v4-flash H100 SXM   projected     320       -5.23%            1, 2052  indexer, past 2048
   mixed steps, qwen3-8b, RTX A6000, chunks resuming at 257-3000 tokens, context rounded up: +0.10% to +1.09% on 5 shapes
 ```

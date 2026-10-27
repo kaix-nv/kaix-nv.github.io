@@ -64,7 +64,7 @@ looking at Table 1.1's grid, which is why chapter 1 calls that grid
 in-sample. And constants can fit well and be wrong: chapter 5's field
 note "three zeros" tells of three that turned out to be mechanisms the
 model lacked, and chapter 9's two kernel constants, fitted to TTFT,
-priced their kernels at 1.45–4.06 times the kernels' time.
+priced their kernels at 1.44–4.05 times the kernels' time.
 
 The defense is a loop that records what the model said before each
 measurement (Figure 22.1).
@@ -133,7 +133,7 @@ Table 22.1  A frozen prediction file, excerpted: Qwen3-8B at tp=2 served online,
   TTFT p50 0.94-1.09, p95 0.91-1.10, TPOT 0.99, throughput 1.00-1.02; the old (ring) model's TPOT 0.89-0.94
   steps at the composition the engine's step log recorded: decode 0.976-0.993, prefill-carrying 1.008-1.023
   within the criteria: this sweep 4 of 4 cells; the file's other sweep 3 of 4, its miss TPOT 1.054 against 1.05; together 7 of 8
-  data/validation holds 38 files of predictions written before their measurements, and 2 revised mid-campaign that say what they had seen
+  data/validation holds 40 files of predictions written before their measurements, and 2 revised mid-campaign that say what they had seen
 ```
 
 The file's opening claims and its other sweep are trimmed. This sweep
@@ -461,13 +461,17 @@ Table 22.4  Grids pinned by tests/test_core.py: the current model against the re
     the same: TPOT, 4 cells the step cost came from       4  fitted                    0.983-1.018    0.94-1.03
     the same: TPOT, the other 4                           4  held out from the fit     0.957-1.018    0.94-1.03
   test_hybrid_silicon_envelope
-    Qwen3.8-27B, one B200: gated-delta op, 1 prompt       4  fitted                    0.977-1.036    0.95-1.08
-    the same: the op, batched prompts                     2  held out                  1.045-1.056    0.95-1.08
-    vLLM 0.22 defaults: TTFT, the nine new cells          9  held out                  0.899-0.991    0.87-1.02
-    the same: TTFT, earlier grid, 2048+ tokens            6  partly held out           0.923-0.968    0.87-1.02
-    the same: TTFT, earlier grid, 512 tokens              3  partly held out           0.746-0.901    0.72-1.02
-    the same: TPOT, all 18                               18  held out                  0.875-0.980    0.85-1.02
-    first B200 run, forward order: TPOT                   5  held out                  0.880-0.940    0.85-1.10
+    Qwen3.8-27B, one B200: gated-delta op, 1 prompt       4  fitted                    0.971-1.034    0.95-1.08
+    the same: the op, batched prompts                     2  held out                  1.044-1.056    0.95-1.08
+    vLLM 0.22 defaults: TTFT, the nine new cells          9  held out                  0.894-0.970    0.87-1.02
+    the same: TTFT, earlier grid, 2048+ tokens            6  partly held out           0.924-0.956    0.87-1.02
+    the same: TTFT, earlier grid, 512 tokens              3  partly held out           0.725-0.896    0.70-1.02
+    the same: TPOT, all 18                               18  held out                  0.895-1.005    0.85-1.02
+    first B200 run, forward order: TPOT                   5  held out                  0.925-0.959    0.85-1.10
+  test_b200_served_decode_step
+    Qwen3.8-27B, one B200: served decode steps            3  fitted                    0.987-0.991    0.97-1.01
+    the same: a step profiled afterwards                  1  held out                        0.987    0.97-1.01
+    two new served grids: TPOT, the step alone           18  held out                  0.864-1.007    0.86-1.02
   test_moe_online_on_silicon
     Qwen3-30B-A3B decode steps, tp=2: batch 1             1  held out                        1.026    0.95-1.05
     the same, batch 8-64                                  5  held out                  0.935-1.073    0.90-1.10
@@ -482,7 +486,7 @@ Table 22.4  Grids pinned by tests/test_core.py: the current model against the re
     prefix-cached TTFT, suffix of 512 tokens or more      6  held out                  0.977-1.104    0.94-1.12
     128-token suffix at batch 1: a pinned miss            1  held out                        0.710     0.6-0.75
   labels as each chapter gives them, for the model that first priced the grid; each grid has been a test since, in view of every later change
-  tests/test_core.py: 92 tests, 31 of them read measurements from data/validation
+  tests/test_core.py: 93 tests, 32 of them read measurements from data/validation
 ```
 
 The tests also keep the repository's scope statement true. And pinning
@@ -502,7 +506,7 @@ Table 19.7).
 
 ## How good is the record?
 
-Table 22.5 puts five grids' frozen predictions beside the current model.
+Table 22.5 puts seven grids' frozen predictions beside the current model.
 
 ```
 Table 22.5  What the frozen predictions said, and what the model says now: model/measured
@@ -511,10 +515,14 @@ Table 22.5  What the frozen predictions said, and what the model says now: model
                                         TPOT          8  0.97-1.01  0.96-1.01  held out
   Qwen3-8B, tp=2 on two RTX A6000s      TTFT          8  1.01-1.05  1.00-1.07  held out
                                         TPOT          8  1.06-1.42  0.96-1.01  in-sample                the link re-measured in a CUDA graph (ch. 12)
-  Qwen3.8-27B, one B200, midpoint of    TTFT          5  0.42-0.73  0.63-0.93  1 constant fitted on 3   kernel constants measured (ch. 9)
-    both orders, as chapter 9           TPOT          5  0.88-0.96  0.88-0.96  held out                 nothing (within 0.5%)
-  Qwen3.8-27B, one B200, vLLM 0.22      TTFT          9  0.90-0.99  0.90-0.99  held out                 nothing
-    defaults, nine new cells            TPOT          9  0.90-0.98  0.90-0.98  held out                 nothing
+  Qwen3.8-27B, one B200, midpoint of    TTFT          5  0.42-0.73  0.61-0.92  1 constant fitted on 3   kernel constants measured (ch. 9, 16)
+    both orders, as chapter 9           TPOT          5  0.88-0.96  0.92-0.98  held out                 decode step measured in the engine (ch. 16)
+  Qwen3.8-27B, one B200, vLLM 0.22      TTFT          9  0.90-0.99  0.89-0.97  held out                 decode step measured in the engine (ch. 16)
+    defaults, nine new cells            TPOT          9  0.90-0.98  0.91-1.00  held out
+  Qwen3.8-27B, one B200, grid one       TTFT          9  0.90-0.92  0.90-0.92  held out                 the engine's kernels (ch. 16)
+    (chapter 16)                        TPOT          9  0.84-0.97  0.86-1.00  held out
+  Qwen3.8-27B, one B200, grid two       TTFT          9  0.91-0.96  0.91-0.96  held out                 nothing
+    (chapter 16)                        TPOT          9  0.89-1.01  0.89-1.01  held out
   Qwen3-30B-A3B decode steps, tp=2      step          6  0.93-1.07  0.93-1.07  held out                 nothing
   the Qwen3-30B-A3B file's other section, online at tp=2: 2 of 4 cells within its criteria (recorded)
   labels as each chapter gives them, for the model that first priced the grid
@@ -523,14 +531,20 @@ Table 22.5  What the frozen predictions said, and what the model says now: model
 The frozen column is the honest one, misses included: the MoE file's
 online section met its criteria in 2 of 4 cells. The "now" column is
 what the book reports. The hybrid's second B200 run was predicted with
-the kernel-measured constants and read 0.90–0.99 on nine new cells; the
-model hasn't changed since, so its frozen and current columns agree.
+the kernel-measured constants and read 0.90–0.99 on nine new cells. A
+profile of its served decode step then showed it right by luck, an
+overcharge on every kernel offsetting kernels the model never priced,
+and chapter 16 measured its constants one kernel class at a time. Two
+grids followed. Grid one, predicted before the engine's kernels beyond
+the graph were priced, read 0.84–0.97 for TPOT, and reads 0.86–1.00 now,
+*in-sample*: that change was made with it in view. Grid two, predicted
+with them, read 0.89–1.01, and its price hasn't changed since.
 
 ```
 Table 22.6  The validation record: files in data/validation
-  predictions written before their measurements          38
-  comparisons of a run with its predictions              31
-  engine runs: offline grids, online sweeps, steps       78
+  predictions written before their measurements          40
+  comparisons of a run with its predictions              33
+  engine runs: offline grids, online sweeps, steps       80
   the engine's own step logs                             15
   GPU telemetry logs (clocks, power, temperature)        19
   GPU process logs                                       13
@@ -540,8 +554,9 @@ Table 22.6  The validation record: files in data/validation
 ## Where it breaks
 
 - **One GPU type, mostly.** Nearly every end-to-end measurement is one
-  or two RTX A6000s over PCIe. The B200 has 23 cells of one hybrid
-  model, in two configurations of one engine; the H100 only kernel
+  or two RTX A6000s over PCIe. The B200 has 41 served cells of one
+  hybrid model, in two configurations of one engine, and its profiled
+  decode steps; the H100 only kernel
   calibrations. No NVLink pair, and no
   tensor parallelism beyond 2.
 - **Synthetic prompts.** Most online sweeps send random tokens, and
@@ -569,9 +584,9 @@ Table 22.6  The validation record: files in data/validation
   runs; the machine logged.
 - Tests that pin agreement, directions, controls and known misses, and
   intervals where a point can't be trusted.
-- Evidence: 38 frozen predictions and 31 tests reading measurements; on
-  five grids, frozen predictions from 0.42 to 2.79 and the current model
-  within 0.63–1.07, its low end the first B200 run's TTFT, whose
+- Evidence: 40 frozen predictions and 32 tests reading measurements; on
+  seven grids, frozen predictions from 0.42 to 2.79 and the current model
+  within 0.61–1.07, its low end the first B200 run's TTFT, whose
   configuration the calibration doesn't match.
 
 ## Exercises

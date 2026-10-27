@@ -37,8 +37,8 @@
 <text x="451.7" y="442" class="note">RTX A6000 wall</text>
 <line x1="208.1" y1="60" x2="208.1" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
 <text x="212.1" y="442" class="note">H100 SXM wall</text>
-<line x1="90.6" y1="60" x2="90.6" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
-<text x="94.6" y="442" class="note">B200 wall</text>
+<line x1="108.8" y1="60" x2="108.8" y2="450" stroke="#cbd5e1" stroke-dasharray="3 4"/>
+<text x="112.8" y="442" class="note">B200 wall</text>
 <line x1="80" y1="450" x2="870" y2="450" stroke="#64748b"/>
 <line x1="80" y1="60" x2="80" y2="450" stroke="#64748b"/>
 <text x="475.0" y="498" class="axis" text-anchor="middle">p95 TPOT target, ms (log scale)</text>
@@ -91,39 +91,38 @@
 <circle cx="870.0" cy="425.5" r="3.2" fill="#15803d"/>
 <line x1="545.0" y1="97.8" x2="575.0" y2="97.8" stroke="#15803d" stroke-width="2.2"/>
 <text x="583.0" y="101.8" class="legend">H100 SXM, $2.49 per hour</text>
-<polyline points="103.8,176.8 125.1,280.4 144.3,310.8 161.9,339.4 193.0,359.7 220.0,375.5 243.8,388.4 265.0,399.3 284.3,413.0 301.9,424.5 333.0,424.5 360.0,424.5 383.7,424.5 405.0,424.5 428.8,424.5 450.1,424.5 458.0,424.5 465.6,424.5 473.0,424.5 486.9,424.5 503.1,424.5 518.0,424.5 545.0,424.5 568.8,424.5 590.0,424.5 626.9,424.5 658.0,424.5 685.0,424.5 730.0,424.5 775.1,424.5 811.9,424.5 870.0,424.5" fill="none" stroke="#ea580c" stroke-width="2.2"/>
-<circle cx="103.8" cy="176.8" r="3.2" fill="#ea580c"/>
-<circle cx="125.1" cy="280.4" r="3.2" fill="#ea580c"/>
-<circle cx="144.3" cy="310.8" r="3.2" fill="#ea580c"/>
-<circle cx="161.9" cy="339.4" r="3.2" fill="#ea580c"/>
-<circle cx="193.0" cy="359.7" r="3.2" fill="#ea580c"/>
-<circle cx="220.0" cy="375.5" r="3.2" fill="#ea580c"/>
-<circle cx="243.8" cy="388.4" r="3.2" fill="#ea580c"/>
-<circle cx="265.0" cy="399.3" r="3.2" fill="#ea580c"/>
-<circle cx="284.3" cy="413.0" r="3.2" fill="#ea580c"/>
-<circle cx="301.9" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="333.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="360.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="383.7" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="405.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="428.8" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="450.1" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="458.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="465.6" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="473.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="486.9" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="503.1" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="518.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="545.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="568.8" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="590.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="626.9" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="658.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="685.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="730.0" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="775.1" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="811.9" cy="424.5" r="3.2" fill="#ea580c"/>
-<circle cx="870.0" cy="424.5" r="3.2" fill="#ea580c"/>
+<polyline points="125.1,213.4 144.3,280.9 161.9,311.3 193.0,360.3 220.0,376.1 243.8,388.9 265.0,399.8 284.3,421.4 301.9,425.0 333.0,425.0 360.0,425.0 383.7,425.0 405.0,425.0 428.8,425.0 450.1,425.0 458.0,425.0 465.6,425.0 473.0,425.0 486.9,425.0 503.1,425.0 518.0,425.0 545.0,425.0 568.8,425.0 590.0,425.0 626.9,425.0 658.0,425.0 685.0,425.0 730.0,425.0 775.1,425.0 811.9,425.0 870.0,425.0" fill="none" stroke="#ea580c" stroke-width="2.2"/>
+<circle cx="125.1" cy="213.4" r="3.2" fill="#ea580c"/>
+<circle cx="144.3" cy="280.9" r="3.2" fill="#ea580c"/>
+<circle cx="161.9" cy="311.3" r="3.2" fill="#ea580c"/>
+<circle cx="193.0" cy="360.3" r="3.2" fill="#ea580c"/>
+<circle cx="220.0" cy="376.1" r="3.2" fill="#ea580c"/>
+<circle cx="243.8" cy="388.9" r="3.2" fill="#ea580c"/>
+<circle cx="265.0" cy="399.8" r="3.2" fill="#ea580c"/>
+<circle cx="284.3" cy="421.4" r="3.2" fill="#ea580c"/>
+<circle cx="301.9" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="333.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="360.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="383.7" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="405.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="428.8" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="450.1" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="458.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="465.6" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="473.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="486.9" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="503.1" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="518.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="545.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="568.8" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="590.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="626.9" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="658.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="685.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="730.0" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="775.1" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="811.9" cy="425.0" r="3.2" fill="#ea580c"/>
+<circle cx="870.0" cy="425.0" r="3.2" fill="#ea580c"/>
 <line x1="545.0" y1="119.8" x2="575.0" y2="119.8" stroke="#ea580c" stroke-width="2.2"/>
 <text x="583.0" y="123.8" class="legend">B200, $5.99 per hour</text>
 </svg>

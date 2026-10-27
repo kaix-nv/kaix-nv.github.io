@@ -291,7 +291,7 @@ Worked example  Why the B200's weight GEMMs gain 2.5x, not 4x, in an FP4 decode 
 
 Launches are half the fp4 GEMM time, and not as an artifact of the
 tier: a kernel replayed from a CUDA graph (launches recorded once and
-replayed as one) on a B200 costs 3.5 µs (chapter 5, Table 5.6).
+replayed as one) on a B200 costs 2.3–3.5 µs (chapter 5).
 
 **Attention**, tagged fp8, gains up to 2×, held to 1.74–1.87× in decode
 by its launch. **The head**, kept at 16 bits, and **the `rw` operators**,

@@ -438,13 +438,16 @@ Table 5.6  Per-kernel cost of a chain of tiny addmm kernels on a B200: eager aga
   addmm256     100            17.51             3.74          4.7
   addmm256     400            16.56             3.71          4.5
   median                      13.69             3.50          3.9
-  the B200's launch constant fitted from eager cuBLAS GEMMs (Table 5.2): 16 us; its graph constant: 3.5 us
+  the B200's launch constant fitted from eager cuBLAS GEMMs (Table 5.2): 16 us; its graph constant, measured inside vLLM's served decode steps (chapter 16): 2.31 us
 ```
 
 From a graph, a kernel costs about what chapter 4's 3 µs default
 assumed for the GPU's side alone: the host's work is gone. The eager
 median also checks the fit: a different workload, timed a different
-way, lands near Table 5.2's 16 µs.
+way, lands near Table 5.2's 16 µs. Inside a serving engine's graph a
+kernel costs less again. The B200's file carries 2.31 µs, the time each
+of the small kernels in vLLM's own decode step takes at one sequence,
+measured in chapter 16, where this chain's tiny GEMMs take 3.5.
 
 A calibration carries both launch constants, and `for_stack` picks one
 (docstring trimmed):
@@ -469,8 +472,9 @@ operations (chapter 6), at batch 1 and a context of 2,112 tokens (a
 Table 5.7  Launch cost in one decode step: Qwen3-8B at batch 1, context 2112, the model's list of operations
   GPU        kernels   weights     launch, eager     launch, graph  step, eager  step, graph
   RTX A6000      399    21.9ms   10.0 ms (25 us)   1.4 ms (3.5 us)       33.3ms       24.5ms
-  B200           399     2.4ms    6.4 ms (16 us)   1.4 ms (3.5 us)        8.8ms        3.8ms
+  B200           507     2.4ms    8.1 ms (16 us)  1.2 ms (2.31 us)       11.0ms        4.0ms
   kernels: 11 per layer x 36 layers (4 GEMMs, 1 attention, 6 norms and elementwise) + 3 (embed, ln_final, lm_head)
+  kernels also count each split-K GEMM's reduction: none on the RTX A6000, 108 on the B200 (cuBLAS's measured choices, chapter 16)
   weights: 15.1 GB of 16-bit GEMM weights, at each GPU's fitted DRAM rate
   on the RTX A6000, each 1 us per kernel moves the step by 0.40 ms (1.6% of the graph step)
 ```
@@ -478,14 +482,15 @@ Table 5.7  Launch cost in one decode step: Qwen3-8B at batch 1, context 2112, th
 Six of each layer's eleven kernels (norms, rotary embedding, activation,
 residual adds) cost little more than their launch at batch 1. On the
 A6000, eager launches add 10.0 ms to 21.9 ms of weight streaming. On a
-B200 the balance tips, 6.4 ms of launches against 2.4 ms of weights: the
+B200 the balance tips, 8.1 ms of launches against 2.4 ms of weights: the
 model predicts an eager decode step there is mostly the GPU waiting for
 the host.
 
-The graph constant was measured only on the B200; the A6000 and H100
-files carry its 3.5 µs. A6000 decode steps priced with it match the
-measurement (next section), but that bounds it only loosely:
-1 µs per kernel is 1.6% of a step, the size of the model's other errors.
+The A6000 and H100 files carry this chain's 3.5 µs; neither GPU's
+engine has been measured kernel by kernel. A6000 decode steps priced
+with it match the measurement (next section), but that bounds it only
+loosely: 1 µs per kernel is 1.6% of a step, the size of the model's
+other errors. The B200's row uses its served-step 2.31 µs.
 
 ## The ladder on a whole model
 
@@ -585,7 +590,7 @@ a fixed engine cost per prefill pass, fitted on the TTFT of a hybrid
 model, which mixes attention layers with linear-attention ones (chapter
 9). Two others in that file, the linear kernel's efficiency and floor,
 were fitted the same way until they were measured on the kernels: fitted
-to TTFT, they priced the kernels at 1.45–4.06 times the kernels' time
+to TTFT, they priced the kernels at 1.44–4.05 times the kernels' time
 (the B200's calibration file records it). These are
 the fields to distrust. A constant fitted to an end-to-end number
 absorbs everything the model gets wrong about it, in every prediction it
@@ -632,7 +637,8 @@ the three mechanisms it was hiding.
   5.3–12.3% on held-out halves, and two constants reproduced by a
   straight line on two GPUs of three.
 - The software stack as a calibration axis: 12–25 µs per kernel issued
-  eagerly, 3.5 µs from a CUDA graph.
+  eagerly, 3.5 µs from a CUDA graph, 2.31 µs inside vLLM's served
+  decode step on a B200.
 - Qwen3-8B on vLLM within 0.96–1.05 on the graph stack (in-sample), and
   decode 16–38% high on the eager one.
 - Measured per-kernel tables, and the rule that keeps them honest.

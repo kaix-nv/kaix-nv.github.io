@@ -52,7 +52,9 @@ By the end of this chapter you will know:
   doesn't measure;
 - how close the model gets: whole steps within 0.98–1.01 (predicted ÷
   measured) for greedy, sampled and top-p decoding, and 2–5% low under
-  top-k.
+  top-k;
+- how to take a step apart inside the engine, one kernel class at a
+  time, on a second GPU and model.
 
 ## A step, part by part
 
@@ -547,6 +549,132 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
   14 cells (two prompt shapes, top-p): 0.987-1.016
 ```
 
+## On a B200, inside the engine
+
+The A6000's parts were each timed alone, then checked against the
+engine's clock. On a B200 the parts come from the engine itself, for
+chapter 9's hybrid, Qwen3.8-27B: 48 linear-attention layers, whose
+*core* keeps a fixed-size state per sequence, and 16 full-attention
+layers. `tools/profile_gdn_steps.py --mode served` profiles its decode
+steps as vLLM 0.22 serves them, CUDA graphs on. A kernel launched from a
+graph can't be tied to the operation that issued it. So
+`tools/analyze_served_steps.py` takes each kernel's operation from a
+graphs-off profile of the same cell, which runs the same kernels in the
+same order. Each kernel is charged from its start to the next kernel's
+start, so a step's parts add up to the whole step. The profiled steps
+agree with the served run's TPOT within 1.1%.
+
+The profile found a GEMM the model's graph lacked. vLLM runs each
+linear layer's input as two GEMMs: q, k, v with the output gate z in
+one, and in the other the inputs of each value head's decay gate and
+correction strength (chapter 9). The graph had q-k-v and z apart and no
+second. With vLLM's two and the old constants, the step prices as Table
+16.7's "3.5 us a kernel" row.
+
+That row was right by luck. Every kernel was charged the 3.5 µs a chain
+of tiny GEMMs takes in a CUDA graph (chapter 5). In the served step a
+small kernel takes 2.31 µs, its work included. The overcharge offset
+kernels the model never priced. cuBLAS runs the narrow GEMMs as split-K
+(chapter 4) and adds a reduction kernel. The tile model doesn't choose
+split-K for a GEMM that streams its weights, since in the model more
+thread blocks don't raise the DRAM rate. `tools/fit_served_decode.py`
+now fits each kernel class to its own kernels:
+
+- **the cost of a kernel**, 2.31 µs: the step's small kernels at one
+  sequence, whose bytes are a few kilobytes;
+- **cuBLAS's split-K**, as measured per GEMM shape and row count by
+  `tools/gemm_kernel_choice.py`: a reduction kernel for each GEMM it
+  splits;
+- **the decode attention kernel**, from FlashInfer (the attention
+  library vLLM runs on this GPU): an 11.5 µs floor plus the cache at 1.2
+  times the fitted DRAM rate, on six graphs-off cells of 1–32 sequences
+  and 2,048–32,768 tokens;
+- **the linear core**: 2.9 µs a layer beyond its state traffic, and the
+  state's *write-back*. The GEMMs right after a linear core run slower
+  than the same GEMMs after a full layer, by 0.6, 3.8 and 12.1 µs a
+  layer at 1, 8 and 32 sequences. Writing that core's state to DRAM
+  takes 0.5, 3.9 and 15.7 µs. That is consistent with the new state
+  leaving the cache while the next kernels run (not profiled further).
+  The model charges 0.78 of it;
+- **the engine's kernels beyond the graph**: the served step runs 485
+  small kernels and 64 copies only the graph launches (before each
+  split-K FFN down), where the model has 386 small operations. No
+  operation covers the full layers' q and k norms, output gate and cache
+  write, or the engine's input preparation. The difference, 5.86 µs a
+  layer, is added to every step.
+
+```
+Table 16.7  The decode step as vLLM 0.22 serves it on a B200 (CUDA graphs on), kernel class by kernel class, against the model: Qwen3.8-27B, 2,048-token prompts, ms per step
+  sequences                                                     1        8       32
+  measured: the profiled step                               11.22    11.90    14.06
+            TPOT, the served run                            11.12    11.83    14.21
+  the model: written before the run                         10.90    11.42    13.19
+             3.5 us a kernel, vLLM's input GEMMs            11.08    11.60    13.35
+             each kernel class measured (now)               11.12    11.75    13.87
+  GEMMs and split-K reductions, measured                     9.26     9.28     9.48
+    model                                                    9.18     9.21     9.25
+  state written back, in the next GEMMs, measured            0.03     0.18     0.58
+    model                                                    0.02     0.15     0.59
+  linear attention's cores, measured                         0.41     0.79     1.86
+    model                                                    0.41     0.74     1.89
+  full attention's cores, measured                           0.25     0.33     0.74
+    model                                                    0.24     0.36     0.78
+  small kernels (485) and graph copies (64), measured        1.24     1.29     1.37
+    model (386 small ops + the engine's kernels)             1.27     1.29     1.35
+  constants, each from its own kernels (tools/fit_served_decode.py): 2.31 us a kernel (the small kernels at one sequence); split-K as cuBLAS chose it for 19 GEMM shapes; attention 11.5 us + its cache at 1.2 x the DRAM rate; linear core 2.9 us a layer + its state written back at 0.78; the engine's kernels beyond the graph 5.86 us a layer
+  measured: each kernel from its start to the next one's, the last half of each cell's decode steps; the GEMMs after a linear core less the same GEMMs after a full layer give the write-back
+```
+
+Every part is within 0.23 ms and the step within 1.4%, but these steps
+are the fit's own data (*fitted*). Each test in Table 16.8 was predicted
+before its run.
+
+```
+Table 16.8  Held out: the B200 decode-step constants against runs predicted before they ran, model/measured
+  test                                                cells       written before            model now
+  cuBLAS's split-K on four other models' GEMMs           80             50 right          as measured
+    of them, shapes the fit model doesn't have           70             40 right      never split: 38
+  the served step, 16 sequences x 8,192 tokens            1                0.956                0.987
+  grid one, 9 new cells: TPOT, decode step alone          9   0.841-0.968 (7.3%)   0.864-1.005 (3.9%)
+    the same, the run simulated as measured               9                    -   0.887-1.017 (2.8%)
+    the same, the old constants, decode step alone        9   0.870-1.002 (4.7%)                    -
+  grid two, 9 new cells: TPOT, simulated as measured      9   0.911-1.038 (2.4%)   0.911-1.038 (2.4%)
+    the same, decode step alone                           9   0.889-1.007 (2.4%)   0.889-1.007 (2.4%)
+    the same, simulated, the old constants                9   0.904-1.015 (2.5%)                    -
+    TTFT, simulated (no per-prefill engine cost)          9   0.895-0.948 (7.6%)   0.895-0.948 (7.6%)
+    TTFT, prefill_us                                      9   0.908-0.960 (7.3%)   0.908-0.960 (7.3%)
+  grid one, the split-K choices and the 16 x 8,192 step: predicted before the engine's kernels were added and split-K taken as measured, so their 'model now' column is in-sample; grid two: predicted by the model of Table 16.7, held out
+  the old constants: 3.5 us a kernel, no split-K, decode-attention, linear-decode or engine-kernel constants; the run simulated as measured: the batch arriving at once in the engine simulator, gen 1 and 129
+```
+
+Two of them changed the model. A rule in output tiles, fitted to this
+model's GEMMs, predicted 50 of cuBLAS's 80 split-K choices on four
+other models. On the 70 whose shapes this model lacks it got 40 right,
+where never splitting gets 38. The choice follows no rule that simple,
+so the calibration keeps it as measured, and an unmeasured shape keeps
+the tile model's own choice. And grid one, predicted before the engine's
+kernels were priced, read low throughout: a step profiled afterwards,
+16 sequences at 8,192 tokens, read 0.956.
+
+Grid one also read lower as its prompts' prefill took more 16,384-token
+chunks. Its TPOT is the batch's time from first token to last over 128
+tokens. While later prompts prefill, sequences already done decode
+beside their chunks, in steps a pure decode step doesn't price. The
+engine simulator (chapter 15), run as the measurement ran, moves grid
+one from 0.864–1.005 to 0.887–1.017: part of that gap, not most of it
+(not profiled further). These are *in-sample*: the model changed with
+grid one in view.
+
+Grid two was predicted with all of it, both ways: TPOT 0.911–1.038 run
+as measured and 0.889–1.007 for the step alone, a typical error of 2.4%
+either way. The old constants, wrong part by part, did nearly as well in
+total, 2.5% run as measured: the totals can't tell the two apart, and
+the parts can. The worst cell is again the one with the most prefill
+chunks, 28 × 11,000, at 0.911. TTFT (time to first token) reads
+0.91–0.96 by `prefill_us` and 0.90–0.95 simulated: low, as in chapter
+9, where the gap was partly in the kernels and partly outside them (not
+profiled for these grids).
+
 ## Where it breaks
 
 - **Few-row sampling.** The sampler's form fits 8–64 rows; at one row it
@@ -566,9 +694,17 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
   measured). Pass the engine's own list as `cudagraph_sizes`.
 - **The host.** Here the host keeps ahead of the GPU (Table 16.6). On a
   GPU whose step takes a few milliseconds (chapter 5 prices Qwen3-8B's
-  batch-1 step on a B200 at 3.8 ms), the engine's work between steps
+  batch-1 step on a B200 at 4.0 ms), the engine's work between steps
   could show; the model has no term for it.
-- **One model, one GPU, one engine version.**
+- **One model on each GPU, one engine version each.**
+- **The B200's constants come from one model's served steps.** Other
+  models on that GPU inherit them: the decode-attention floor fitted on
+  head-dim-256 kernels, the engine's kernels per layer, and split-K only
+  for the five models' measured shapes. Two-token verify steps price
+  their attention without the decode kernel's floor (chapter 20).
+- **Long prefills beside decodes.** The cells whose prompts prefill in
+  the most chunks read lowest, 0.91 run as measured: the simulator's
+  mixed steps miss most of what those steps cost (not profiled).
 
 ## What you built
 
@@ -584,6 +720,9 @@ Recorded  Held-out online sweeps: pure decode steps priced at the batch and cont
   0.95–0.98 for top-k; the sampler in the engine within 0.19 ms of a
   price fitted on the kernel alone; online decode steps 0.987–1.016
   (recorded).
+- On a B200, a decode step taken apart inside the engine and priced one
+  kernel class at a time: within 1.4% of the profiled steps (fitted), and
+  TPOT within a typical 2.4% on a fresh grid predicted before it ran.
 
 ## Exercises
 

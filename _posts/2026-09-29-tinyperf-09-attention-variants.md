@@ -15,7 +15,7 @@ redirect_from:
   - /tinyperf/book/08-attention-variants/
 ---
 
-*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_linear_attention` · Every table and the plots in this chapter come from `python3 book/scripts/ch09_variants.py`.*
+*[Building tinyperf](/series/tinyperf/) · Part II: One model on one GPU · Code: [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/nets/transformer.py), `TransformerParams.kv_local_bytes` and the attention branches of `build_llm_graph`, and [`tinyperf/gemm_model.py`](https://github.com/kaix-nv/tinyperf/blob/ca60d9a/tinyperf/gemm_model.py), `estimate_linear_attention`; [`tinyperf/nets/transformer.py`](https://github.com/kaix-nv/tinyperf/blob/65196fd/tinyperf/nets/transformer.py) at a later commit, the linear layers' input GEMMs in `build_llm_graph` · Every table and the plots in this chapter come from `python3 book/scripts/ch09_variants.py`.*
 
 Chapter 7 found two costs that grow with every token a sequence holds:
 the KV cache, which takes memory, and its read in every decode step,
@@ -155,19 +155,21 @@ once and replayed together).
 Table 9.2  gpt-oss-20b against its full-attention twin, one B200 at its fitted rates
              KV MB/sequence    decode step ms       prefill ms        max batch   
    context   window     twin   window     twin    window      twin  window    twin
-      2048     53.5    100.7     7.09     7.33      12.2      12.5    2229    1188
-      8192    204.5    402.7     7.85     8.84      45.3      51.1     586     298
-     32768    808.5   1610.6    10.87    14.88     250.1     346.7     148      74
-    131072   3224.4   6442.5    22.95    39.04    2165.9    3723.5      37      18
+      2048     53.5    100.7     6.95     7.15      11.9      12.2    2229    1188
+      8192    204.5    402.7     7.58     8.40      44.9      50.8     586     298
+     32768    808.5   1610.6    10.10    13.44     249.7     346.3     148      74
+    131072   3224.4   6442.5    20.16    33.57    2165.5    3723.2      37      18
   decode steps of 32 sequences; prefill of one prompt of that length
-  at 131072: one full layer's attention 1346 us, one windowed layer's 5 us (the same at every context)
+  at 131072: one full layer's attention 1132 us, one windowed layer's 15 us (the same at every context)
 ```
 
 The window is first a capacity feature: from 8k tokens the cache is
 half the twin's and twice as many sequences fit. In time it halves the
-slope and no more. A windowed layer's attention costs 5 µs at any
-context, while the 12 full layers' attention is 16.2 ms of the 23 ms
-step at 131,072 tokens; the step still triples from 2k to 128k.
+slope and no more. A windowed layer's attention costs 15 µs at any
+context, while the 12 full layers' attention is 13.6 ms of the 20 ms
+step at 131,072 tokens; the step still nearly triples from 2k to 128k.
+(The B200's decode-attention constants were measured on Qwen3.8-27B's
+kernel, chapter 16; gpt-oss inherits them, not measured.)
 Prefill saves 2% at 2,048 tokens, where GEMMs dominate, and 42% at
 131,072.
 
@@ -220,8 +222,10 @@ LIN_MATH_EFFICIENCY = 0.55   # more elementwise/gating than a dense GEMM
 ```
 
 The builder emits one such op per linear layer (`tokens_per_seq=s`,
-`fresh_state=(phase == "prefill")`), between a fused QKV projection with
-a short convolution and a gated output projection. A calibration (a
+`fresh_state=(phase == "prefill")`), after two input projections run as
+vLLM runs them (q, k, v and the output gate z in one GEMM, the inputs of
+each value head's decay gate and correction strength in another) and a
+short convolution, and before a gated output projection. A calibration (a
 GPU's file of fitted constants; chapter 5) can supply the efficiency and
 a per-layer floor, which applies only when the chunked kernel runs.
 Table 9.3 prices the hybrid against a twin in which each linear layer is
@@ -231,20 +235,21 @@ replaced by the model's own full layer.
 Table 9.3  Qwen3.8-27B (48 linear + 16 full layers) against an all-full-attention twin, one B200
             KV + state MB/seq    decode step ms    max batch  
    context    hybrid      twin   hybrid     twin  hybrid  twin
-      2048       297       545    13.17    13.17     364   200
-      8192       724      2181    15.19    21.22     149    50
-     32768      2436      8724    23.24    53.43      44    12
-    131072      9281     34897    55.45   182.28      11     3
+      2048       297       545    13.49    12.96     364   200
+      8192       724      2181    15.17    19.67     149    50
+     32768      2436      8724    21.88    46.52      44    12
+    131072      9281     34897    48.72   153.89      11     3
   one linear layer: 3.15 MB of state + 0.06 MB of convolution history = 3.21 MB, a full layer's cache at 783 tokens
-  decode, 32 x 2048: the 48 linear cores 1.69 ms against 2.19 ms of attention in the layers they replace;
-    their projections and gating cost 0.51 ms more than those layers'
+  decode, 32 x 2048: the 48 linear cores 2.36 ms against 2.35 ms of attention in the layers they replace;
+    their projections and gating cost 0.52 ms more than those layers'
 ```
 
-The architecture is a trade. At 2,048 tokens the two decode steps cost
-the same, 13.17 ms: the 48 linear cores cost 1.69 ms against the 2.19
-ms of attention they replace, and the linear layers' wider projections
-and gating give the 0.51 ms back. The gain comes with length: at
-131,072 tokens the step is 3.3 times cheaper and 11 sequences fit
+The architecture is a trade. At 2,048 tokens the hybrid's decode step
+costs a little more, 13.49 ms against 12.96: the 48 linear cores cost
+about what the attention they replace does, 2.36 ms against 2.35, and
+the linear layers' wider projections and gating cost 0.52 ms more. The
+gain comes with length: at 131,072 tokens the step is 3.2 times cheaper
+and 11 sequences fit
 where 3 do. The full layers keep the growth, 9.1 GB of cache per
 sequence at that length.
 
@@ -257,14 +262,14 @@ below).
 ```
 Table 9.4  One layer's attention in a one-prompt prefill: Qwen3.8-27B on a B200, us per layer
    tokens  linear, asserted    linear, fitted  full attention
-      512               6.6             131.5             6.5
-     2048              14.5             368.8            51.2
-     8192              45.9            1464.7           766.2
-    32768             172.5            5848.3         12204.6
-   131072             679.4           23382.7        195211.7
-  asserted: 0.55 of the fitted tensor rate, no floor; fitted to the kernels of Table 9.10: 0.0159 and a 128 us floor (0.0119 of the datasheet peak)
-  the fitted linear core costs more than a full layer's attention below 15,680 tokens
-  whole prefill, hybrid / all-attention twin: 1.31 at 512, 1.24 at 2048, 1.13 at 8192, 0.85 at 32768, 0.51 at 131072
+      512               5.4             132.3             5.3
+     2048              13.3             367.6            50.0
+     8192              44.7            1463.5           765.0
+    32768             171.3            5847.1         12203.4
+   131072             678.2           23381.5        195210.5
+  asserted: 0.55 of the fitted tensor rate, no floor; fitted to the kernels of Table 9.10: 0.0159 and a 130 us floor (0.0119 of the datasheet peak)
+  the fitted linear core costs more than a full layer's attention below 15,685 tokens
+  whole prefill, hybrid / all-attention twin: 1.31 at 512, 1.23 at 2048, 1.13 at 8192, 0.85 at 32768, 0.51 at 131072
 ```
 
 ![Per-layer prefill time against prompt length for full attention and
@@ -352,23 +357,23 @@ of the heads; chapter 12).
 Table 9.5  One Kimi-K3 latent layer against per-head K and V: decode, 32 sequences, B200
              cache MB/seq    attention us, one GPU   absorb   tp=8, per GPU  
    context  latent per-head     latent     per-head      us   latent per-head
-      8192     9.4      503         94         2520     143       93      318
-     32768    37.7     2013        361        10070     143      360     1262
-    131072   151.0     8053       1431        40269     143     1430     5037
-  absorption at batch 1: 11 us; the model charges its weights once per sequence
-  prefill of 8192 tokens, one layer: latent path 2.06 ms (K and V up-projections 0.15), per-head attention 1.91 ms
+      8192     9.4      503         92         2111     141       92      276
+     32768    37.7     2013        360         8403     141      359     1062
+    131072   151.0     8053       1429        33568     141     1429     4208
+  absorption at batch 1: 9 us; the model charges its weights once per sequence
+  prefill of 8192 tokens, one layer: latent path 2.05 ms (K and V up-projections 0.15), per-head attention 1.91 ms
 ```
 
 - **The cache** shrinks 53 times.
-- **Decode attention** is 28 times cheaper, not 53: the fused-attention
+- **Decode attention** is about 23 times cheaper, not 53: the fused-attention
   price reads the latent twice, as keys (576 values) and as values
   (512).
 - **Absorption** adds two small GEMMs per layer. Their weights are the
   same at any batch, so at 32 sequences they should cost close to the
-  11 µs of batch 1 (not measured), not the table's 143.
+  9 µs of batch 1 (not measured), not the table's 141.
 - **Tensor parallelism** splits per-head K and V eight ways but not the
   latent, which every head needs. Each GPU keeps and reads all of it, so
-  per GPU the attention gain falls from 28 to 3.5 times. Chapter 13's
+  per GPU the attention gain falls from 23 to about 3 times. Chapter 13's
   data-parallel attention, which gives each GPU whole sequences
   instead, avoids that.
 
@@ -417,16 +422,16 @@ every token.
 ```
 Table 9.6  One GLM-5.3-Flash sparse-attention layer in decode: 8 sequences, one B200, us per layer
    context  full-context twin  top-2048 attention   indexer    total  indexer share
-      2048                8.9                 8.9       0.0      8.9            0%
-      4096               14.1                 8.9      17.1     26.1           66%
-      8192               24.6                 8.9      18.5     27.4           68%
-     16384               45.6                 8.9      21.2     30.1           70%
-     65536              171.4                 8.9      37.6     46.5           81%
-    131072              339.2                 8.9      59.4     68.3           87%
-   1048576             2688.0                 8.9     364.4    373.3           98%
-  the sparse layer costs less than full-context attention above 9,443 tokens
+      2048                7.7                 7.7       0.0      7.7            0%
+      4096               13.0                 7.7      16.0     23.7           67%
+      8192               23.4                 7.7      17.3     25.0           69%
+     16384               44.4                 7.7      20.1     27.8           72%
+     65536              170.2                 7.7      36.4     44.1           83%
+    131072              338.0                 7.7      58.2     65.9           88%
+   1048576             2686.8                 7.7     363.3    371.0           98%
+  the sparse layer costs less than full-context attention above 8,923 tokens
   each token also caches a 256-byte index key beside its 1,024-byte latent
-  at tp=8, per GPU at 131072: attention 8.8 us, indexer 59.4 us (at tp=1: 8.9 and 59.4)
+  at tp=8, per GPU at 131072: attention 7.6 us, indexer 58.2 us (at tp=1: 7.7 and 58.2)
 ```
 
 ![Per-layer decode time against context for full-context attention, a
@@ -437,8 +442,8 @@ keys, and the indexer grows with the context in its place, more slowly
 than full attention did.*
 
 The cap is not free. Just past k, the indexer's projection and two
-extra launches make the layer dearer than full attention (26.1 against
-14.1 µs at 4,096 tokens). It wins above 9,443 tokens and at a million
+extra launches make the layer dearer than full attention (23.7 against
+13.0 µs at 4,096 tokens). It wins above 8,923 tokens and at a million
 costs a seventh, nearly all of it indexer, which tp does not shrink.
 
 ## Compressed attention
@@ -463,15 +468,15 @@ if on one.
 Table 9.7  DeepSeek-V4-Flash against its uncompressed twin, 8 B200s (tp=8, ep=8)
              cache GB/sequence     decode ms      prefill s    max batch   indexer share
    context     V4   twin  ratio     V4    twin     V4    twin    V4  twin    tp=1   tp=8
-     32768   0.25   1.66  0.152   8.83   11.75   0.30    0.59   360    54      9%    24%
-    131072   0.99   6.64  0.149   9.03   23.25   1.74    6.81    91    13     21%    47%
-   1048576   7.88  53.15  0.148  10.95  130.56  54.84  387.37    11     1     58%    84%
+     32768   0.25   1.66  0.152   7.29   10.41   0.30    0.59   360    54      9%    24%
+    131072   0.99   6.64  0.149   7.50   21.91   1.74    6.81    91    13     21%    47%
+   1048576   7.88  53.15  0.148   9.41  129.22  54.84  387.37    11     1     58%    84%
   decode steps of 8 sequences; prefill of one prompt; indexer share of that prefill at tp=1 and tp=8
 ```
 
 Compression buys a cache 0.15 of the twin's, 11 million-token sequences
-where one fits, and a decode step that grows 24% from 32k to 1M tokens
-where the twin's grows elevenfold. The prefill shows where the cost
+where one fits, and a decode step that grows 29% from 32k to 1M tokens
+where the twin's grows twelvefold. The prefill shows where the cost
 went. The indexer scores every pooled key for every query, so its work
 grows with the square of the prompt, and it is not split: at a million
 tokens it is 58% of the prefill priced as if on one GPU and 84% on
@@ -489,14 +494,14 @@ square (`m = n = patches`), with no causal halving.
 ```
 Table 9.8  One image through the Qwen3.8 vision tower, B200 at its fitted rates
   pixels  patches  tokens for the LLM  encode ms  attention share  LLM prefill of those tokens ms
-     512     1024                 256       1.80              12%                             8.4
-    1024     4096                1024       5.49              37%                            41.2
-    2048    16384                4096      42.32              73%                           169.4
+     512     1024                 256       1.51              12%                             9.0
+    1024     4096                1024       5.20              38%                            41.7
+    2048    16384                4096      42.03              74%                           170.2
   the tower: 27 layers, 16 heads of 72, 0.458B parameters; LLM prefill after a 512-token text prompt
 ```
 
 Doubling the resolution quadruples the patches and multiplies the
-attention's FLOPs by 16: from 12% of the encode to 73%. The image's
+attention's FLOPs by 16: from 12% of the encode to 74%. The image's
 larger cost is still the language model's prefill of its tokens. None
 of this has been measured.
 
@@ -557,29 +562,30 @@ TTFT (time to first token) of served prefills (below).
 ```
 Table 9.10  The gated-delta op in vLLM's prefill steps, picked out kernel by kernel: Qwen3.8-27B, one B200, us per layer
   batch x tokens              Triton    model model/meas  CuTe-DSL FlashInfer  full attn
-  1 x 512        fitted        137.9    138.3      1.003      80.1       87.4       16.8
-  1 x 2048       fitted        394.3    385.4      0.977     198.0      232.1       88.8
-  1 x 8192       fitted       1467.6   1520.6      1.036     653.9      713.1      763.0
-  1 x 32768      fitted       6060.5   6061.5      1.000    2417.5     2758.8    10221.5
-  8 x 2048       held out     2904.5   3034.3      1.045    1290.0     1096.3      591.8
-  4 x 8192       held out     5737.6   6061.5      1.056    2212.1     1934.4     2974.5
-  model: lin_core + lin_conv1d at 0.0159 of the fitted tensor rate and a 128 us floor; typical error 1.5% fitted, 5.1% held out
+  1 x 512        fitted        137.9    137.9      1.000      80.1       87.4       16.8
+  1 x 2048       fitted        394.3    383.0      0.971     198.0      232.1       88.8
+  1 x 8192       fitted       1467.6   1518.2      1.034     653.9      713.1      763.0
+  1 x 32768      fitted       6060.5   6059.1      1.000    2417.5     2758.8    10221.5
+  8 x 2048       held out     2904.5   3031.9      1.044    1290.0     1096.3      591.8
+  4 x 8192       held out     5737.6   6059.1      1.056    2212.1     1934.4     2974.5
+  model: lin_core + lin_conv1d at 0.0159 of the fitted tensor rate and a 130 us floor; typical error 1.6% fitted, 5.0% held out
+  of which lin_conv1d, the short convolution: 5.6 us a layer at 512 tokens, 212.0 at 32,768
   of the datasheet peak, by the model's count over the whole op: Triton 0.8-1.2%, CuTe-DSL 1.4-3.2%, FlashInfer 1.2-3.6%
   full attn: a full layer's attention op, FlashInfer's kernel (vLLM's default attention here)
-  the constants fitted to TTFT before these measurements, 0.0108 and a 550 us floor: 1.45-4.06x these kernels
+  the constants fitted to TTFT before these measurements, 0.0108 and a 550 us floor: 1.44-4.05x these kernels
   all six cells, Triton over CuTe-DSL: 2.44x; over FlashInfer: 2.45x
 ```
 
 The kernel choice moves the level about 2.4 times, yet even the fastest
 reaches only a few percent of peak. Table 9.4's fitted column is
-`lin_core` alone; Table 9.10 adds the convolution, 7 µs a layer at 512
-tokens and 213 at 32,768.
+`lin_core` alone; Table 9.10 adds the convolution, 6 µs a layer at 512
+tokens and 212 at 32,768.
 
 **The hybrid, served.** The first B200 run forced FlashAttention-2.
 Predicted with the asserted 0.55, its prefill read 27–58% low on every
 cell. Three constants were then fitted to its TTFT (the kernel's
 efficiency, its floor, and an engine cost of 6 ms per prefill pass);
-they matched it within 6% while pricing the kernels at 1.45–4.06 times
+they matched it within 6% while pricing the kernels at 1.44–4.05 times
 their time. With the kernels measured, predictions were committed
 before a second run in vLLM's default configuration, the one profiled
 (Table 9.11; TPOT, time per output token, as in chapter 7).
@@ -589,7 +595,7 @@ Table 9.11  Qwen3.8-27B served by vLLM on one B200, predictions written before t
   batch prompt            TTFT ms model/meas   TPOT ms model/meas
       1   1024  held out     55.8      0.991     11.14      0.978
       1   4096  held out    198.0      0.926     11.15      0.980
-      1  12288  held out    578.2      0.939     11.25      0.979
+      1  12288  held out    578.2      0.939     11.25      0.978
       4   1024  held out    201.6      0.899     11.30      0.980
       4   4096  held out    739.5      0.944     11.47      0.977
       4  12288  held out   2283.2      0.937     11.96      0.965
@@ -599,26 +605,27 @@ Table 9.11  Qwen3.8-27B served by vLLM on one B200, predictions written before t
   nine new cells, held out: TTFT 0.899-0.991 (typical error 7.0%), TPOT 0.901-0.980 (4.1%)
   the first run's grid widened to nine, partly: TTFT 0.746-0.968 (typical error 10.5%), TPOT 0.875-0.980 (5.2%)
   partly held out: five of those nine were in the first run, and the 6 ms engine cost was fitted on three
-  the predictions file and today's model: the same, cell for cell
+  today's model, its decode step measured kernel class by kernel class (chapter 16): the nine new cells TTFT 0.894-0.970 (7.3%); all eighteen TPOT 0.895-1.005 (2.0%)
   the model's TTFT = its kernels + 6 ms of engine cost per prefill (fitted end to end); against the kernels profiled (profiler on, CUDA graphs off):
-  1 x 512: model kernels 29.8 ms, profiled kernels 27.2, TTFT 48.0; the profiled step's GPU idle 63% of its span
-  1 x 8192: model kernels 356.0 ms, profiled kernels 362.5, TTFT 382.7; the profiled step's GPU idle 2% of its span
-  8 x 2048: model kernels 685.8 ms, profiled kernels 719.6, TTFT 746.9; the profiled step's GPU idle 2% of its span
+  1 x 512: model kernels 28.8 ms, profiled kernels 27.2, TTFT 48.0; the profiled step's GPU idle 63% of its span
+  1 x 8192: model kernels 356.1 ms, profiled kernels 362.5, TTFT 382.7; the profiled step's GPU idle 2% of its span
+  8 x 2048: model kernels 685.9 ms, profiled kernels 719.6, TTFT 746.9; the profiled step's GPU idle 2% of its span
 ```
 
 ```
 Recorded  The first B200 run (FlashAttention-2 forced, five cells): model/measured, midpoint of both orders
   recorded, the predictions written before it (the asserted 0.55): TTFT 0.42-0.73, TPOT 0.882-0.958
-  recomputed, with the constants once fitted to it (0.0108, 550 us): TTFT 0.946-1.012
-  recomputed, today's model: TTFT 0.631-0.929, TPOT 0.878-0.958
+  recomputed, with the constants once fitted to it (0.0108, 550 us): TTFT 0.946-1.001
+  recomputed, today's model: TTFT 0.613-0.917, TPOT 0.924-0.977
   measured, first run minus the default-configuration run, TTFT: 1 x 512 +8.8 ms, 1 x 2048 +4.3 ms, 1 x 8192 +35.0 ms, 8 x 2048 +17.3 ms, 32 x 2048 +37.8 ms
   the first run also used PyTorch's sampler and no DeepGEMM, on another driver and transformers version
 ```
 
-Decode reads 0.90–0.98: a decode step is bytes at a memory rate fitted
-on GEMMs, and no linear-attention constant enters it. Prefill reads
+Decode, as predicted then, read 0.90–0.98: the step was bytes at a
+memory rate fitted on GEMMs, and no linear-attention constant entered
+it. Prefill reads
 0.90–0.99, about 7% low, partly in the kernels (at 8 × 2,048 the model
-prices them at 685.8 ms where they took 719.6) and partly outside them:
+prices them at 685.9 ms where they took 719.6) and partly outside them:
 the TTFT exceeds the profiled kernels by 20–27 ms in the cells shown,
 of which the model prices 6. At 512 tokens the outside time is most of
 the gap, and the profiled step's GPU sat idle 63% of the time,
@@ -633,6 +640,18 @@ miniature: the bytes-over-bandwidth part of a price carried over to a
 new architecture unchanged, but a kernel's efficiency has to be measured
 on its own kernels in the engine that runs it, not fitted to the total.
 
+**The decode step, kernel by kernel.** Decode read low, and lower as
+the batch grew. Chapter 16 profiles this GPU's served decode step kernel
+by kernel. It found a GEMM the model's graph lacked: vLLM runs each
+linear layer's input as two GEMMs, q, k, v with the output gate z in
+one, and the inputs of each value head's decay gate and correction
+strength in the other, where the graph had q-k-v and z apart and no
+second. It also measured the step's constants one kernel class at a
+time. With both, TPOT on these eighteen cells reads 0.895–1.005, a
+typical error of 2.0% (Table 9.11's last line). The grid was in view
+when they were measured, so that is *in-sample*; chapter 16 has the
+held-out runs.
+
 **The rest, on paper.** No latent, sparse or compressed model has run
 here; their prices rest on the mechanisms above, untested. What can be
 checked is that the presets are read correctly:
@@ -640,11 +659,11 @@ checked is that the presets are read correctly:
 ```
 Check  Presets against published figures, parameters in billions
   gpt-oss-120b         116.79 against 116.80
-  qwen3.8-27b           26.87 against 27.25 with its token-prediction layer (0.37), which the count leaves out
+  qwen3.8-27b           26.90 against 27.25 with its token-prediction layer (0.37), which the count leaves out
   deepseek-v4-flash    283.66 against 284.00; active 14.2 against 13, 13.2 without the two embedding tables
   qwen3.8 vision        0.458 against 0.461
   glm-5.3-flash         313.4 from config arithmetic, no published total checked
-  kimi-k3              5483.3 from config arithmetic, no published total checked
+  kimi-k3              5483.4 from config arithmetic, no published total checked
 ```
 
 and that the cache formula is the published one: the DeepSeek-V2 paper
@@ -660,8 +679,8 @@ as `kv_local_bytes` charges.
   about half what Table 9.5 charges (not measured here).
 - **Absorption per sequence.** `mla_q_absorb` and `mla_v_absorb` batch
   over sequence × head, so each head's matrix is read once per
-  sequence: 143 µs a layer at 32 sequences, where the weights alone
-  take about 11.
+  sequence: 141 µs a layer at 32 sequences, where the weights alone
+  take about 9.
 - **Index keys are not stored.** The latent path of `kv_local_bytes`
   counts no index keys, so GLM-5.3's sparse layers hold 25% more cache
   than capacity charges. The compressed path counts them.
@@ -673,8 +692,9 @@ as `kv_local_bytes` charges.
   kernels would need constants of their own. Other gated linear layers
   (GLM-5.3's, Kimi-K3's) inherit Qwen's constants on the B200 and 0.55
   elsewhere. TTFT reads about 7% low, part in the kernels and part
-  outside them, where the model prices only a fixed 6 ms per prefill;
-  TPOT reads as low as 0.875, a gap not yet explained.
+  outside them, where the model prices only a fixed 6 ms per prefill.
+  Decode's constants are measured on one GPU's served steps (chapter
+  16); elsewhere the hybrid's decode step keeps the generic prices.
 - **Windows** that also keep the first few tokens (sinks) pay for them
   unpriced; gpt-oss's sinks are a logit (chapter 8) and cost nothing.
 - **Compressed attention:** the pooling and V4's residual stream, four

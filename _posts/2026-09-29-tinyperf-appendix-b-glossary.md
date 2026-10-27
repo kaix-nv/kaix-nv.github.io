@@ -16,7 +16,7 @@ and a phrase to find there, and checks them:
 
 ```
 Table B.1  Every term and symbol here, checked against the chapters it cites
-  glossary terms: 145; found in every chapter they cite: 145
+  glossary terms: 146; found in every chapter they cite: 146
   terms in Conventions (labels, tiers, typical error): 12; found: 12
   symbols (Table B.2): 27; found: 27
   this appendix's glossary lists the same terms, citing the same chapters: yes
@@ -471,6 +471,9 @@ tinyperf keeps it.
   pipeline stages.
 - **Weight-only quantization** (ch. 11). 4-bit weights unpacked to 16
   bits in the kernel, so the math keeps the 16-bit rate.
+- **Write-back** (ch. 16). The GEMMs after a linear core slowing by
+  about the time to write its new state to memory, consistent with that
+  state leaving the cache while they run.
 - **ZeRO** (ch. 14). Sharding Adam's 16 bytes per parameter over
   data-parallel ranks: optimizer state, then gradients, then weights.
 
