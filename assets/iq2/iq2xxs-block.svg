@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 430" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="13">
+  <defs>
+    <style>
+      .lbl  { fill: #172033; font-weight: 700; }
+      .sub  { fill: #5a6578; }
+      .txt  { fill: #172033; }
+      .scl  { fill: #f6e8d2; stroke: #a85f08; stroke-width: 1.2; }
+      .idx  { fill: #dbe6f0; stroke: #173b57; stroke-width: 1.2; }
+      .sgn  { fill: #d6eeea; stroke: #087f72; stroke-width: 1.2; }
+      .imp  { fill: #ffffff; stroke: #087f72; stroke-width: 1.2; stroke-dasharray: 4 3; }
+      .sb   { fill: #f3f5f7; stroke: #b9c7c8; stroke-width: 1; }
+      .sb0  { fill: #e9eef3; stroke: #173b57; stroke-width: 1.5; }
+      .val  { fill: #ffffff; stroke: #b9c7c8; stroke-width: 1; }
+      .zoom { stroke: #b9c7c8; stroke-width: 1; stroke-dasharray: 3 3; fill: none; }
+    </style>
+  </defs>
+
+  <text x="20" y="26" class="lbl" font-size="15">One IQ2_XXS block: 256 weights in 66 bytes (2.0625 bits per weight)</text>
+  <text x="20" y="44" class="sub">An fp16 super-block scale d, then eight 8-byte sub-blocks of 32 weights each.</text>
+
+  <!-- row 1: the 66-byte block -->
+  <rect x="40" y="58" width="50" height="36" class="scl"/>
+  <text x="65" y="74" class="txt" text-anchor="middle" font-weight="700">d</text>
+  <text x="65" y="88" class="sub" text-anchor="middle" font-size="11">fp16</text>
+  <rect x="90" y="58" width="93.75" height="36" class="sb0"/>
+  <rect x="183.75" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="277.5" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="371.25" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="465" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="558.75" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="652.5" y="58" width="93.75" height="36" class="sb"/>
+  <rect x="746.25" y="58" width="93.75" height="36" class="sb"/>
+  <g class="txt" text-anchor="middle" font-size="12">
+    <text x="136.9" y="74" font-weight="700">sub-block 0</text>
+    <text x="230.6" y="74">sub-block 1</text>
+    <text x="324.4" y="74">sub-block 2</text>
+    <text x="418.1" y="74">sub-block 3</text>
+    <text x="511.9" y="74">sub-block 4</text>
+    <text x="605.6" y="74">sub-block 5</text>
+    <text x="699.4" y="74">sub-block 6</text>
+    <text x="793.1" y="74">sub-block 7</text>
+  </g>
+  <g class="sub" text-anchor="middle" font-size="11">
+    <text x="136.9" y="88">8 B</text>
+    <text x="230.6" y="88">8 B</text><text x="324.4" y="88">8 B</text><text x="418.1" y="88">8 B</text>
+    <text x="511.9" y="88">8 B</text><text x="605.6" y="88">8 B</text><text x="699.4" y="88">8 B</text>
+    <text x="793.1" y="88">8 B</text>
+  </g>
+
+  <!-- zoom -->
+  <path d="M90 94 L40 108 M183.75 94 L840 108" class="zoom"/>
+
+  <!-- row 2: the two uint32 words of sub-block 0 -->
+  <text x="40" y="124" class="lbl" font-size="12">aux32[0]: four 8-bit grid indices</text>
+  <text x="450" y="124" class="lbl" font-size="12">aux32[1]: four 7-bit sign codes + 4-bit scale</text>
+  <rect x="40" y="130" width="100" height="34" class="idx"/>
+  <rect x="140" y="130" width="100" height="34" class="idx"/>
+  <rect x="240" y="130" width="100" height="34" class="idx"/>
+  <rect x="340" y="130" width="100" height="34" class="idx"/>
+  <rect x="450" y="130" width="85.31" height="34" class="sgn"/>
+  <rect x="535.31" y="130" width="85.31" height="34" class="sgn"/>
+  <rect x="620.63" y="130" width="85.31" height="34" class="sgn"/>
+  <rect x="705.94" y="130" width="85.31" height="34" class="sgn"/>
+  <rect x="791.25" y="130" width="48.75" height="34" class="scl"/>
+  <g class="txt" text-anchor="middle" font-size="12">
+    <text x="90" y="152">idx0 (8 b)</text><text x="190" y="152">idx1 (8 b)</text>
+    <text x="290" y="152">idx2 (8 b)</text><text x="390" y="152">idx3 (8 b)</text>
+    <text x="492.66" y="152">s0 (7 b)</text><text x="577.97" y="152">s1 (7 b)</text>
+    <text x="663.28" y="152">s2 (7 b)</text><text x="748.59" y="152">s3 (7 b)</text>
+    <text x="815.63" y="152">l (4 b)</text>
+  </g>
+  <g class="sub" font-size="11">
+    <text x="40" y="180">bit 0</text><text x="440" y="180" text-anchor="end">bit 31</text>
+    <text x="450" y="180">bit 0</text><text x="840" y="180" text-anchor="end">bit 31</text>
+  </g>
+  <text x="40" y="198" class="sub" font-size="11">Group k (weights 8k to 8k+7) uses idx_k and s_k. All four groups share the sub-block scale d(2l+1)/8.</text>
+
+  <!-- row 3: decoding group 0 of a real block -->
+  <text x="20" y="230" class="lbl" font-size="13">Decoding group 0 of a real block (Qwen3-0.6B, blk.13.ffn_up.weight, row 0)</text>
+  <g font-size="12">
+    <text x="40" y="258" class="txt">grid[167]</text>
+    <text x="40" y="272" class="sub" font-size="11">magnitudes</text>
+    <text x="40" y="294" class="txt">ksigns[1110010]</text>
+    <text x="40" y="308" class="sub" font-size="11">8th sign from parity</text>
+    <text x="40" y="330" class="txt">× 0.0010333</text>
+    <text x="40" y="344" class="sub" font-size="11">d(2l+1)/8, l = 10</text>
+    <text x="40" y="366" class="txt">original BF16</text>
+  </g>
+  <!-- 8 columns: x = 230 + 76*j -->
+  <g>
+    <rect x="230" y="244" width="72" height="30" class="idx"/><rect x="306" y="244" width="72" height="30" class="idx"/>
+    <rect x="382" y="244" width="72" height="30" class="idx"/><rect x="458" y="244" width="72" height="30" class="idx"/>
+    <rect x="534" y="244" width="72" height="30" class="idx"/><rect x="610" y="244" width="72" height="30" class="idx"/>
+    <rect x="686" y="244" width="72" height="30" class="idx"/><rect x="762" y="244" width="72" height="30" class="idx"/>
+    <rect x="230" y="280" width="72" height="30" class="sgn"/><rect x="306" y="280" width="72" height="30" class="sgn"/>
+    <rect x="382" y="280" width="72" height="30" class="sgn"/><rect x="458" y="280" width="72" height="30" class="sgn"/>
+    <rect x="534" y="280" width="72" height="30" class="sgn"/><rect x="610" y="280" width="72" height="30" class="sgn"/>
+    <rect x="686" y="280" width="72" height="30" class="sgn"/><rect x="762" y="280" width="72" height="30" class="imp"/>
+    <rect x="230" y="316" width="72" height="30" class="val"/><rect x="306" y="316" width="72" height="30" class="val"/>
+    <rect x="382" y="316" width="72" height="30" class="val"/><rect x="458" y="316" width="72" height="30" class="val"/>
+    <rect x="534" y="316" width="72" height="30" class="val"/><rect x="610" y="316" width="72" height="30" class="val"/>
+    <rect x="686" y="316" width="72" height="30" class="val"/><rect x="762" y="316" width="72" height="30" class="val"/>
+  </g>
+  <g class="txt" text-anchor="middle" font-size="13">
+    <text x="266" y="264">25</text><text x="342" y="264">25</text><text x="418" y="264">8</text><text x="494" y="264">25</text>
+    <text x="570" y="264">8</text><text x="646" y="264">43</text><text x="722" y="264">8</text><text x="798" y="264">25</text>
+    <text x="266" y="300">+</text><text x="342" y="300">−</text><text x="418" y="300">+</text><text x="494" y="300">+</text>
+    <text x="570" y="300">−</text><text x="646" y="300">−</text><text x="722" y="300">−</text><text x="798" y="300">+</text>
+    <text x="266" y="336">+.0258</text><text x="342" y="336">−.0258</text><text x="418" y="336">+.0083</text><text x="494" y="336">+.0258</text>
+    <text x="570" y="336">−.0083</text><text x="646" y="336">−.0444</text><text x="722" y="336">−.0083</text><text x="798" y="336">+.0258</text>
+  </g>
+  <g class="sub" text-anchor="middle" font-size="12">
+    <text x="266" y="366">+.0222</text><text x="342" y="366" font-weight="700" fill="#a85f08">+.0000</text><text x="418" y="366">+.0188</text><text x="494" y="366">+.0222</text>
+    <text x="570" y="366">−.0023</text><text x="646" y="366">−.0593</text><text x="722" y="366">−.0189</text><text x="798" y="366">+.0260</text>
+  </g>
+  <text x="20" y="396" class="sub" font-size="11">Weight 1 (+0.00003) decodes as −0.0258: the group had three negatives, an odd count, so the quantizer flipped the</text>
+  <text x="20" y="412" class="sub" font-size="11">sign of its cheapest weight so the count became even. The dashed sign cell is not stored; parity implies it.</text>
+</svg>
